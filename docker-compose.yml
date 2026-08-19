@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: restaurantos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: restaurantos
+      POSTGRES_PASSWORD: restaurantos
+      POSTGRES_DB: restaurantos
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
