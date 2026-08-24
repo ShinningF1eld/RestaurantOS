@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import get_db
 
 from app.routers.restaurant import router as restaurant_router
+from app.routers.menu import router as menu_router
 
 app = FastAPI(
     title="RestaurantOS API",
@@ -14,6 +15,7 @@ app = FastAPI(
 )
 
 app.include_router(restaurant_router)
+app.include_router(menu_router)
 
 #-------- CORS --------#
 app.add_middleware(

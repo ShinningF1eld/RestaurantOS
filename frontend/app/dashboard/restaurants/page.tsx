@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
     createRestaurant,
     getRestaurants,
@@ -15,6 +16,7 @@ import {
 import RestaurantForm from "./components/RestaurantForm";
 
 export default function RestaurantsPage() {
+    const router = useRouter();
     const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -145,7 +147,12 @@ export default function RestaurantsPage() {
                     {restaurants.map((restaurant) => (
                         <div
                             key={restaurant.id}
-                            className="rounded-lg border bg-white p-5 shadow-sm"
+                            onClick={() =>
+                                router.push(
+                                    `/analytics/restaurants?restaurant_id=${restaurant.id}`
+                                )
+                            }
+                            className="rounded-lg border bg-white p-5 shadow-sm cursor-pointer hover:shadow-lg transition duration-300"
                         >
                             <div className="flex items-start justify-between text-gray-900">
                                 <div>
@@ -163,14 +170,20 @@ export default function RestaurantsPage() {
                                 </div>
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => setEditingRestaurant(restaurant)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingRestaurant(restaurant)
+                                        }}
                                         className="rounded-md bg-blue-500 px-3 py-2 text-sm text-white cursor-pointer"
                                     >
                                         Edit
                                     </button>
 
                                     <button
-                                        onClick={() => handleDelete(restaurant.id)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDelete(restaurant.id);
+                                        }}
                                         className="rounded-md bg-red-500 px-3 py-2 text-sm text-white cursor-pointer hover:bg-red-600"
                                     >
                                         Delete

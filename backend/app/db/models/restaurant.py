@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import String, DateTime
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.models.base import Base
 
@@ -38,3 +38,8 @@ class Restaurant(Base):
         onupdate=datetime.utcnow,
         nullable=False,
     )
+
+    menus = relationship(
+    "Menu",
+    back_populates="restaurant",
+)
