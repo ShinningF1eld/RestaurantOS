@@ -149,7 +149,7 @@ export default function RestaurantsPage() {
                             key={restaurant.id}
                             onClick={() =>
                                 router.push(
-                                    `/analytics/restaurants?restaurant_id=${restaurant.id}`
+                                    `/restaurants/${restaurant.id}/dashboard`
                                 )
                             }
                             className="rounded-lg border bg-white p-5 shadow-sm cursor-pointer hover:shadow-lg transition duration-300"
