@@ -2,7 +2,6 @@ from pydantic import BaseModel, ConfigDict
 
 
 class MenuCreate(BaseModel):
-    restaurant_id: int
     name: str
     description: str | None = None
 
