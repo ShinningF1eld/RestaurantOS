@@ -9,6 +9,8 @@ from app.db.database import get_db
 from app.routers.restaurant import router as restaurant_router
 from app.routers.menu import router as menu_router
 from app.routers.menu_item import router as menu_item
+from app.routers.order import router as order_router
+from app.routers.analytics import router as analytics_router
 
 app = FastAPI(
     title="RestaurantOS API",
@@ -18,6 +20,8 @@ app = FastAPI(
 app.include_router(restaurant_router)
 app.include_router(menu_router)
 app.include_router(menu_item)
+app.include_router(order_router)
+app.include_router(analytics_router)
 
 #-------- CORS --------#
 app.add_middleware(
