@@ -472,6 +472,8 @@ Finish only the CRUD and UI required for an end-to-end sale.
 
 ## Milestone 2 — Refactor to maintainable application boundaries
 
+**Status: Complete (verified 2026-09-16).**
+
 ### Objective
 
 Create clear places for business rules before adding identity, inventory, and asynchronous processing.
@@ -1375,7 +1377,7 @@ After Milestone 0, give Sol only one milestone or vertical slice at a time. A st
 |---|---|---|
 | 0. Repository audit and baseline | Complete | [`docs/current-state.md`](docs/current-state.md); local validation and GitHub Actions passed |
 | 1. Core restaurant workflow | Complete | [`docs/current-state.md`](docs/current-state.md#milestone-1-completion-evidence); [`backend/tests/test_order_flow_integration.py`](backend/tests/test_order_flow_integration.py) |
-| 2. Application boundaries | Not verified | |
+| 2. Application boundaries | Complete | [`docs/current-state.md`](docs/current-state.md#milestone-2-completion-evidence); 56 backend tests and full-app mypy passed |
 | 3. Authentication | Not verified | |
 | 4. Multi-tenancy and RBAC | Not started/verify | |
 | 5. Transactional ordering and inventory | Not started/verify | |

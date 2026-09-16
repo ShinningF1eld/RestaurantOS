@@ -48,8 +48,8 @@ try {
     Push-Location (Join-Path $repositoryRoot "backend")
     try {
         Invoke-Checked "Backend Ruff" { & $backendPython -m ruff check app tests }
-        Invoke-Checked "Backend typed-schema mypy scope" {
-            & $backendPython -m mypy app/schemas
+        Invoke-Checked "Backend mypy" {
+            & $backendPython -m mypy app
         }
         if (-not $SkipDatabase) {
             $backendEnv = Join-Path $repositoryRoot "backend/.env"
@@ -59,11 +59,19 @@ try {
             ) {
                 throw "Set DATABASE_URL or copy backend/.env.example to backend/.env."
             }
+            if (
+                [string]::IsNullOrWhiteSpace($env:TEST_DATABASE_URL) -and
+                -not (Test-Path -LiteralPath $backendEnv)
+            ) {
+                throw "Set TEST_DATABASE_URL or copy backend/.env.example to backend/.env."
+            }
             Invoke-Checked "Alembic upgrade to head" { & $backendPython -m alembic upgrade head }
             Invoke-Checked "Alembic model drift check" { & $backendPython -m alembic check }
         }
 
-        Invoke-Checked "Backend tests" { & $backendPython -m pytest }
+        Invoke-Checked "Backend tests (isolated *_test database)" {
+            & $backendPython -m pytest
+        }
     }
     finally {
         Pop-Location
