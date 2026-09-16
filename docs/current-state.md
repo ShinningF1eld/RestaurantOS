@@ -49,9 +49,8 @@ Alembic has one linear chain:
 
 The existing local database was verified at head and `alembic check` reported
 no model drift. A separately named empty local database was upgraded through all
-three revisions to head, checked for drift, and removed. Milestone 0 CI is also
-configured to repeat the zero-to-head upgrade against a clean PostgreSQL
-service; that remote workflow has not yet run.
+three revisions to head, checked for drift, and removed. Milestone 0 CI repeated
+the zero-to-head upgrade against a clean PostgreSQL service successfully.
 
 Known data-model gaps for Milestone 1 include payment representation, item-name
 history snapshots, currency, explicit status constraints, useful foreign-key
@@ -173,11 +172,11 @@ and recorded below, but is not made a required gate through broad suppressions.
 | `npm run lint` | Passed |
 | `npm run typecheck` | Passed after Next.js route type generation |
 | `npm run build` | Passed; production build generated all current routes |
-| GitHub Actions workflow | Configured but not remotely executed in this worktree |
+| GitHub Actions workflow | Passed after the Milestone 0 baseline commit |
 
-Milestone 0 remains in progress because the new CI workflow and the documented
-clean-developer startup have not yet been independently reproduced from a fresh
-checkout.
+Milestone 0 is complete: setup and validation are documented, local validation
+passes, tracked files pass secret scanning, the schema and endpoint inventory is
+recorded, and GitHub Actions reproduced the checks with clean service state.
 
 ## Milestone 1 gap report
 

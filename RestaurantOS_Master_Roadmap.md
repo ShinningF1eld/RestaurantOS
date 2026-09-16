@@ -82,8 +82,8 @@ limitations are maintained in [`docs/current-state.md`](docs/current-state.md).
 - Authentication, authorization, tenancy, payment representation, inventory,
   workers/events, and deployment infrastructure are not implemented.
 - Milestone 0 documentation, environment examples, smoke testing, local
-  validation, and CI definitions now exist. The new GitHub Actions workflow has
-  not yet been remotely executed, so Milestone 0 remains in progress.
+  validation, and CI definitions now exist. Local validation and the GitHub
+  Actions workflow have passed, so Milestone 0 is complete.
 
 ### Immediate definition of “core CRUD complete”
 
@@ -1371,7 +1371,7 @@ After Milestone 0, give Sol only one milestone or vertical slice at a time. A st
 
 | Milestone | Status | Evidence/link |
 |---|---|---|
-| 0. Repository audit and baseline | In progress | [`docs/current-state.md`](docs/current-state.md); local validation reproduced, remote CI not yet run |
+| 0. Repository audit and baseline | Complete | [`docs/current-state.md`](docs/current-state.md); local validation and GitHub Actions passed |
 | 1. Core restaurant workflow | Partially implemented; verified | [`docs/current-state.md`](docs/current-state.md#milestone-1-gap-report) |
 | 2. Application boundaries | Not verified | |
 | 3. Authentication | Not verified | |
