@@ -3,6 +3,8 @@
 import { useState } from "react";
 
 import MenuItemForm from "./MenuItemForm";
+import EmptyState from "@/components/ui/EmptyState";
+import StatusBadge from "@/components/ui/StatusBadge";
 
 import type { MenuItem } from "@/types/menu_item";
 
@@ -62,74 +64,60 @@ export default function MenuItemList({
 
     return (
         <>
-            {/* Add button */}
             <div className="flex justify-end">
                 <button
                     type="button"
                     onClick={openCreate}
-                    className="rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-gray-800 cursor-pointer"
+                    className="rounded-md bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
                 >
-                    + Add Menu Item
+                    Add menu item
                 </button>
             </div>
 
-            {/* Menu items */}
             {menuItems.length === 0 ? (
-                <div className="mt-8 rounded-xl border border-dashed bg-white p-12 text-center">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-xl">
-                        🍽️
-                    </div>
-
-                    <h2 className="mt-4 text-lg font-semibold">
-                        No menu items yet
-                    </h2>
-
-                    <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">
-                        Add your first menu item to start building
-                        this menu.
-                    </p>
-
-                    <button
-                        type="button"
-                        onClick={openCreate}
-                        className="mt-6 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800"
-                    >
-                        Add your first item
-                    </button>
+                <div className="mt-8">
+                    <EmptyState
+                        title="No menu items yet"
+                        description="Add the first dish, drink, modifier, or service item to start building this menu."
+                        action={(
+                            <button
+                                type="button"
+                                onClick={openCreate}
+                                className="rounded-md bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                            >
+                                Add first item
+                            </button>
+                        )}
+                    />
                 </div>
             ) : (
                 <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {menuItems.map((item) => (
                         <div
                             key={item.menu_item_id}
-                            className="rounded-xl border bg-white p-5 shadow-sm transition hover:shadow-md"
+                            className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md"
                         >
                             <div className="flex items-start justify-between gap-4">
                                 <div>
-                                    <h2 className="font-semibold text-gray-900">
+                                    <h2 className="font-semibold text-slate-950">
                                         {item.name}
                                     </h2>
 
-                                    <p className="mt-1 text-sm text-gray-500">
+                                    <p className="mt-1 text-sm leading-6 text-slate-600">
                                         {item.description ||
                                             "No description provided."}
                                     </p>
                                 </div>
 
-                                <span
-                                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${item.is_available
-                                        ? "bg-green-50 text-green-700"
-                                        : "bg-gray-100 text-gray-500"
-                                        }`}
-                                >
+                                <StatusBadge tone={item.is_available ? "green" : "neutral"}>
                                     {item.is_available
                                         ? "Available"
                                         : "Unavailable"}
-                                </span>
+                                </StatusBadge>
                             </div>
 
-                            <div className="mt-5 flex items-center justify-between border-t pt-4">
-                                <span className="text-lg font-bold text-gray-900">
+                            <div className="mt-5 flex items-center justify-between border-t border-slate-200 pt-4">
+                                <span className="text-lg font-semibold text-slate-950">
                                     ฿
                                     {item.price.toLocaleString()}
                                 </span>
@@ -139,17 +127,16 @@ export default function MenuItemList({
                                     <button
                                         type="button"
                                         onClick={() => openEdit(item)}
-                                        className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 cursor-pointer"
+                                        className="rounded-md px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-stone-100 hover:text-slate-950"
                                     >
                                         Edit
                                     </button>
 
-                                    {/* Delete */}
                                     <button
                                         type="button"
                                         onClick={() => handleDelete(item)}
                                         aria-label={`Delete ${item.name}`}
-                                        className="rounded-lg p-2 text-red-500 transition hover:bg-red-50 hover:text-red-600 cursor-pointer"
+                                        className="rounded-md p-2 text-red-500 transition hover:bg-red-50 hover:text-red-600"
                                     >
                                         <svg
                                             xmlns="http://www.w3.org/2000/svg"
@@ -173,7 +160,6 @@ export default function MenuItemList({
                 </div>
             )}
 
-            {/* Create / Edit modal */}
             {isOpen && (
                 <MenuItemForm
                     menuId={menuId}

@@ -4,6 +4,8 @@ import { getMenuItems } from "@/lib/api/menu_item";
 import { getMenu} from "@/lib/api/menu";
 
 import MenuItemList from "@/components/menu/MenuItemList";
+import PageHeader from "@/components/ui/PageHeader";
+import StatCard from "@/components/ui/StatCard";
 
 interface MenuItemsPageProps {
     params: Promise<{
@@ -24,43 +26,39 @@ export default async function MenuItemsPage({
         getMenu(menuId),
         getMenuItems(menuId),
     ]);
+    const availableItems = menuItems.filter((item) => item.is_available);
 
     return (
         <div className="space-y-8">
-            {/* Header */}
-            <div className="flex items-start justify-between">
-                <div>
-                    {/* Back to menus */}
+            <PageHeader
+                eyebrow="Menu detail"
+                title={menu.name}
+                description={menu.description || "Manage item availability, pricing, and descriptions for this menu."}
+                actions={(
                     <Link
                         href={`/restaurants/${restaurantId}/menu`}
-                        className="text-sm text-gray-500 transition hover:text-gray-900"
+                        className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-stone-50"
                     >
-                        ← Back to Menus
+                        Back to menus
                     </Link>
+                )}
+            />
 
-                    <h1 className="mt-3 text-2xl font-bold tracking-tight text-gray-900">
-                        {menu.name}
-                    </h1>
-
-                    <p className="mt-1 text-sm text-gray-500">
-                        {menu.description ||
-                            "Manage the items in this menu."}
-                    </p>
-                </div>
+            <div className="grid gap-4 md:grid-cols-3">
+                <StatCard
+                    label="Items"
+                    value={menuItems.length}
+                    detail={menuItems.length === 1 ? "Menu item" : "Menu items"}
+                    tone="blue"
+                />
+                <StatCard
+                    label="Available"
+                    value={availableItems.length}
+                    detail="Ready for ordering"
+                    tone="green"
+                />
             </div>
 
-            {/* Menu item count */}
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span className="font-medium text-gray-900">
-                    {menuItems.length}
-                </span>
-
-                {menuItems.length === 1
-                    ? "menu item"
-                    : "menu items"}
-            </div>
-
-            {/* Menu items */}
             <MenuItemList
                 menuId={menuId}
                 menuItems={menuItems}

@@ -1,4 +1,7 @@
 import { getRestaurantDashboardAnalytics } from "@/lib/api/analytics";
+import PageHeader from "@/components/ui/PageHeader";
+import StatCard from "@/components/ui/StatCard";
+import StatusBadge from "@/components/ui/StatusBadge";
 import type {
     DashboardMetric,
     RestaurantDashboardAnalytics,
@@ -51,29 +54,40 @@ function getChangeClass(value: Money) {
     return "text-gray-500";
 }
 
-function MetricCard({
+function MetricTile({
     label,
     metric,
     formatter,
+    tone,
 }: {
     label: string;
     metric: DashboardMetric;
     formatter: (value: Money | number) => string;
+    tone: "green" | "blue" | "amber";
 }) {
     return (
-        <div className="rounded-lg border bg-white p-6 shadow-sm">
-            <p className="text-sm text-gray-500">
-                {label}
-            </p>
+        <StatCard
+            label={label}
+            value={formatter(metric.value)}
+            tone={tone}
+            detail={(
+                <span className={getChangeClass(metric.change_percent)}>
+                    {formatPercent(metric.change_percent)} vs yesterday
+                </span>
+            )}
+        />
+    );
+}
 
-            <p className="mt-2 text-3xl font-bold">
-                {formatter(metric.value)}
-            </p>
-
-            <p className={`mt-2 text-sm ${getChangeClass(metric.change_percent)}`}>
+function ChangeLine({
+    metric,
+}: {
+    metric: DashboardMetric;
+}) {
+    return (
+        <span className={getChangeClass(metric.change_percent)}>
                 {formatPercent(metric.change_percent)} vs yesterday
-            </p>
-        </div>
+        </span>
     );
 }
 
@@ -88,7 +102,7 @@ function SalesChart({
     );
 
     return (
-        <div className="h-72 rounded-lg bg-gray-50 px-4 py-5">
+        <div className="h-72 rounded-lg border border-slate-200 bg-stone-50 px-4 py-5">
             <div className="flex h-full items-end gap-3">
                 {points.map((point) => {
                     const sales = Number(point.sales);
@@ -103,7 +117,7 @@ function SalesChart({
                         >
                             <div className="flex h-52 w-full items-end">
                                 <div
-                                    className="w-full rounded-t-md bg-gray-900 transition"
+                                    className="w-full rounded-t-md bg-slate-900 transition"
                                     style={{
                                         height: `${height}%`,
                                     }}
@@ -112,11 +126,11 @@ function SalesChart({
                             </div>
 
                             <div className="text-center">
-                                <div className="text-xs font-medium text-gray-700">
+                                <div className="text-xs font-medium text-slate-700">
                                     {formatDay(point.date)}
                                 </div>
 
-                                <div className="text-xs text-gray-400">
+                                <div className="text-xs text-slate-500">
                                     {formatCurrency(point.sales)}
                                 </div>
                             </div>
@@ -135,12 +149,12 @@ function TopSellingItems({
 }) {
     if (analytics.top_selling_items.length === 0) {
         return (
-            <div className="rounded-lg border border-dashed bg-white p-10 text-center">
-                <h2 className="text-lg font-semibold">
+            <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center">
+                <h2 className="text-lg font-semibold text-slate-950">
                     No completed item sales yet
                 </h2>
 
-                <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">
+                <p className="mx-auto mt-2 max-w-sm text-sm text-slate-600">
                     Top sellers will appear after customer orders are completed.
                 </p>
             </div>
@@ -148,34 +162,34 @@ function TopSellingItems({
     }
 
     return (
-        <div className="rounded-lg border bg-white p-6 shadow-sm">
+        <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-6">
-                <h2 className="text-lg font-semibold">
+                <h2 className="text-lg font-semibold text-slate-950">
                     Top Selling Items
                 </h2>
 
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-slate-600">
                     Best-selling menu items from the last 7 days
                 </p>
             </div>
 
-            <div className="divide-y">
+            <div className="divide-y divide-slate-100">
                 {analytics.top_selling_items.map((item, index) => (
                     <div
                         key={item.menu_item_id}
                         className="flex items-center justify-between gap-4 py-4"
                     >
                         <div className="flex min-w-0 items-center gap-4">
-                            <span className="w-6 text-sm font-medium text-gray-400">
+                            <span className="w-6 text-sm font-medium text-slate-400">
                                 {index + 1}
                             </span>
 
-                            <span className="truncate font-medium">
+                            <span className="truncate font-medium text-slate-950">
                                 {item.name}
                             </span>
                         </div>
 
-                        <div className="shrink-0 text-right text-sm text-gray-500">
+                        <div className="shrink-0 text-right text-sm text-slate-600">
                             <div>
                                 {formatNumber(item.quantity_sold)} sold
                             </div>
@@ -200,48 +214,58 @@ export default async function DashboardPage({
 
     return (
         <div className="space-y-8">
-            <div>
-                <h1 className="text-2xl font-bold">
-                    Restaurant Overview
-                </h1>
-
-                <p className="mt-1 text-sm text-gray-500">
-                    Today&apos;s completed sales and order activity.
-                </p>
-            </div>
+            <PageHeader
+                eyebrow="Command center"
+                title="Restaurant Overview"
+                description="Today&apos;s completed sales, order flow, and item movement across the restaurant."
+                actions={<StatusBadge tone="green">Live operations</StatusBadge>}
+            />
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <MetricCard
+                <MetricTile
                     label="Sales"
                     metric={analytics.sales}
                     formatter={formatCurrency}
+                    tone="green"
                 />
 
-                <MetricCard
+                <MetricTile
                     label="Orders"
                     metric={analytics.orders}
                     formatter={formatNumber}
+                    tone="blue"
                 />
 
-                <MetricCard
+                <MetricTile
                     label="Average Order"
                     metric={analytics.average_order}
                     formatter={formatCurrency}
+                    tone="amber"
                 />
             </div>
 
-            <div className="rounded-lg border bg-white p-6 shadow-sm">
-                <div className="mb-6">
-                    <h2 className="text-lg font-semibold">
-                        Sales
-                    </h2>
+            <div className="grid gap-6 xl:grid-cols-[1fr_22rem]">
+                <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h2 className="text-lg font-semibold text-slate-950">
+                                Sales Rhythm
+                            </h2>
 
-                    <p className="text-sm text-gray-500">
-                        Completed sales over the last 7 days
-                    </p>
+                            <p className="text-sm text-slate-600">
+                                Completed sales over the last 7 days
+                            </p>
+                        </div>
+
+                        <ChangeLine metric={analytics.sales} />
+                    </div>
+
+                    <SalesChart points={analytics.sales_graph} />
                 </div>
 
-                <SalesChart points={analytics.sales_graph} />
+                <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+                    <h1>This is not implemented yet</h1>
+                </div>
             </div>
 
             <TopSellingItems analytics={analytics} />

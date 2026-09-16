@@ -51,7 +51,7 @@ export default function OrderActions({
                     type="button"
                     disabled={isUpdating || isClosed}
                     onClick={() => updateStatus("complete")}
-                    className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                    className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                     Complete
                 </button>
@@ -60,7 +60,7 @@ export default function OrderActions({
                     type="button"
                     disabled={isUpdating || isClosed}
                     onClick={() => updateStatus("cancel")}
-                    className="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400"
+                    className="rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
                 >
                     Cancel
                 </button>

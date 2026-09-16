@@ -22,11 +22,6 @@ export default function MenuItemManager({
         setIsOpen(true);
     }
 
-    function openEdit(item: MenuItem) {
-        setEditingItem(item);
-        setIsOpen(true);
-    }
-
     function handleSuccess() {
         setIsOpen(false);
         setEditingItem(undefined);
@@ -39,9 +34,9 @@ export default function MenuItemManager({
             <button
                 type="button"
                 onClick={openCreate}
-                className="rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-gray-800 cursor-pointer"
+                className="rounded-md bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
             >
-                + Add Menu Item
+                Add menu item
             </button>
 
             {isOpen && (

@@ -47,16 +47,15 @@ export default function CreateMenuForm({
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-                {/* Header */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+            <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl">
                 <div className="flex items-start justify-between">
                     <div>
-                        <h2 className="text-xl font-semibold text-gray-900">
+                        <h2 className="text-xl font-semibold text-slate-950">
                             Create Menu
                         </h2>
 
-                        <p className="mt-1 text-sm text-gray-500">
+                        <p className="mt-1 text-sm text-slate-600">
                             Add a new menu for your restaurant.
                         </p>
                     </div>
@@ -64,22 +63,20 @@ export default function CreateMenuForm({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="text-xl text-gray-400 transition hover:text-gray-600 cursor-pointer"
+                        className="rounded-md px-2 py-1 text-xl leading-none text-slate-400 transition hover:bg-stone-100 hover:text-slate-700"
                     >
                         ×
                     </button>
                 </div>
 
-                {/* Form */}
                 <form
                     onSubmit={handleSubmit}
                     className="mt-6 space-y-5"
                 >
-                    {/* Name */}
                     <div>
                         <label
                             htmlFor="menu-name"
-                            className="mb-2 block text-sm font-medium text-gray-700"
+                            className="mb-2 block text-sm font-semibold text-slate-700"
                         >
                             Menu Name
                         </label>
@@ -92,16 +89,15 @@ export default function CreateMenuForm({
                                 setName(event.target.value)
                             }
                             placeholder="e.g. Main Menu"
-                            className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+                            className="w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                             disabled={loading}
                         />
                     </div>
 
-                    {/* Description */}
                     <div>
                         <label
                             htmlFor="menu-description"
-                            className="mb-2 block text-sm font-medium text-gray-700"
+                            className="mb-2 block text-sm font-semibold text-slate-700"
                         >
                             Description
                         </label>
@@ -114,25 +110,23 @@ export default function CreateMenuForm({
                             }
                             placeholder="Describe this menu..."
                             rows={4}
-                            className="w-full resize-none rounded-lg border px-3 py-2.5 text-sm outline-none transition focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+                            className="w-full resize-none rounded-md border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                             disabled={loading}
                         />
                     </div>
 
-                    {/* Error */}
                     {error && (
-                        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+                        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
                             {error}
                         </p>
                     )}
 
-                    {/* Actions */}
                     <div className="flex justify-end gap-3 pt-2">
                         <button
                             type="button"
                             onClick={onClose}
                             disabled={loading}
-                            className="rounded-lg border px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
+                            className="rounded-md border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-stone-50 disabled:opacity-50"
                         >
                             Cancel
                         </button>
@@ -140,7 +134,7 @@ export default function CreateMenuForm({
                         <button
                             type="submit"
                             disabled={loading}
-                            className="rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                            className="rounded-md bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {loading ? "Creating..." : "Create Menu"}
                         </button>

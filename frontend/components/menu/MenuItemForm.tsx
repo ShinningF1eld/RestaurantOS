@@ -101,18 +101,17 @@ export default function MenuItemForm({
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-                {/* Header */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+            <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl">
                 <div className="flex items-start justify-between">
                     <div>
-                        <h2 className="text-xl font-semibold text-gray-900">
+                        <h2 className="text-xl font-semibold text-slate-950">
                             {isEditing
                                 ? "Edit Menu Item"
                                 : "Add Menu Item"}
                         </h2>
 
-                        <p className="mt-1 text-sm text-gray-500">
+                        <p className="mt-1 text-sm text-slate-600">
                             {isEditing
                                 ? "Update this menu item's information."
                                 : "Add a new item to this menu."}
@@ -123,22 +122,20 @@ export default function MenuItemForm({
                         type="button"
                         onClick={onClose}
                         disabled={loading}
-                        className="text-xl text-gray-400 transition hover:text-gray-600 cursor-pointer"
+                        className="rounded-md px-2 py-1 text-xl leading-none text-slate-400 transition hover:bg-stone-100 hover:text-slate-700"
                     >
                         ×
                     </button>
                 </div>
 
-                {/* Form */}
                 <form
                     onSubmit={handleSubmit}
                     className="mt-6 space-y-5"
                 >
-                    {/* Name */}
                     <div>
                         <label
                             htmlFor="menu-item-name"
-                            className="mb-2 block text-sm font-medium text-gray-700"
+                            className="mb-2 block text-sm font-semibold text-slate-700"
                         >
                             Item Name
                         </label>
@@ -152,15 +149,14 @@ export default function MenuItemForm({
                             }
                             placeholder="e.g. Pad Kra Pao"
                             disabled={loading}
-                            className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none transition focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+                            className="w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                         />
                     </div>
 
-                    {/* Description */}
                     <div>
                         <label
                             htmlFor="menu-item-description"
-                            className="mb-2 block text-sm font-medium text-gray-700"
+                            className="mb-2 block text-sm font-semibold text-slate-700"
                         >
                             Description
                         </label>
@@ -174,21 +170,20 @@ export default function MenuItemForm({
                             placeholder="Describe this menu item..."
                             rows={3}
                             disabled={loading}
-                            className="w-full resize-none rounded-lg border px-3 py-2.5 text-sm outline-none transition focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+                            className="w-full resize-none rounded-md border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                         />
                     </div>
 
-                    {/* Price */}
                     <div>
                         <label
                             htmlFor="menu-item-price"
-                            className="mb-2 block text-sm font-medium text-gray-700"
+                            className="mb-2 block text-sm font-semibold text-slate-700"
                         >
                             Price
                         </label>
 
                         <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
                                 ฿
                             </span>
 
@@ -203,19 +198,18 @@ export default function MenuItemForm({
                                 }
                                 placeholder="0.00"
                                 disabled={loading}
-                                className="w-full rounded-lg border py-2.5 pl-8 pr-3 text-sm outline-none transition focus:border-gray-900 focus:ring-1 focus:ring-gray-900"
+                                className="w-full rounded-md border border-slate-300 py-2.5 pl-8 pr-3 text-sm outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
                             />
                         </div>
                     </div>
 
-                    {/* Availability */}
-                    <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-stone-50 p-4">
                         <div>
-                            <p className="text-sm font-medium text-gray-700">
+                            <p className="text-sm font-semibold text-slate-700">
                                 Available
                             </p>
 
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-slate-500">
                                 Customers can order this item.
                             </p>
                         </div>
@@ -226,10 +220,10 @@ export default function MenuItemForm({
                                 setIsAvailable(!isAvailable)
                             }
                             disabled={loading}
-                            className={`relative h-6 w-11 rounded-full transition duration-300 cursor-pointer ${
+                            className={`relative h-6 w-11 rounded-full transition duration-300 ${
                                 isAvailable
-                                    ? "bg-gray-900"
-                                    : "bg-gray-300"
+                                    ? "bg-slate-950"
+                                    : "bg-slate-300"
                             }`}
                         >
                             <span
@@ -242,20 +236,18 @@ export default function MenuItemForm({
                         </button>
                     </div>
 
-                    {/* Error */}
                     {error && (
-                        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+                        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
                             {error}
                         </p>
                     )}
 
-                    {/* Actions */}
                     <div className="flex justify-end gap-3 pt-2">
                         <button
                             type="button"
                             onClick={onClose}
                             disabled={loading}
-                            className="rounded-lg border px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
+                            className="rounded-md border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-stone-50 disabled:opacity-50"
                         >
                             Cancel
                         </button>
@@ -263,7 +255,7 @@ export default function MenuItemForm({
                         <button
                             type="submit"
                             disabled={loading}
-                            className="rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                            className="rounded-md bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {loading
                                 ? isEditing

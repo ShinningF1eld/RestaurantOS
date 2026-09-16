@@ -1,6 +1,9 @@
 import OrderActions from "./OrderActions";
 
 import { getRestaurantOrders } from "@/lib/api/order";
+import PageHeader from "@/components/ui/PageHeader";
+import StatCard from "@/components/ui/StatCard";
+import StatusBadge from "@/components/ui/StatusBadge";
 import type { Money, Order } from "@/types/order";
 
 interface OrdersPageProps {
@@ -25,14 +28,14 @@ function formatTime(value: string) {
 
 function getStatusClass(status: string) {
     if (status === "complete") {
-        return "bg-emerald-50 text-emerald-700 ring-emerald-200";
+        return "green";
     }
 
     if (status === "cancelled") {
-        return "bg-red-50 text-red-700 ring-red-200";
+        return "red";
     }
 
-    return "bg-amber-50 text-amber-700 ring-amber-200";
+    return "amber";
 }
 
 function OrderCard({
@@ -41,22 +44,20 @@ function OrderCard({
     order: Order;
 }) {
     return (
-        <article className="rounded-lg border bg-white p-5 shadow-sm">
+        <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                     <div className="flex flex-wrap items-center gap-3">
-                        <h2 className="text-lg font-semibold text-gray-900">
+                        <h2 className="text-lg font-semibold text-slate-950">
                             Order #{order.order_id}
                         </h2>
 
-                        <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ring-1 ${getStatusClass(order.status)}`}
-                        >
+                        <StatusBadge tone={getStatusClass(order.status) as "green" | "red" | "amber"}>
                             {order.status}
-                        </span>
+                        </StatusBadge>
                     </div>
 
-                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-gray-500">
+                    <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-600">
                         <span>
                             {order.table_number
                                 ? `Table ${order.table_number}`
@@ -74,20 +75,20 @@ function OrderCard({
                 </div>
 
                 <div className="text-left lg:text-right">
-                    <div className="text-2xl font-bold text-gray-900">
+                    <div className="text-2xl font-semibold text-slate-950">
                         {formatCurrency(order.total)}
                     </div>
 
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className="mt-1 text-sm text-slate-600">
                         {order.items.length}{" "}
                         {order.items.length === 1 ? "item" : "items"}
                     </p>
                 </div>
             </div>
 
-            <div className="mt-5 overflow-hidden rounded-lg border">
-                <table className="w-full table-fixed divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
+            <div className="mt-5 overflow-hidden rounded-lg border border-slate-200">
+                <table className="w-full table-fixed divide-y divide-slate-200 text-sm">
+                    <thead className="bg-stone-50 text-left text-xs font-semibold uppercase text-slate-500">
                         <tr>
                             <th className="w-24 px-4 py-3">
                                 Item
@@ -104,30 +105,30 @@ function OrderCard({
                         </tr>
                     </thead>
 
-                    <tbody className="divide-y divide-gray-100 bg-white">
+                    <tbody className="divide-y divide-slate-100 bg-white">
                         {order.items.map((item) => (
                             <tr key={item.order_item_id}>
                                 <td className="px-4 py-3">
-                                    <div className="font-medium text-gray-900">
+                                    <div className="font-medium text-slate-950">
                                         {item.menu_item_name}
                                     </div>
 
                                     {item.notes ? (
-                                        <div className="mt-1 text-xs text-gray-500">
+                                        <div className="mt-1 text-xs text-slate-500">
                                             {item.notes}
                                         </div>
                                     ) : null}
                                 </td>
 
-                                <td className="px-4 py-3 text-gray-700">
+                                <td className="px-4 py-3 text-slate-700">
                                     {item.quantity}
                                 </td>
 
-                                <td className="px-4 py-3 text-gray-700">
+                                <td className="px-4 py-3 text-slate-700">
                                     {formatCurrency(item.unit_price)}
                                 </td>
 
-                                <td className="px-4 py-3 text-right font-medium text-gray-900">
+                                <td className="px-4 py-3 text-right font-medium text-slate-950">
                                     {formatCurrency(item.line_total)}
                                 </td>
                             </tr>
@@ -137,13 +138,13 @@ function OrderCard({
             </div>
 
             {order.notes ? (
-                <p className="mt-4 rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                <p className="mt-4 rounded-md bg-stone-50 px-3 py-2 text-sm text-slate-600">
                     {order.notes}
                 </p>
             ) : null}
 
-            <div className="mt-5 flex items-center justify-between border-t pt-4">
-                <p className="text-sm text-gray-500">
+            <div className="mt-5 flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-slate-500">
                     Last updated {formatTime(order.updated_at)}
                 </p>
 
@@ -165,48 +166,55 @@ export default async function OrdersPage({
     const openOrders = orders.filter(
         (order) => order.status !== "complete" && order.status !== "cancelled"
     );
+    const completedOrders = orders.filter(
+        (order) => order.status === "complete"
+    );
+    const cancelledOrders = orders.filter(
+        (order) => order.status === "cancelled"
+    );
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">
-                        Orders
-                    </h1>
+        <div className="space-y-8">
+            <PageHeader
+                eyebrow="Service flow"
+                title="Orders"
+                description="Review customer orders, track ticket state, and keep the kitchen flow current."
+            />
 
-                    <p className="mt-1 text-sm text-gray-500">
-                        Review customer orders and keep the kitchen flow current.
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="rounded-lg border bg-white px-4 py-3">
-                        <div className="font-semibold text-gray-900">
-                            {openOrders.length}
-                        </div>
-                        <div className="text-gray-500">
-                            Open
-                        </div>
-                    </div>
-
-                    <div className="rounded-lg border bg-white px-4 py-3">
-                        <div className="font-semibold text-gray-900">
-                            {orders.length}
-                        </div>
-                        <div className="text-gray-500">
-                            Total
-                        </div>
-                    </div>
-                </div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <StatCard
+                    label="Open tickets"
+                    value={openOrders.length}
+                    detail="Need kitchen or floor action"
+                    tone="amber"
+                />
+                <StatCard
+                    label="Completed"
+                    value={completedOrders.length}
+                    detail="Closed during this view"
+                    tone="green"
+                />
+                <StatCard
+                    label="Cancelled"
+                    value={cancelledOrders.length}
+                    detail="Voids and stopped tickets"
+                    tone="red"
+                />
+                <StatCard
+                    label="Total tickets"
+                    value={orders.length}
+                    detail="All visible orders"
+                    tone="blue"
+                />
             </div>
 
             {orders.length === 0 ? (
-                <div className="rounded-lg border border-dashed bg-white p-12 text-center">
-                    <h2 className="text-lg font-semibold text-gray-900">
+                <div className="rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center">
+                    <h2 className="text-lg font-semibold text-slate-950">
                         No customer orders yet
                     </h2>
 
-                    <p className="mx-auto mt-2 max-w-sm text-sm text-gray-500">
+                    <p className="mx-auto mt-2 max-w-sm text-sm text-slate-600">
                         New orders will appear here as soon as customers place them.
                     </p>
                 </div>
