@@ -1,153 +1,55 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
-from app.db.models.menu import Menu
-from app.db.models.restaurant import Restaurant
-from app.schemas.menu import MenuCreate, MenuUpdate, MenuResponse
+from app.schemas.menu import MenuCreate, MenuResponse, MenuUpdate
+from app.services.catalog import CatalogService, CreateMenu, UpdateMenu
 
 
-router = APIRouter(
-    tags=["Menus"],
-)
+router = APIRouter(tags=["Menus"])
 
 
-@router.post(
-    "/restaurants/{restaurant_id}/menus",
-    response_model=MenuResponse,
-)
+@router.post("/restaurants/{restaurant_id}/menus", response_model=MenuResponse)
 async def create_menu(
     restaurant_id: int,
     menu_data: MenuCreate,
     db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Restaurant).where(
-            Restaurant.id == restaurant_id
-        )
+) -> MenuResponse:
+    menu = await CatalogService(db).create_menu(
+        restaurant_id,
+        CreateMenu(name=menu_data.name, description=menu_data.description),
     )
-
-    restaurant = result.scalar_one_or_none()
-
-    if restaurant is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Restaurant not found",
-        )
-
-    menu = Menu(
-        restaurant_id=restaurant_id,
-        name=menu_data.name,
-        description=menu_data.description,
-    )
-
-    db.add(menu)
-    await db.commit()
-    await db.refresh(menu)
-
-    return menu
+    return MenuResponse.model_validate(menu)
 
 
-@router.get(
-    "/restaurants/{restaurant_id}/menus",
-    response_model=list[MenuResponse],
-)
+@router.get("/restaurants/{restaurant_id}/menus", response_model=list[MenuResponse])
 async def get_restaurant_menus(
-    restaurant_id: int,
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Menu).where(
-            Menu.restaurant_id == restaurant_id
-        )
-    )
-
-    return result.scalars().all()
+    restaurant_id: int, db: AsyncSession = Depends(get_db)
+) -> list[MenuResponse]:
+    menus = await CatalogService(db).list_menus(restaurant_id)
+    return [MenuResponse.model_validate(menu) for menu in menus]
 
 
-@router.get(
-    "/menus/{menu_id}",
-    response_model=MenuResponse,
-)
-async def get_menu(
-    menu_id: int,
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Menu).where(
-            Menu.menu_id == menu_id
-        )
-    )
-
-    menu = result.scalar_one_or_none()
-
-    if menu is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Menu not found",
-        )
-
-    return menu
+@router.get("/menus/{menu_id}", response_model=MenuResponse)
+async def get_menu(menu_id: int, db: AsyncSession = Depends(get_db)) -> MenuResponse:
+    menu = await CatalogService(db).get_menu(menu_id)
+    return MenuResponse.model_validate(menu)
 
 
-@router.put(
-    "/menus/{menu_id}",
-    response_model=MenuResponse,
-)
+@router.put("/menus/{menu_id}", response_model=MenuResponse)
 async def update_menu(
     menu_id: int,
     menu_data: MenuUpdate,
     db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Menu).where(
-            Menu.menu_id == menu_id
-        )
+) -> MenuResponse:
+    menu = await CatalogService(db).update_menu(
+        menu_id,
+        UpdateMenu(name=menu_data.name, description=menu_data.description),
     )
-
-    menu = result.scalar_one_or_none()
-
-    if menu is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Menu not found",
-        )
-
-    if menu_data.name is not None:
-        menu.name = menu_data.name
-
-    if menu_data.description is not None:
-        menu.description = menu_data.description
-
-    await db.commit()
-    await db.refresh(menu)
-
-    return menu
+    return MenuResponse.model_validate(menu)
 
 
 @router.delete("/menus/{menu_id}")
-async def delete_menu(
-    menu_id: int,
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Menu).where(
-            Menu.menu_id == menu_id
-        )
-    )
-
-    menu = result.scalar_one_or_none()
-
-    if menu is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Menu not found",
-        )
-
-    await db.delete(menu)
-    await db.commit()
-
-    return {
-        "message": "Menu deleted successfully"
-    }
+async def delete_menu(menu_id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+    await CatalogService(db).delete_menu(menu_id)
+    return {"message": "Menu deleted successfully"}
