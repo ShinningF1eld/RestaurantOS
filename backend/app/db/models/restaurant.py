@@ -1,9 +1,14 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import String, DateTime
+from sqlalchemy import DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.models.base import Base
+
+if TYPE_CHECKING:
+    from app.db.models.menu import Menu
+    from app.db.models.order import Order
 
 
 class Restaurant(Base):
@@ -39,12 +44,12 @@ class Restaurant(Base):
         nullable=False,
     )
 
-    menus = relationship(
-    "Menu",
-    back_populates="restaurant",
-)
+    menus: Mapped[list["Menu"]] = relationship(
+        "Menu",
+        back_populates="restaurant",
+    )
 
-    orders = relationship(
+    orders: Mapped[list["Order"]] = relationship(
         "Order",
         back_populates="restaurant",
     )
