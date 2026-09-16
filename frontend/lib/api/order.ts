@@ -1,5 +1,7 @@
 import type {
     Order,
+    OrderCreate,
+    PaginatedOrders,
     OrderUpdate,
 } from "@/types/order";
 
@@ -7,10 +9,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 
 export async function getRestaurantOrders(
-    restaurantId: number
-): Promise<Order[]> {
+    restaurantId: number,
+    limit = 25,
+    offset = 0
+): Promise<PaginatedOrders> {
     const response = await fetch(
-        `${API_URL}/api/restaurants/${restaurantId}/orders`,
+        `${API_URL}/api/restaurants/${restaurantId}/orders?limit=${limit}&offset=${offset}`,
         {
             cache: "no-store",
         }
@@ -20,6 +24,19 @@ export async function getRestaurantOrders(
         throw new Error("Failed to fetch orders");
     }
 
+    return response.json();
+}
+
+export async function createOrder(restaurantId: number, data: OrderCreate): Promise<Order> {
+    const response = await fetch(`${API_URL}/api/restaurants/${restaurantId}/orders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.detail || "Could not create order");
+    }
     return response.json();
 }
 
@@ -51,7 +68,7 @@ export async function completeOrder(
     orderId: number
 ): Promise<Order> {
     return updateOrder(orderId, {
-        status: "complete",
+        status: "COMPLETED",
     });
 }
 
@@ -60,6 +77,6 @@ export async function cancelOrder(
     orderId: number
 ): Promise<Order> {
     return updateOrder(orderId, {
-        status: "cancelled",
+        status: "CANCELLED",
     });
 }

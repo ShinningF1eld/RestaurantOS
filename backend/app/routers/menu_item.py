@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import get_db
 from app.db.models.menu import Menu
 from app.db.models.menu_items import MenuItem
+from app.db.models.order import OrderItem
 from app.schemas.menu_item import (
     MenuItemCreate,
     MenuItemUpdate,
@@ -157,6 +158,16 @@ async def delete_menu_item(
             detail="Menu item not found",
         )
 
+    # A catalog deletion must never destroy sales history. Once used, remove
+    # the item from new orders by deactivating it; its historical snapshot is
+    # retained on OrderItem.
+    used = await db.scalar(
+        select(OrderItem.order_item_id).where(OrderItem.menu_item_id == menu_item_id).limit(1)
+    )
+    if used is not None:
+        menu_item.is_available = False
+        await db.commit()
+        return {"message": "Menu item deactivated because it has order history"}
     await db.delete(menu_item)
     await db.commit()
 

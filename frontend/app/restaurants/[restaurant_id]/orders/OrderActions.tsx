@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import {
     cancelOrder,
-    completeOrder,
+    updateOrder,
 } from "@/lib/api/order";
 
 interface OrderActionsProps {
@@ -21,17 +21,24 @@ export default function OrderActions({
     const [isUpdating, setIsUpdating] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const isClosed = status === "complete" || status === "cancelled";
+    const isClosed = status === "COMPLETED" || status === "CANCELLED";
+    const nextStatus: Record<string, string> = {
+        DRAFT: "SUBMITTED",
+        SUBMITTED: "ACCEPTED",
+        ACCEPTED: "PREPARING",
+        PREPARING: "READY",
+        READY: "COMPLETED",
+    };
 
     async function updateStatus(
-        action: "complete" | "cancel"
+        action: "advance" | "cancel"
     ) {
         setIsUpdating(true);
         setError(null);
 
         try {
-            if (action === "complete") {
-                await completeOrder(orderId);
+            if (action === "advance") {
+                await updateOrder(orderId, { status: nextStatus[status] as never });
             } else {
                 await cancelOrder(orderId);
             }
@@ -50,10 +57,10 @@ export default function OrderActions({
                 <button
                     type="button"
                     disabled={isUpdating || isClosed}
-                    onClick={() => updateStatus("complete")}
+                    onClick={() => updateStatus("advance")}
                     className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
-                    Complete
+                    {nextStatus[status] ? `Mark ${nextStatus[status].toLowerCase()}` : "Complete"}
                 </button>
 
                 <button

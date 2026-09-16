@@ -6,6 +6,7 @@ import { getMenu} from "@/lib/api/menu";
 import MenuItemList from "@/components/menu/MenuItemList";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
+import MenuActions from "@/components/menu/MenuActions";
 
 interface MenuItemsPageProps {
     params: Promise<{
@@ -34,14 +35,7 @@ export default async function MenuItemsPage({
                 eyebrow="Menu detail"
                 title={menu.name}
                 description={menu.description || "Manage item availability, pricing, and descriptions for this menu."}
-                actions={(
-                    <Link
-                        href={`/restaurants/${restaurantId}/menu`}
-                        className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-stone-50"
-                    >
-                        Back to menus
-                    </Link>
-                )}
+                actions={<><MenuActions menu={menu} restaurantId={restaurantId} /><Link href={`/restaurants/${restaurantId}/menu`} className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-stone-50">Back to menus</Link></>}
             />
 
             <div className="grid gap-4 md:grid-cols-3">

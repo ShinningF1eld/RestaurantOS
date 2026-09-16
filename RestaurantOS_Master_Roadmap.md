@@ -422,6 +422,8 @@ Establish verified current state and make future changes safe.
 
 ## Milestone 1 — Complete the core restaurant workflow
 
+**Status: Complete (verified 2026-09-16).**
+
 ### Objective
 
 Finish only the CRUD and UI required for an end-to-end sale.
@@ -1372,7 +1374,7 @@ After Milestone 0, give Sol only one milestone or vertical slice at a time. A st
 | Milestone | Status | Evidence/link |
 |---|---|---|
 | 0. Repository audit and baseline | Complete | [`docs/current-state.md`](docs/current-state.md); local validation and GitHub Actions passed |
-| 1. Core restaurant workflow | Partially implemented; verified | [`docs/current-state.md`](docs/current-state.md#milestone-1-gap-report) |
+| 1. Core restaurant workflow | Complete | [`docs/current-state.md`](docs/current-state.md#milestone-1-completion-evidence); [`backend/tests/test_order_flow_integration.py`](backend/tests/test_order_flow_integration.py) |
 | 2. Application boundaries | Not verified | |
 | 3. Authentication | Not verified | |
 | 4. Multi-tenancy and RBAC | Not started/verify | |

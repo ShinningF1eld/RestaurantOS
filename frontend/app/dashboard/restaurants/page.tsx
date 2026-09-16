@@ -45,6 +45,7 @@ export default function RestaurantsPage() {
 
     async function handleCreate(data: RestaurantCreate) {
         try {
+            setError(null);
             const newRestaurant = await createRestaurant(data);
 
             setRestaurants((current) => [
@@ -80,6 +81,7 @@ export default function RestaurantsPage() {
         }
 
         try {
+            setError(null);
             await deleteRestaurant(id);
 
             setRestaurants((current) =>
@@ -95,6 +97,7 @@ export default function RestaurantsPage() {
         data: RestaurantUpdate
     ) {
         try {
+            setError(null);
             const updatedRestaurant = await updateRestaurant(id, data);
 
             setRestaurants((current) =>
@@ -104,6 +107,7 @@ export default function RestaurantsPage() {
                         : restaurant
                 )
             );
+            setEditingRestaurant(null);
         } catch {
             setError("Failed to update restaurant");
         }

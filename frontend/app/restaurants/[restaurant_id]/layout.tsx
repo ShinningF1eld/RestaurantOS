@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ReactNode } from "react";
 
-import { getRestaurant } from "@/lib/api/restaurant";
+import { ApiError, getRestaurant } from "@/lib/api/restaurant";
 
 interface RestaurantLayoutProps {
     children: ReactNode;
@@ -17,13 +18,19 @@ export default async function RestaurantLayout({
     const { restaurant_id } = await params;
 
     const restaurantId = Number(restaurant_id);
+    if (!Number.isSafeInteger(restaurantId) || restaurantId <= 0) {
+        notFound();
+    }
 
-    const restaurant = await getRestaurant(restaurantId).catch(() => ({
-        id: restaurantId,
-        name: `Restaurant #${restaurantId}`,
-        address: "Mock location while the API is offline",
-        phone: "Pending API",
-    }));
+    let restaurant;
+    try {
+        restaurant = await getRestaurant(restaurantId);
+    } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+            notFound();
+        }
+        throw error;
+    }
 
     const navigation = [
         {

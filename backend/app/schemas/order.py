@@ -13,7 +13,7 @@ class OrderItemCreate(BaseModel):
 class OrderItemResponse(BaseModel):
     order_item_id: int
     order_id: int
-    menu_item_id: int
+    menu_item_id: int | None
     menu_item_name: str
     quantity: int
     unit_price: Decimal
@@ -36,6 +36,7 @@ class OrderUpdate(BaseModel):
     status: str | None = None
     notes: str | None = None
     items: list[OrderItemCreate] | None = Field(default=None, min_length=1)
+    payment_status: str | None = None
 
 
 class OrderResponse(BaseModel):
@@ -44,6 +45,7 @@ class OrderResponse(BaseModel):
     table_number: str | None = None
     customer_name: str | None = None
     status: str
+    payment_status: str
     notes: str | None = None
     subtotal: Decimal
     total: Decimal
@@ -52,3 +54,10 @@ class OrderResponse(BaseModel):
     items: list[OrderItemResponse]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedOrders(BaseModel):
+    items: list[OrderResponse]
+    total: int
+    limit: int
+    offset: int

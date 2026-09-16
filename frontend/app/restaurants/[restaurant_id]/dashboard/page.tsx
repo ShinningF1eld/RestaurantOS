@@ -264,7 +264,12 @@ export default async function DashboardPage({
                 </div>
 
                 <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-                    <h1>This is not implemented yet</h1>
+                    <h2 className="text-lg font-semibold text-slate-950">Today at a glance</h2>
+                    <dl className="mt-5 space-y-4 text-sm">
+                        <div className="flex items-center justify-between gap-4"><dt className="text-slate-600">Completed orders</dt><dd className="font-semibold text-slate-950">{formatNumber(analytics.orders.value)}</dd></div>
+                        <div className="flex items-center justify-between gap-4"><dt className="text-slate-600">Revenue</dt><dd className="font-semibold text-slate-950">{formatCurrency(analytics.sales.value)}</dd></div>
+                        <div className="flex items-center justify-between gap-4"><dt className="text-slate-600">Average order value</dt><dd className="font-semibold text-slate-950">{formatCurrency(analytics.average_order.value)}</dd></div>
+                    </dl>
                 </div>
             </div>
 

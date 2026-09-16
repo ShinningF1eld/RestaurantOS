@@ -1,7 +1,7 @@
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -10,13 +10,45 @@ from app.db.models.menu import Menu
 from app.db.models.menu_items import MenuItem
 from app.db.models.order import Order, OrderItem
 from app.db.models.restaurant import Restaurant
-from app.schemas.order import OrderCreate, OrderResponse, OrderUpdate
+from app.schemas.order import OrderCreate, OrderResponse, OrderUpdate, PaginatedOrders
 
 
 router = APIRouter(
     prefix="/api",
     tags=["orders"],
 )
+
+ORDER_TRANSITIONS: dict[str, set[str]] = {
+    "DRAFT": {"SUBMITTED", "CANCELLED"},
+    "SUBMITTED": {"ACCEPTED", "CANCELLED"},
+    "ACCEPTED": {"PREPARING", "CANCELLED"},
+    "PREPARING": {"READY", "CANCELLED"},
+    "READY": {"COMPLETED", "CANCELLED"},
+    "COMPLETED": set(),
+    "CANCELLED": set(),
+}
+PAYMENT_STATUSES = {"UNPAID", "PAID", "VOID"}
+
+
+def normalize_status(value: str) -> str:
+    # The initial UI used lower-case values. Keep clients comprehensible while
+    # storing one canonical representation.
+    aliases = {"PENDING": "DRAFT", "COMPLETE": "COMPLETED", "CANCELLED": "CANCELLED"}
+    normalized = value.strip().upper()
+    return aliases.get(normalized, normalized)
+
+
+def ensure_valid_transition(current: str, requested: str) -> str:
+    requested = normalize_status(requested)
+    current = normalize_status(current)
+    if requested == current:
+        return requested
+    if requested not in ORDER_TRANSITIONS.get(current, set()):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Invalid order status transition from {current} to {requested}",
+        )
+    return requested
 
 
 async def get_order_or_404(
@@ -78,6 +110,13 @@ async def build_order_items(
             detail=f"Menu items not found for restaurant: {missing_items}",
         )
 
+    unavailable_items = [item.menu_item_id for item in menu_items.values() if not item.is_available]
+    if unavailable_items:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Menu items are unavailable: {unavailable_items}",
+        )
+
     order_items = []
     subtotal = Decimal("0.00")
 
@@ -90,6 +129,7 @@ async def build_order_items(
         order_items.append(
             OrderItem(
                 menu_item_id=item_data.menu_item_id,
+                item_name=menu_item.name,
                 quantity=item_data.quantity,
                 unit_price=unit_price,
                 line_total=line_total,
@@ -148,12 +188,18 @@ async def create_order(
 
 @router.get(
     "/restaurants/{restaurant_id}/orders",
-    response_model=list[OrderResponse],
+    response_model=PaginatedOrders,
 )
 async def get_restaurant_orders(
     restaurant_id: int,
+    limit: int = Query(default=25, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
 ):
+    restaurant_result = await db.execute(select(Restaurant.id).where(Restaurant.id == restaurant_id))
+    if restaurant_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    total = await db.scalar(select(func.count(Order.order_id)).where(Order.restaurant_id == restaurant_id))
     result = await db.execute(
         select(Order)
         .options(
@@ -161,9 +207,10 @@ async def get_restaurant_orders(
         )
         .where(Order.restaurant_id == restaurant_id)
         .order_by(Order.created_at.desc())
+        .limit(limit)
+        .offset(offset)
     )
-
-    return result.scalars().all()
+    return PaginatedOrders(items=result.scalars().all(), total=total or 0, limit=limit, offset=offset)
 
 
 @router.get(
@@ -194,12 +241,22 @@ async def update_order(
     )
 
     for field, value in update_data.items():
-        if field == "status" and value is None:
-            continue
-
-        setattr(order, field, value)
+        if field == "status" and value is not None:
+            order.status = ensure_valid_transition(order.status, value)
+        elif field == "payment_status" and value is not None:
+            normalized_payment_status = value.strip().upper()
+            if normalized_payment_status not in PAYMENT_STATUSES:
+                raise HTTPException(status_code=422, detail="Invalid payment status")
+            order.payment_status = normalized_payment_status
+        elif value is not None:
+            setattr(order, field, value)
 
     if order_data.items is not None:
+        if normalize_status(order.status) != "DRAFT":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Order items can only be changed while an order is in DRAFT",
+            )
         order_items, subtotal = await build_order_items(
             order.restaurant_id,
             order_data,

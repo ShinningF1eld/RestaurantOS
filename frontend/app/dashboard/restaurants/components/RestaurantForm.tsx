@@ -8,7 +8,7 @@ import {
 
 interface RestaurantFormProps {
     restaurant?: Restaurant;
-    onSuccess: (data: RestaurantCreate) => void;
+    onSuccess: (data: RestaurantCreate) => void | Promise<void>;
     onCancel: () => void;
 }
 
@@ -35,7 +35,7 @@ export default function RestaurantForm({
         setLoading(true);
 
         try {
-            onSuccess(data);
+            await onSuccess(data);
         } finally {
             setLoading(false);
         }

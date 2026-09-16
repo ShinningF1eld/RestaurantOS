@@ -51,8 +51,6 @@ try {
         Invoke-Checked "Backend typed-schema mypy scope" {
             & $backendPython -m mypy app/schemas
         }
-        Invoke-Checked "Backend tests" { & $backendPython -m pytest }
-
         if (-not $SkipDatabase) {
             $backendEnv = Join-Path $repositoryRoot "backend/.env"
             if (
@@ -61,9 +59,11 @@ try {
             ) {
                 throw "Set DATABASE_URL or copy backend/.env.example to backend/.env."
             }
-            Invoke-Checked "Alembic current revision" { & $backendPython -m alembic current }
+            Invoke-Checked "Alembic upgrade to head" { & $backendPython -m alembic upgrade head }
             Invoke-Checked "Alembic model drift check" { & $backendPython -m alembic check }
         }
+
+        Invoke-Checked "Backend tests" { & $backendPython -m pytest }
     }
     finally {
         Pop-Location

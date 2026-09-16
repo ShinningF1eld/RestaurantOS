@@ -6,7 +6,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
-from app.db.models.menu_items import MenuItem
 from app.db.models.order import Order, OrderItem
 from app.db.models.restaurant import Restaurant
 from app.schemas.analytics import (
@@ -58,7 +57,7 @@ async def get_completed_totals(
             func.count(Order.order_id),
         ).where(
             Order.restaurant_id == restaurant_id,
-            Order.status == "complete",
+            Order.status == "COMPLETED",
             Order.created_at >= start_at,
             Order.created_at <= end_at,
         )
@@ -126,7 +125,7 @@ async def get_restaurant_dashboard_analytics(
         )
         .where(
             Order.restaurant_id == restaurant_id,
-            Order.status == "complete",
+            Order.status == "COMPLETED",
             Order.created_at >= start_of_day(graph_start),
             Order.created_at <= end_of_day(today),
         )
@@ -155,28 +154,27 @@ async def get_restaurant_dashboard_analytics(
 
     top_items_result = await db.execute(
         select(
-            MenuItem.menu_item_id,
-            MenuItem.name,
+            OrderItem.menu_item_id,
+            OrderItem.item_name,
             func.coalesce(func.sum(OrderItem.quantity), 0).label("quantity_sold"),
             func.coalesce(func.sum(OrderItem.line_total), 0).label("sales"),
         )
-        .join(OrderItem, OrderItem.menu_item_id == MenuItem.menu_item_id)
         .join(Order, Order.order_id == OrderItem.order_id)
         .where(
             Order.restaurant_id == restaurant_id,
-            Order.status == "complete",
+            Order.status == "COMPLETED",
             Order.created_at >= start_of_day(graph_start),
             Order.created_at <= end_of_day(today),
         )
-        .group_by(MenuItem.menu_item_id, MenuItem.name)
+        .group_by(OrderItem.menu_item_id, OrderItem.item_name)
         .order_by(func.sum(OrderItem.quantity).desc())
         .limit(5)
     )
 
     top_selling_items = [
         TopSellingItem(
-            menu_item_id=row.menu_item_id,
-            name=row.name,
+            menu_item_id=row.menu_item_id or 0,
+            name=row.item_name,
             quantity_sold=int(row.quantity_sold),
             sales=Decimal(str(row.sales)),
         )

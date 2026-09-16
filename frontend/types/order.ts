@@ -1,10 +1,10 @@
-export type OrderStatus = "pending" | "complete" | "cancelled" | string;
+export type OrderStatus = "DRAFT" | "SUBMITTED" | "ACCEPTED" | "PREPARING" | "READY" | "COMPLETED" | "CANCELLED";
 export type Money = number | string;
 
 export interface OrderItem {
     order_item_id: number;
     order_id: number;
-    menu_item_id: number;
+    menu_item_id: number | null;
     menu_item_name: string;
     quantity: number;
     unit_price: Money;
@@ -18,6 +18,7 @@ export interface Order {
     table_number: string | null;
     customer_name: string | null;
     status: OrderStatus;
+    payment_status: "UNPAID" | "PAID" | "VOID";
     notes: string | null;
     subtotal: Money;
     total: Money;
@@ -31,4 +32,25 @@ export interface OrderUpdate {
     customer_name?: string | null;
     status?: OrderStatus;
     notes?: string | null;
+    payment_status?: "UNPAID" | "PAID" | "VOID";
+}
+
+export interface OrderCreateItem {
+    menu_item_id: number;
+    quantity: number;
+    notes?: string;
+}
+
+export interface OrderCreate {
+    table_number?: string;
+    customer_name?: string;
+    notes?: string;
+    items: OrderCreateItem[];
+}
+
+export interface PaginatedOrders {
+    items: Order[];
+    total: number;
+    limit: number;
+    offset: number;
 }

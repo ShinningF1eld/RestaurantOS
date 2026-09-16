@@ -1,6 +1,6 @@
 # RestaurantOS current state
 
-Last verified: 2026-09-16 during Milestone 0.
+Last verified: 2026-09-16 after Milestone 1 completion.
 
 This document describes the repository as it exists. It is not a statement that
 roadmap features are complete.
@@ -38,23 +38,24 @@ The current models and tables are:
 | Restaurant | `id` | Has menus and orders |
 | Menu | `menu_id` | Belongs to a restaurant; has menu items |
 | MenuItem | `menu_item_id` | Belongs to a menu; numeric price; availability flag |
-| Order | `order_id` | Belongs to a restaurant; free-form status; subtotal/total |
-| OrderItem | `order_item_id` | Belongs to an order and current menu item; price/line-total snapshot |
+| Order | `order_id` | Belongs to a restaurant; controlled lifecycle and payment status; subtotal/total |
+| OrderItem | `order_item_id` | Belongs to an order; nullable catalog reference plus immutable name, price, and line-total snapshots |
 
 Alembic has one linear chain:
 
 ```text
-9007636220c5 -> 694f7189fe51 -> 2d7747d9f5b1 (head)
+9007636220c5 -> 694f7189fe51 -> 2d7747d9f5b1 -> 4a1e9a2dc8e4 (head)
 ```
 
 The existing local database was verified at head and `alembic check` reported
 no model drift. A separately named empty local database was upgraded through all
-three revisions to head, checked for drift, and removed. Milestone 0 CI repeated
-the zero-to-head upgrade against a clean PostgreSQL service successfully.
+four revisions to head, checked for drift, and removed. CI also performs the
+zero-to-head upgrade against a clean PostgreSQL service before integration tests.
 
-Known data-model gaps for Milestone 1 include payment representation, item-name
-history snapshots, currency, explicit status constraints, useful foreign-key
-and analytics indexes, and deletion policies that preserve sales history.
+Known deferred data-model work includes explicit currency and restaurant
+timezone fields, database-level status constraints, and broader restaurant/menu
+deletion policies. Milestone 1 preserves ordered-item history and centralizes
+status transitions in the application.
 
 ## Backend endpoint inventory
 
@@ -84,15 +85,15 @@ roadmap's target `/api/v1` convention.
 - `/restaurants/[restaurant_id]/inventory`
 - `/restaurants/[restaurant_id]/employees`
 
-Restaurant CRUD, menu creation/listing, menu-item CRUD, order listing/status
-buttons, and dashboard metrics are present. Inventory and employees are mock UI.
-There are no route-level `loading.tsx`, `error.tsx`, or `not-found.tsx`
-boundaries.
+Restaurant CRUD, menu CRUD, menu-item CRUD, multi-item order entry, paginated
+order listing/status actions, and dashboard metrics are present. The restaurant
+workspace has route-level `loading.tsx`, `error.tsx`, and `not-found.tsx`
+boundaries. Inventory and employees remain mock UI for later milestones.
 
 The shared restaurant navigation still links to nonexistent `tables` and
-`settings` routes. The root page shows hardcoded operational figures, and the
-restaurant layout substitutes mock restaurant details when its API request
-fails. These are product gaps, not Milestone 0 behavior changes.
+`settings` routes, and the root page shows hardcoded operational figures. These
+are later product gaps; the restaurant workspace itself now surfaces not-found
+and API failures instead of substituting mock data.
 
 ## Core request flows
 
@@ -113,22 +114,15 @@ backend.
 ### Order creation
 
 The backend accepts one or more menu-item IDs and quantities, scopes menu items
-to the restaurant, reads prices from PostgreSQL, calculates line totals and the
-order total, and commits the order and items together. The frontend does not
-currently expose order creation.
-
-Important gaps:
-
-- unavailable menu items are not rejected;
-- status values and transitions are not constrained;
-- historical item names are read from the live MenuItem relationship;
-- orders and catalog records expose unsafe hard-delete behavior;
-- restaurant order lists are not paginated;
-- payment status or records do not exist.
+to the restaurant, rejects unavailable items, reads prices from PostgreSQL,
+calculates totals, snapshots item names/prices, and commits the order and items
+together. A centralized state machine controls lifecycle transitions, orders
+carry a basic payment status, and restaurant order lists are paginated. The
+frontend exposes order entry and sequential kitchen/status actions.
 
 ### Analytics
 
-The dashboard endpoint counts only orders whose status is exactly `complete`.
+The dashboard endpoint counts only orders whose status is `COMPLETED`.
 It returns daily sales/orders, average order value, a seven-day graph, and top
 items. Calculations currently use host-local dates and order creation time,
 rather than restaurant timezone and completion time.
@@ -166,9 +160,9 @@ and recorded below, but is not made a required gate through broad suppressions.
 | `python -m ruff check app tests` | Passed |
 | `python -m mypy app/schemas` | Passed; 5 source files |
 | `python -m mypy app` | Baseline failed with 12 SQLAlchemy typing errors across `routers/order.py`, `routers/menu_item.py`, and `routers/menu.py`; not a required gate yet |
-| `python -m pytest` | Passed; 1 health smoke test, with one upstream TestClient deprecation warning |
-| Existing DB `alembic current` and `alembic check` | Passed at `2d7747d9f5b1 (head)` with no model drift |
-| Empty temporary DB `alembic upgrade head`, `current`, and `check` | Passed through all three revisions; temporary database removed afterward |
+| `python -m pytest` | Passed; 2 tests including the PostgreSQL-backed critical restaurant-to-dashboard flow |
+| Existing DB `alembic current` and `alembic check` | Passed at `4a1e9a2dc8e4 (head)` with no model drift |
+| Empty temporary DB `alembic upgrade head`, `current`, and `check` | Passed through all four revisions; temporary database removed afterward |
 | `npm run lint` | Passed |
 | `npm run typecheck` | Passed after Next.js route type generation |
 | `npm run build` | Passed; production build generated all current routes |
@@ -178,18 +172,26 @@ Milestone 0 is complete: setup and validation are documented, local validation
 passes, tracked files pass secret scanning, the schema and endpoint inventory is
 recorded, and GitHub Actions reproduced the checks with clean service state.
 
-## Milestone 1 gap report
+## Milestone 1 completion evidence
 
-The smallest useful next slice is the order lifecycle foundation:
+Milestone 1 is complete. The PostgreSQL integration flow creates restaurants,
+menus and items, rejects cross-restaurant and unavailable items, proves that
+client-supplied prices do not affect totals, verifies lifecycle transitions and
+payment status, completes a sale, preserves history after catalog deactivation,
+and verifies completed-only dashboard revenue and top items. The same test
+confirms cancelled tickets do not contribute revenue.
 
-1. characterize current order creation and analytics with PostgreSQL-backed
-   integration tests;
-2. add regression coverage for the existing cross-restaurant rejection and
-   implement unavailable-item rejection;
-3. centralize and test a minimal status transition policy;
-4. preserve historical item names/prices;
-5. add the minimum payment-status representation;
-6. expose a small frontend order-entry path after the API contract is stable.
+Local validation passed Ruff, schema mypy, PostgreSQL-backed pytest, Alembic
+upgrade/drift checks, secret scanning, ESLint, TypeScript, and the Next.js
+production build. A separately named empty PostgreSQL database was migrated
+from zero through `4a1e9a2dc8e4` and removed after verification. OpenAPI was
+inspected for the order create request, paginated response, payment status, and
+nullable historical catalog reference.
 
-Authentication, multi-tenancy, inventory, events, and broad architectural
-reorganization remain later milestones and are not part of Milestone 0.
+Authentication, multi-tenancy, inventory, events, broader application-service
+boundaries, currency/timezone modeling, and production payment integration are
+intentionally deferred to later milestones.
+
+The Milestone 1 workflow therefore remains an unauthenticated local-development
+flow. It does not claim tenant isolation or production authorization; those
+security boundaries are explicit requirements of Milestones 3 and 4.
