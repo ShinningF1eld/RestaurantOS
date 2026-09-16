@@ -58,19 +58,32 @@ The finished portfolio project should demonstrate:
 
 ---
 
-## 2. Current-state assumptions
+## 2. Verified current state
 
-The repository currently appears to contain:
+Milestone 0 verified the repository on 2026-09-16. Detailed evidence and known
+limitations are maintained in [`docs/current-state.md`](docs/current-state.md).
 
-- Next.js frontend with Tailwind CSS.
-- FastAPI backend.
-- PostgreSQL, likely running through Docker with host port `5433` mapped to container port `5432`.
-- SQLAlchemy and Alembic, or work in progress toward them.
-- CRUD/UI for restaurants, menus, and menu items.
-- An order system or partial ordering flow.
-- Early dashboard/analytics work.
-
-These are assumptions, not facts. The first agent task is to audit the repository and replace this section with verified findings.
+- The frontend uses Next.js 16.3.1, React 19.2.8, TypeScript strict mode, and
+  Tailwind CSS 4.
+- The backend uses FastAPI 0.141.1, async SQLAlchemy 2.0.52, and Alembic 1.19.1.
+- Docker Compose manages PostgreSQL 16 only, with host port `5433` mapped to
+  container port `5432` and clearly labeled local-development credentials.
+- The schema contains Restaurant, Menu, MenuItem, Order, and OrderItem across a
+  linear three-revision Alembic chain. Zero-to-head migration was reproduced on
+  a temporary empty database.
+- The API exposes restaurant, menu, menu-item, order, and early dashboard
+  analytics operations. Route prefixes are inconsistent and unversioned.
+- The frontend provides restaurant CRUD, menu/menu-item management, order
+  listing and direct status actions, and analytics. It does not provide order
+  entry or payment UI, and some operational screens/data remain mock content.
+- Order creation calculates prices on the server and rejects cross-restaurant
+  items, but it does not reject unavailable items, enforce status transitions,
+  or preserve an item-name snapshot.
+- Authentication, authorization, tenancy, payment representation, inventory,
+  workers/events, and deployment infrastructure are not implemented.
+- Milestone 0 documentation, environment examples, smoke testing, local
+  validation, and CI definitions now exist. The new GitHub Actions workflow has
+  not yet been remotely executed, so Milestone 0 remains in progress.
 
 ### Immediate definition of “core CRUD complete”
 
@@ -1358,8 +1371,8 @@ After Milestone 0, give Sol only one milestone or vertical slice at a time. A st
 
 | Milestone | Status | Evidence/link |
 |---|---|---|
-| 0. Repository audit and baseline | Not started | |
-| 1. Core restaurant workflow | Partially implemented; verify | |
+| 0. Repository audit and baseline | In progress | [`docs/current-state.md`](docs/current-state.md); local validation reproduced, remote CI not yet run |
+| 1. Core restaurant workflow | Partially implemented; verified | [`docs/current-state.md`](docs/current-state.md#milestone-1-gap-report) |
 | 2. Application boundaries | Not verified | |
 | 3. Authentication | Not verified | |
 | 4. Multi-tenancy and RBAC | Not started/verify | |
