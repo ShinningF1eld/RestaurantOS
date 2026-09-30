@@ -1,6 +1,6 @@
 # RestaurantOS current state
 
-Last verified: 2026-09-16 after Milestone 1 completion.
+Last verified: 2026-09-16 after Milestone 2 completion.
 
 This document describes the repository as it exists. It is not a statement that
 roadmap features are complete.
@@ -24,6 +24,8 @@ and are not suitable for shared or deployed environments.
 | Component | Variable | Example file |
 |---|---|---|
 | Backend and Alembic | `DATABASE_URL` | `backend/.env.example` |
+| Backend runtime | `ENVIRONMENT`, `LOG_LEVEL`, `DATABASE_ECHO` | `backend/.env.example` |
+| Backend tests | `TEST_DATABASE_URL` (database name must end in `_test`) | `backend/.env.example` |
 | Frontend | `NEXT_PUBLIC_API_URL` | `frontend/.env.example` |
 
 Both real local environment files are ignored. The example files contain no
@@ -102,8 +104,9 @@ and API failures instead of substituting mock data.
 The browser usually uses small modules under `frontend/lib/api` and
 `NEXT_PUBLIC_API_URL` to call FastAPI. The root-page connectivity probe is an
 exception: it hardcodes `http://localhost:8000/api/test`. Router handlers
-validate parent records and commit directly through one async SQLAlchemy
-session. There is no separate application-service layer yet.
+translate HTTP schemas into typed commands and delegate to restaurant/catalog
+application services. Services own explicit transaction contexts and focused
+repositories contain the SQLAlchemy queries without committing.
 
 Frontend contracts are handwritten and have verified drift: Restaurant address
 and phone are non-null strings and response timestamps are omitted in the
@@ -116,8 +119,10 @@ backend.
 The backend accepts one or more menu-item IDs and quantities, scopes menu items
 to the restaurant, rejects unavailable items, reads prices from PostgreSQL,
 calculates totals, snapshots item names/prices, and commits the order and items
-together. A centralized state machine controls lifecycle transitions, orders
-carry a basic payment status, and restaurant order lists are paginated. The
+together. Framework-independent domain functions control lifecycle and payment
+rules, while the order service owns the transaction and repositories own
+explicit persistence queries. Orders carry a basic payment status, and
+restaurant order lists are paginated. The
 frontend exposes order entry and sequential kitchen/status actions.
 
 ### Analytics
@@ -125,7 +130,18 @@ frontend exposes order entry and sequential kitchen/status actions.
 The dashboard endpoint counts only orders whose status is `COMPLETED`.
 It returns daily sales/orders, average order value, a seven-day graph, and top
 items. Calculations currently use host-local dates and order creation time,
-rather than restaurant timezone and completion time.
+rather than restaurant timezone and completion time. The router delegates to a
+typed analytics service and focused read repository.
+
+### Session, errors, and logging
+
+The request dependency owns async-session lifetime and defensively rolls back
+unfinished work. Write services own successful transaction boundaries;
+repositories never commit or roll back. Domain/application failures use typed
+exceptions mapped by one HTTP adapter while preserving the existing
+`{"detail": ...}` response contract. Structured JSON logging includes request
+method, path, status, duration, and the validated/generated request ID returned
+in `X-Request-ID`.
 
 ## Quality baseline
 
@@ -136,7 +152,7 @@ docker compose config --quiet
 python -m pip check
 detect-secrets-hook --baseline .secrets.baseline <repository files>
 python -m ruff check app tests
-python -m mypy app/schemas
+python -m mypy app
 python -m pytest
 python -m alembic upgrade head       # clean CI database
 python -m alembic check
@@ -145,9 +161,9 @@ npm run typecheck
 npm run build
 ```
 
-Mypy intentionally starts with `app/schemas`, the most consistently typed
-backend boundary. The full `app` baseline is run during Milestone 0 validation
-and recorded below, but is not made a required gate through broad suppressions.
+Mypy now checks the full backend application. Important core, domain,
+repository, schema, service, and HTTP-adapter modules additionally disallow
+untyped function definitions.
 
 ### Reproduced results
 
@@ -158,9 +174,8 @@ and recorded below, but is not made a required gate through broad suppressions.
 | `python -m pip check` | Passed; no broken requirements |
 | `detect-secrets-hook --baseline .secrets.baseline ...` | Passed over tracked and untracked candidate files; two Alembic revision IDs are audited false positives |
 | `python -m ruff check app tests` | Passed |
-| `python -m mypy app/schemas` | Passed; 5 source files |
-| `python -m mypy app` | Baseline failed with 12 SQLAlchemy typing errors across `routers/order.py`, `routers/menu_item.py`, and `routers/menu.py`; not a required gate yet |
-| `python -m pytest` | Passed; 2 tests including the PostgreSQL-backed critical restaurant-to-dashboard flow |
+| `python -m mypy app` | Passed; 41 source files |
+| `python -m pytest` | Passed; 56 tests including domain, service, transaction, characterization, analytics, and the Milestone 1 critical flow |
 | Existing DB `alembic current` and `alembic check` | Passed at `4a1e9a2dc8e4 (head)` with no model drift |
 | Empty temporary DB `alembic upgrade head`, `current`, and `check` | Passed through all four revisions; temporary database removed afterward |
 | `npm run lint` | Passed |
@@ -181,17 +196,36 @@ payment status, completes a sale, preserves history after catalog deactivation,
 and verifies completed-only dashboard revenue and top items. The same test
 confirms cancelled tickets do not contribute revenue.
 
-Local validation passed Ruff, schema mypy, PostgreSQL-backed pytest, Alembic
+Local validation passed Ruff, full-app mypy, PostgreSQL-backed pytest, Alembic
 upgrade/drift checks, secret scanning, ESLint, TypeScript, and the Next.js
 production build. A separately named empty PostgreSQL database was migrated
 from zero through `4a1e9a2dc8e4` and removed after verification. OpenAPI was
 inspected for the order create request, paginated response, payment status, and
 nullable historical catalog reference.
 
-Authentication, multi-tenancy, inventory, events, broader application-service
-boundaries, currency/timezone modeling, and production payment integration are
+Authentication, multi-tenancy, inventory, events, currency/timezone modeling,
+and production payment integration are
 intentionally deferred to later milestones.
 
 The Milestone 1 workflow therefore remains an unauthenticated local-development
 flow. It does not claim tenant isolation or production authorization; those
 security boundaries are explicit requirements of Milestones 3 and 4.
+
+## Milestone 2 completion evidence
+
+Milestone 2 is complete. Restaurant, menu, menu-item, order, and analytics
+routers now delegate to typed application services and focused repositories.
+Order lifecycle/payment rules are framework-independent and directly unit
+tested. All critical writes use explicit service-owned transactions, and
+database-backed tests verify rollback of a partially applied order update.
+
+Typed settings are shared by the API and Alembic. SQL echo is configurable and
+off by default. Domain errors have centralized HTTP mapping, and structured
+request logs carry the same request ID returned to clients. ORM declarations
+use SQLAlchemy 2 typed mappings while API schemas remain separate.
+
+The isolated PostgreSQL test harness refuses database names without a `_test`
+suffix. The final lead review passed Ruff, full-app mypy, 56 backend tests,
+Alembic drift detection, frontend ESLint and TypeScript, and the Next.js
+production build. No schema migration or public API route/schema change was
+introduced.

@@ -19,39 +19,43 @@ flowchart LR
 | Component | Current responsibility |
 |---|---|
 | Next.js | Routes, forms, restaurant navigation, order list/actions, dashboard rendering, and API calls |
-| FastAPI | HTTP validation, CRUD orchestration, price calculation, persistence, and analytics queries |
+| FastAPI routers | HTTP validation, dependency injection, status codes, and response mapping |
+| Application services | Use-case orchestration, business rules, and explicit write transaction boundaries |
+| Repositories | Focused SQLAlchemy persistence and analytics queries without HTTP knowledge |
 | PostgreSQL | System of record for restaurants, menus, menu items, orders, and order items |
 | Alembic | Ordered schema creation and future schema evolution |
 | Docker Compose | Local PostgreSQL lifecycle only |
 
 ## Boundaries and dependencies
 
-The current backend dependency direction is effectively:
+The backend now follows the modular-monolith dependency direction established
+by ADR 0001:
 
 ```text
-FastAPI router -> SQLAlchemy model/session -> PostgreSQL
+FastAPI router -> application service -> domain/repository -> PostgreSQL
 ```
 
-Pydantic schemas define request and response contracts, but business logic and
-transaction orchestration remain in routers. Milestone 0 documents this rather
-than restructuring it. ADR 0001 records the intended gradual direction:
-
-```text
-router -> application service/use case -> domain/repository -> infrastructure
-```
+Pydantic schemas remain at the HTTP boundary and SQLAlchemy models remain in
+the persistence boundary. Order state/payment rules are framework-independent.
+The request dependency owns session lifetime, application command services own
+transactions, and repositories never commit or roll back.
 
 ## Trust and configuration boundaries
 
 - Browser-visible API configuration usually uses `NEXT_PUBLIC_API_URL`; the
   root-page connectivity probe still hardcodes the localhost API URL.
-- Backend and Alembic use `DATABASE_URL`.
+- Backend and Alembic share typed settings sourced from `DATABASE_URL`.
+- Tests require a separate `TEST_DATABASE_URL` whose database name ends in
+  `_test`; the harness refuses to truncate the development database.
+- `ENVIRONMENT`, `LOG_LEVEL`, and `DATABASE_ECHO` are validated settings.
 - CORS currently permits only `http://localhost:3000`.
 - There is no authentication, authorization, tenant boundary, Redis, worker,
   object storage, or external payment provider in the current system.
 - `/health` is a process liveness response and does not query dependencies.
   No readiness endpoint is claimed or added in Milestone 0.
-- SQLAlchemy SQL echo is currently always enabled and is a documented logging
-  risk for a later configuration-focused change.
+- Structured JSON logging includes a validated or generated request ID, which
+  is also returned in the `X-Request-ID` response header. SQL echo is disabled
+  by default and is explicitly configurable.
 
 ## Deployment context
 

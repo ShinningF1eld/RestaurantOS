@@ -26,12 +26,20 @@ Copy-Item frontend/.env.example frontend/.env.local
 
 docker compose up -d --wait postgres
 
+$restaurantOsTestDatabase = docker exec restaurantos-postgres psql -U restaurantos -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'restaurantos_test'"
+if (-not $restaurantOsTestDatabase) {
+    docker exec restaurantos-postgres createdb -U restaurantos restaurantos_test
+}
+
 py -3.12 -m venv backend/.venv
 backend/.venv/Scripts/python.exe -m pip install --upgrade pip
 backend/.venv/Scripts/python.exe -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
 
 Push-Location backend
 .venv/Scripts/python.exe -m alembic upgrade head
+$env:DATABASE_URL = "postgresql+asyncpg://restaurantos:restaurantos@localhost:5433/restaurantos_test" # pragma: allowlist secret
+.venv/Scripts/python.exe -m alembic upgrade head
+Remove-Item Env:DATABASE_URL
 Pop-Location
 
 Push-Location frontend
@@ -42,6 +50,10 @@ Pop-Location
 The Compose username, password, and database name are all `restaurantos`.
 They are intentionally predictable **local-development defaults** and must not
 be reused for a shared, staging, or production environment.
+
+Backend tests use `restaurantos_test` and refuse to run unless
+`TEST_DATABASE_URL` names a database ending in `_test`. Tests truncate that
+isolated database before and after each test.
 
 Start the API from the repository root:
 
@@ -69,10 +81,14 @@ Use the same sequence with platform-specific virtual-environment commands:
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env.local
 docker compose up -d --wait postgres
+if ! docker exec restaurantos-postgres psql -U restaurantos -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'restaurantos_test'" | grep -q 1; then
+  docker exec restaurantos-postgres createdb -U restaurantos restaurantos_test
+fi
 python3.12 -m venv backend/.venv
 backend/.venv/bin/python -m pip install --upgrade pip
 backend/.venv/bin/python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
 (cd backend && .venv/bin/python -m alembic upgrade head)
+(cd backend && DATABASE_URL=postgresql+asyncpg://restaurantos:restaurantos@localhost:5433/restaurantos_test .venv/bin/python -m alembic upgrade head) # pragma: allowlist secret
 (cd frontend && npm ci)
 ```
 
@@ -89,7 +105,7 @@ With PostgreSQL running and dependencies installed, Windows users can run:
 ```
 
 The script validates Compose, installed Python dependencies, tracked files for
-secrets, Ruff, the initial mypy schema scope, backend smoke tests, Alembic state
+secrets, Ruff, full-backend mypy, backend regression tests, Alembic state
 and model drift, ESLint, TypeScript, and the production frontend build. Use
 `-SkipBuild`, `-SkipDatabase`, or `-SkipSecrets` only for targeted local work;
 CI runs every underlying gate independently.

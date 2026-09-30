@@ -16,5 +16,12 @@ check_untyped_defs = true
 show_error_codes = true
 
 [[tool.mypy.overrides]]
-module = "app.schemas.*"
+module = [
+    "app.core.*",
+    "app.domain.*",
+    "app.http.*",
+    "app.repositories.*",
+    "app.schemas.*",
+    "app.services.*",
+]
 disallow_untyped_defs = true
