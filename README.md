@@ -6,6 +6,12 @@ Compose. The current implementation includes restaurant, menu, menu-item, and
 order APIs plus an early analytics dashboard. See
 [`docs/current-state.md`](docs/current-state.md) for verified limitations.
 
+Business APIs require a provisioned account. Milestone 3 adds secure login,
+rotating browser sessions, logout, and authentication rate limits in the new
+`backend/app/modules/auth` feature module. Accounts currently share the workspace;
+tenant permissions are Milestone 4. See the [auth runbook](docs/runbooks/authentication.md)
+and [API contract](docs/api/authentication.md).
+
 ## Prerequisites
 
 - Python 3.12 (the supported documentation and CI version)
@@ -34,9 +40,11 @@ if (-not $restaurantOsTestDatabase) {
 py -3.12 -m venv backend/.venv
 backend/.venv/Scripts/python.exe -m pip install --upgrade pip
 backend/.venv/Scripts/python.exe -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+backend/.venv/Scripts/python.exe scripts/init-auth-env.py
 
 Push-Location backend
 .venv/Scripts/python.exe -m alembic upgrade head
+.venv/Scripts/python.exe -m app.modules.auth.cli create-user owner@example.test
 $env:DATABASE_URL = "postgresql+asyncpg://restaurantos:restaurantos@localhost:5433/restaurantos_test" # pragma: allowlist secret
 .venv/Scripts/python.exe -m alembic upgrade head
 Remove-Item Env:DATABASE_URL
@@ -44,6 +52,7 @@ Pop-Location
 
 Push-Location frontend
 npm ci
+npx playwright install chromium
 Pop-Location
 ```
 
@@ -59,7 +68,7 @@ Start the API from the repository root:
 
 ```powershell
 Push-Location backend
-.venv/Scripts/python.exe -m uvicorn app.main:app --reload --port 8000
+.venv/Scripts/python.exe -m uvicorn app.main:app --reload --port 8000 --no-proxy-headers
 ```
 
 In a second terminal, start the frontend:
@@ -72,6 +81,9 @@ npm run dev
 Open <http://localhost:3000>. FastAPI documentation is available at
 <http://localhost:8000/docs>, and the liveness endpoint is
 <http://localhost:8000/health>.
+Use `localhost` consistently on both ports; host-only cookies also support server
+rendering. Sign in using the account and password entered in the provisioning
+command. Secrets stay in the ignored backend `.env` file.
 
 ## macOS and Linux setup
 
@@ -87,13 +99,16 @@ fi
 python3.12 -m venv backend/.venv
 backend/.venv/bin/python -m pip install --upgrade pip
 backend/.venv/bin/python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+backend/.venv/bin/python scripts/init-auth-env.py
 (cd backend && .venv/bin/python -m alembic upgrade head)
+(cd backend && .venv/bin/python -m app.modules.auth.cli create-user owner@example.test)
 (cd backend && DATABASE_URL=postgresql+asyncpg://restaurantos:restaurantos@localhost:5433/restaurantos_test .venv/bin/python -m alembic upgrade head) # pragma: allowlist secret
 (cd frontend && npm ci)
+(cd frontend && npx playwright install chromium)
 ```
 
 Run the API with
-`cd backend && .venv/bin/python -m uvicorn app.main:app --reload --port 8000`
+`cd backend && .venv/bin/python -m uvicorn app.main:app --reload --port 8000 --no-proxy-headers`
 and the frontend with `cd frontend && npm run dev`.
 
 ## Validation
@@ -106,8 +121,10 @@ With PostgreSQL running and dependencies installed, Windows users can run:
 
 The script validates Compose, installed Python dependencies, tracked files for
 secrets, Ruff, full-backend mypy, backend regression tests, Alembic state
-and model drift, ESLint, TypeScript, and the production frontend build. Use
-`-SkipBuild`, `-SkipDatabase`, or `-SkipSecrets` only for targeted local work;
+and model drift, ESLint, TypeScript, the production frontend build, and the
+real Chromium authentication/sale suite.
+Stop development servers on ports 3000 and 8000 before full validation. Use
+`-SkipBuild`, `-SkipDatabase`, `-SkipBrowser`, or `-SkipSecrets` only for targeted local work;
 CI runs every underlying gate independently.
 
 Equivalent individual commands are recorded in

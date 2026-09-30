@@ -15,6 +15,7 @@ import {
     RestaurantUpdate,
 } from "@/types/restaurant";
 import RestaurantForm from "./components/RestaurantForm";
+import SessionMenu from "@/features/auth/SessionMenu";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import StatusBadge from "@/components/ui/StatusBadge";
@@ -139,7 +140,8 @@ export default function RestaurantsPage() {
                     </Link>
                 </header>
 
-                <PageHeader
+                <SessionMenu />
+            <PageHeader
                     eyebrow="Workspace"
                     title="Restaurants"
                     description="Choose a location, update profile information, or add a new restaurant to the operations console."

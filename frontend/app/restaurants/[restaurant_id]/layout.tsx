@@ -1,8 +1,9 @@
+import SessionMenu from "@/features/auth/SessionMenu";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ReactNode } from "react";
 
-import { ApiError, getRestaurant } from "@/lib/api/restaurant";
+import { ApiError, getRestaurant } from "@/lib/api/server";
 
 interface RestaurantLayoutProps {
     children: ReactNode;
@@ -101,7 +102,7 @@ export default async function RestaurantLayout({
                             </p>
                         </div>
 
-                        <div className="h-9 w-9 rounded-full border border-slate-200 bg-amber-100" />
+                        <SessionMenu />
                     </div>
                 </div>
             </header>

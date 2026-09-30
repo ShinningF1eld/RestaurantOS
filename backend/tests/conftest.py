@@ -1,4 +1,5 @@
 import os
+import secrets
 
 import pytest
 from dotenv import load_dotenv
@@ -21,19 +22,72 @@ if not database_name.endswith("_test"):
 # the application at the same isolated database used by the cleanup fixture.
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 os.environ["ENVIRONMENT"] = "test"
+os.environ["AUTH_JWT_SECRET"] = secrets.token_urlsafe(48)
+os.environ["AUTH_RATE_LIMIT_SECRET"] = secrets.token_urlsafe(48)
+os.environ["AUTH_TRUSTED_ORIGINS"] = '["http://localhost:3000"]'
+os.environ["AUTH_COOKIE_SECURE"] = "false"
 
-sync_url = TEST_DATABASE_URL.replace(
-    "postgresql+asyncpg://", "postgresql+psycopg://"
-)
+sync_url = TEST_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql+psycopg://")
 engine = create_engine(sync_url)
 
 
 @pytest.fixture(autouse=True)
 def clean_database() -> None:
     """Tests use the PostgreSQL schema prepared by Alembic, not SQLite."""
+
     def truncate() -> None:
         with engine.begin() as connection:
-            connection.execute(text("TRUNCATE TABLE order_items, orders, menu_items, menus, restaurants RESTART IDENTITY CASCADE"))
+            connection.execute(
+                text(
+                    "TRUNCATE TABLE auth_rate_limit_buckets, auth_refresh_tokens, auth_sessions, users, order_items, orders, menu_items, menus, restaurants RESTART IDENTITY CASCADE"
+                )
+            )
+
     truncate()
     yield
     truncate()
+
+
+@pytest.fixture
+def auth_user() -> dict[str, str]:
+    """Provision a real account; HTTP tests never bypass the auth dependency."""
+    import asyncio
+    from uuid import uuid4
+
+    from app.modules.auth.security import hash_password
+
+    account = {
+        "id": str(uuid4()),
+        "email": "operator@example.test",
+        "password": "A long test password with spaces",  # pragma: allowlist secret
+    }
+    password_hash = asyncio.run(hash_password(account["password"]))
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO users (id, email, password_hash, status) "
+                "VALUES (:id, :email, :password_hash, 'active')"
+            ),
+            {**account, "password_hash": password_hash},
+        )
+    return account
+
+
+@pytest.fixture
+def authenticated_client(auth_user):
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    with TestClient(app) as client:
+        client.headers.update(
+            {"Origin": "http://localhost:3000", "X-CSRF-Protection": "1"}
+        )
+        response = client.post(
+            "/auth/login",
+            json={
+                "email": auth_user["email"],
+                "password": auth_user["password"],
+            },
+        )
+        assert response.status_code == 200, response.text
+        yield client

@@ -23,5 +23,6 @@ module = [
     "app.repositories.*",
     "app.schemas.*",
     "app.services.*",
+    "app.modules.*",
 ]
 disallow_untyped_defs = true

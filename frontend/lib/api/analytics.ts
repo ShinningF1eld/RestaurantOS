@@ -1,13 +1,14 @@
+import { apiFetch } from "./client";
 import type { RestaurantDashboardAnalytics } from "@/types/analytics";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 
 
 export async function getRestaurantDashboardAnalytics(
     restaurantId: number
 ): Promise<RestaurantDashboardAnalytics> {
-    const response = await fetch(
-        `${API_URL}/api/restaurants/${restaurantId}/analytics/dashboard`,
+    const response = await apiFetch(
+        `/api/restaurants/${restaurantId}/analytics/dashboard`,
         {
             cache: "no-store",
         }

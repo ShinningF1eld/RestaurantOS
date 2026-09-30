@@ -1,14 +1,14 @@
 import OrderActions from "./OrderActions";
 import Link from "next/link";
 
-import { getRestaurantOrders } from "@/lib/api/order";
+import { getRestaurantOrders } from "@/lib/api/server";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import StatusBadge from "@/components/ui/StatusBadge";
 import type { Money, Order } from "@/types/order";
 import OrderEntry from "./OrderEntry";
-import { getRestaurantMenus } from "@/lib/api/menu";
-import { getMenuItems } from "@/lib/api/menu_item";
+import { getRestaurantMenus } from "@/lib/api/server";
+import { getMenuItems } from "@/lib/api/server";
 
 interface OrdersPageProps {
     params: Promise<{

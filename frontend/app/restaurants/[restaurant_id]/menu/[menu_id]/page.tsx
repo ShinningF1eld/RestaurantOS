@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { getMenuItems } from "@/lib/api/menu_item";
-import { getMenu} from "@/lib/api/menu";
+import { getMenuItems } from "@/lib/api/server";
+import { getMenu} from "@/lib/api/server";
 
 import MenuItemList from "@/components/menu/MenuItemList";
 import PageHeader from "@/components/ui/PageHeader";

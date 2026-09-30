@@ -2,8 +2,6 @@
 
 from fastapi.testclient import TestClient
 
-from app.main import app
-
 
 def create_restaurant(client: TestClient, name: str = "Catalog Test") -> int:
     response = client.post("/api/restaurants", json={"name": name})
@@ -35,8 +33,10 @@ def create_menu_item(
     return response.json()["menu_item_id"]
 
 
-def test_catalog_updates_and_deletes_preserve_status_and_response_shapes() -> None:
-    with TestClient(app) as client:
+def test_catalog_updates_and_deletes_preserve_status_and_response_shapes(
+    authenticated_client,
+) -> None:
+    with authenticated_client as client:
         restaurant_id = create_restaurant(client)
         menu_id = create_menu(client, restaurant_id)
         item_id = create_menu_item(client, menu_id)
@@ -74,8 +74,8 @@ def test_catalog_updates_and_deletes_preserve_status_and_response_shapes() -> No
         assert client.get(f"/menus/{empty_menu_id}").status_code == 404
 
 
-def test_menu_item_without_order_history_is_hard_deleted() -> None:
-    with TestClient(app) as client:
+def test_menu_item_without_order_history_is_hard_deleted(authenticated_client) -> None:
+    with authenticated_client as client:
         restaurant_id = create_restaurant(client)
         menu_id = create_menu(client, restaurant_id)
         item_id = create_menu_item(client, menu_id)
@@ -88,8 +88,10 @@ def test_menu_item_without_order_history_is_hard_deleted() -> None:
         assert missing.status_code == 404
 
 
-def test_menu_item_with_order_history_is_deactivated_and_snapshot_is_retained() -> None:
-    with TestClient(app) as client:
+def test_menu_item_with_order_history_is_deactivated_and_snapshot_is_retained(
+    authenticated_client,
+) -> None:
+    with authenticated_client as client:
         restaurant_id = create_restaurant(client)
         menu_id = create_menu(client, restaurant_id)
         item_id = create_menu_item(client, menu_id, name="Historic Dish", price="9.00")
@@ -121,10 +123,15 @@ def test_menu_item_with_order_history_is_deactivated_and_snapshot_is_retained() 
         assert historic.json()["items"][0]["unit_price"] == "9.00"
 
 
-def test_catalog_missing_resources_keep_not_found_status() -> None:
-    with TestClient(app) as client:
-        assert client.put("/api/restaurants/999999", json={"name": "Nope"}).status_code == 404
+def test_catalog_missing_resources_keep_not_found_status(authenticated_client) -> None:
+    with authenticated_client as client:
+        assert (
+            client.put("/api/restaurants/999999", json={"name": "Nope"}).status_code
+            == 404
+        )
         assert client.put("/menus/999999", json={"name": "Nope"}).status_code == 404
-        assert client.put("/menu-items/999999", json={"name": "Nope"}).status_code == 404
+        assert (
+            client.put("/menu-items/999999", json={"name": "Nope"}).status_code == 404
+        )
         assert client.delete("/menus/999999").status_code == 404
         assert client.delete("/menu-items/999999").status_code == 404
