@@ -276,7 +276,10 @@ Suggested initial roles:
 - `OWNER`
 - `MANAGER`
 - `EMPLOYEE`
-- `KITCHEN`
+
+The three-role decision for Milestone 4 assigns kitchen operational permissions
+to `EMPLOYEE`; there is no separate kitchen or cashier role. See
+[`docs/architecture/tenancy-schema.md`](docs/architecture/tenancy-schema.md).
 
 Implement permissions as named capabilities, not scattered role comparisons. Example capabilities:
 
@@ -566,6 +569,12 @@ Replace anonymous access with secure user identity and renewable sessions.
 
 ## Milestone 4 — Multi-tenancy and RBAC
 
+**Status: In progress — schema/model expansion implemented (2026-10-01).**
+Organization, membership, restaurant assignment and audit tables are defined;
+the restaurant organization FK remains nullable until tenant-aware creation and
+explicit owner bootstrap are implemented. Access policies are not yet enforced.
+See [`docs/architecture/tenancy-schema.md`](docs/architecture/tenancy-schema.md).
+
 ### Objective
 
 Make organization and restaurant boundaries enforceable and demonstrably safe.
@@ -576,7 +585,8 @@ Make organization and restaurant boundaries enforceable and demonstrably safe.
 - Organization owner bootstrap flow.
 - Restaurant belongs to exactly one organization.
 - Membership and optional restaurant assignment.
-- Permission mapping for owner, manager, employee, and kitchen roles.
+- Permission mapping for owner, manager, and employee roles; employee has the
+  kitchen operational permissions.
 - Reusable authorization dependency/policy layer.
 - Tenant-scoped repositories and queries.
 - Staff invitation can initially be represented by an admin-created membership; email invitation may come later.
@@ -598,7 +608,7 @@ A URL or payload containing `organization_id` or `restaurant_id` is never proof 
 - User from organization A cannot read or mutate organization B data.
 - Employee cannot manage staff or financial analytics.
 - Manager cannot promote self to owner.
-- Kitchen role can update allowed order statuses but cannot edit menu prices.
+- Employee can update allowed preparation statuses but cannot edit menu prices.
 - Removed membership immediately loses access.
 - List endpoints never leak cross-tenant rows.
 
@@ -1391,7 +1401,7 @@ After Milestone 0, give Sol only one milestone or vertical slice at a time. A st
 | 1. Core restaurant workflow | Complete | [`docs/current-state.md`](docs/current-state.md#milestone-1-completion-evidence); [`backend/tests/test_order_flow_integration.py`](backend/tests/test_order_flow_integration.py) |
 | 2. Application boundaries | Complete | [`docs/current-state.md`](docs/current-state.md#milestone-2-completion-evidence); 56 backend tests and full-app mypy passed |
 | 3. Authentication | Complete locally | [`docs/current-state.md`](docs/current-state.md#milestone-3-completion-evidence); 147 backend and 12 browser tests; CI not yet run for this change |
-| 4. Multi-tenancy and RBAC | Not started/verify | |
+| 4. Multi-tenancy and RBAC | In progress: schema/models only | [`docs/architecture/tenancy-schema.md`](docs/architecture/tenancy-schema.md); authorization pending |
 | 5. Transactional ordering and inventory | Not started/verify | |
 | 6. Test architecture and quality gates | Not verified | |
 | 7. Redis caching and rate limiting | Not started/verify | |

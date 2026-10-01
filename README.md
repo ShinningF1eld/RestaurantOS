@@ -12,6 +12,11 @@ rotating browser sessions, logout, and authentication rate limits in the new
 tenant permissions are Milestone 4. See the [auth runbook](docs/runbooks/authentication.md)
 and [API contract](docs/api/authentication.md).
 
+Milestone 4's [tenancy schema expansion](docs/architecture/tenancy-schema.md)
+defines Owner, Manager, and Employee memberships and restaurant assignments.
+This is a schema-only foundation; tenant authorization and owner bootstrap are
+still pending, and existing business APIs continue to share the workspace.
+
 ## Prerequisites
 
 - Python 3.12 (the supported documentation and CI version)

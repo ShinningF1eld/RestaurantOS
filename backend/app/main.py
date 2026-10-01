@@ -11,6 +11,8 @@ from app.http.error_handlers import domain_error_handler
 from app.http.request_middleware import RequestIdMiddleware
 from app.http.auth_middleware import AuthBoundaryMiddleware
 from app.modules.auth.repo import models as auth_models  # noqa: F401 - register metadata
+from app.modules.tenancy.repo import models as tenancy_models  # noqa: F401
+from app.modules.audit.repo import models as audit_models  # noqa: F401
 from app.modules.auth.dependencies import get_current_principal
 from app.modules.auth.domain.errors import (
     AuthenticationError,

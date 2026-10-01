@@ -3,6 +3,10 @@
 Last verified: 2026-09-30 after Milestone 3 completion. Historical results are
 dated below; the Milestone 3 section records the current validation evidence.
 
+Milestone 4 schema/model expansion was verified separately on 2026-10-01.
+The new migration was tested in disposable databases only; the application
+database was not migrated by that work. See the Milestone 4 section below.
+
 This document describes the repository as it exists. It is not a statement that
 roadmap features are complete.
 
@@ -304,3 +308,24 @@ Remaining boundaries and limitations:
 See [authentication operations](runbooks/authentication.md),
 [API contract](api/authentication.md), [feature module ADR](adr/0002-feature-modules.md)
 and [session ADR](adr/0003-authentication-sessions.md).
+
+## Milestone 4 schema/model expansion
+
+The schema-only slice adds Organization, Membership, RestaurantAssignment and
+AuditEntry models in new tenancy/audit feature modules, using the shared Base.
+Revision `83c7e1b4a902` extends `72bd03a1f901`, adds the nullable restaurant
+organization FK, and backfills legacy restaurants into a named development
+organization. Composite FKs reject cross-organization assignments and audit
+restaurant links. Membership roles are exactly OWNER, MANAGER and EMPLOYEE;
+EMPLOYEE will receive the planned kitchen permissions.
+
+Verified on 2026-10-01: Ruff and full-backend mypy (68 sources), 163 PostgreSQL
+backend tests including 16 new schema tests, clean/previous-head migration
+upgrades, no model drift, and downgrade/re-upgrade preserving historical orders
+and users. Checks ran against newly created disposable databases, which were
+removed afterward. No application database upgrade or commit was performed.
+
+Milestone 4 remains in progress: owner bootstrap, tenant-aware services and
+repositories, permission enforcement, audit writers and the final restaurant
+NOT NULL constraint are pending. Business access still has the Milestone 3
+shared-workspace behavior. See [tenancy schema and cutover notes](architecture/tenancy-schema.md).
