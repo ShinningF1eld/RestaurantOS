@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { getRestaurantMenus } from "@/lib/api/menu";
+import { getRestaurantMenus } from "@/lib/api/server";
 
 import CreateMenu from "@/components/menu/CreateMenu";
 import EmptyState from "@/components/ui/EmptyState";

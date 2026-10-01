@@ -1,4 +1,4 @@
-import { getRestaurantDashboardAnalytics } from "@/lib/api/analytics";
+import { getRestaurantDashboardAnalytics } from "@/lib/api/server";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import StatusBadge from "@/components/ui/StatusBadge";

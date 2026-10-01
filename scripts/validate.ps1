@@ -2,6 +2,7 @@
 param(
     [switch]$SkipBuild,
     [switch]$SkipDatabase,
+    [switch]$SkipBrowser,
     [switch]$SkipSecrets
 )
 
@@ -67,6 +68,9 @@ try {
             }
             Invoke-Checked "Alembic upgrade to head" { & $backendPython -m alembic upgrade head }
             Invoke-Checked "Alembic model drift check" { & $backendPython -m alembic check }
+            Invoke-Checked "Migrate isolated test database" {
+                & $backendPython (Join-Path $repositoryRoot "scripts/migrate-test-db.py")
+            }
         }
 
         Invoke-Checked "Backend tests (isolated *_test database)" {
@@ -83,6 +87,11 @@ try {
         Invoke-Checked "Frontend TypeScript" { npm run typecheck }
         if (-not $SkipBuild) {
             Invoke-Checked "Frontend production build" { npm run build }
+        }
+        if (-not $SkipBrowser) {
+            Invoke-Checked "Browser authentication and sale workflow" {
+                & $backendPython (Join-Path $repositoryRoot "scripts/run-browser-tests.py")
+            }
         }
     }
     finally {

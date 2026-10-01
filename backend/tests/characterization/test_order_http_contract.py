@@ -2,8 +2,6 @@
 
 from fastapi.testclient import TestClient
 
-from app.main import app
-
 
 def create_restaurant(client: TestClient, name: str = "Order Test") -> int:
     response = client.post("/api/restaurants", json={"name": name})
@@ -52,8 +50,10 @@ def create_order(
     return response.json()
 
 
-def test_draft_item_replacement_recalculates_totals_and_snapshots_item_name() -> None:
-    with TestClient(app) as client:
+def test_draft_item_replacement_recalculates_totals_and_snapshots_item_name(
+    authenticated_client,
+) -> None:
+    with authenticated_client as client:
         restaurant_id = create_restaurant(client)
         first_item = create_menu_item(
             client,
@@ -94,8 +94,10 @@ def test_draft_item_replacement_recalculates_totals_and_snapshots_item_name() ->
         assert updated["items"][0]["line_total"] == "24.75"
 
 
-def test_item_replacement_is_rejected_after_order_leaves_draft() -> None:
-    with TestClient(app) as client:
+def test_item_replacement_is_rejected_after_order_leaves_draft(
+    authenticated_client,
+) -> None:
+    with authenticated_client as client:
         restaurant_id = create_restaurant(client)
         original_item = create_menu_item(
             client,
@@ -119,9 +121,7 @@ def test_item_replacement_is_rejected_after_order_leaves_draft() -> None:
 
         response = client.put(
             f"/api/orders/{order['order_id']}",
-            json={
-                "items": [{"menu_item_id": replacement_item, "quantity": 1}]
-            },
+            json={"items": [{"menu_item_id": replacement_item, "quantity": 1}]},
         )
         assert response.status_code == 409, response.text
 
@@ -131,8 +131,10 @@ def test_item_replacement_is_rejected_after_order_leaves_draft() -> None:
         assert unchanged.json()["items"][0]["menu_item_id"] == original_item
 
 
-def test_invalid_payment_status_is_rejected_without_changing_order() -> None:
-    with TestClient(app) as client:
+def test_invalid_payment_status_is_rejected_without_changing_order(
+    authenticated_client,
+) -> None:
+    with authenticated_client as client:
         restaurant_id = create_restaurant(client)
         item_id = create_menu_item(
             client,
@@ -153,8 +155,10 @@ def test_invalid_payment_status_is_rejected_without_changing_order() -> None:
         assert unchanged.json()["payment_status"] == "UNPAID"
 
 
-def test_order_transition_aliases_and_invalid_transition_statuses() -> None:
-    with TestClient(app) as client:
+def test_order_transition_aliases_and_invalid_transition_statuses(
+    authenticated_client,
+) -> None:
+    with authenticated_client as client:
         restaurant_id = create_restaurant(client)
         item_id = create_menu_item(
             client,
@@ -180,8 +184,10 @@ def test_order_transition_aliases_and_invalid_transition_statuses() -> None:
         assert current.json()["status"] == "SUBMITTED"
 
 
-def test_failed_order_update_does_not_commit_prior_field_mutations() -> None:
-    with TestClient(app) as client:
+def test_failed_order_update_does_not_commit_prior_field_mutations(
+    authenticated_client,
+) -> None:
+    with authenticated_client as client:
         restaurant_id = create_restaurant(client)
         item_id = create_menu_item(
             client,

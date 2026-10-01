@@ -1,3 +1,4 @@
+import { apiFetch } from "./client";
 import type {
     Order,
     OrderCreate,
@@ -5,7 +6,7 @@ import type {
     OrderUpdate,
 } from "@/types/order";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 
 
 export async function getRestaurantOrders(
@@ -13,8 +14,8 @@ export async function getRestaurantOrders(
     limit = 25,
     offset = 0
 ): Promise<PaginatedOrders> {
-    const response = await fetch(
-        `${API_URL}/api/restaurants/${restaurantId}/orders?limit=${limit}&offset=${offset}`,
+    const response = await apiFetch(
+        `/api/restaurants/${restaurantId}/orders?limit=${limit}&offset=${offset}`,
         {
             cache: "no-store",
         }
@@ -28,7 +29,7 @@ export async function getRestaurantOrders(
 }
 
 export async function createOrder(restaurantId: number, data: OrderCreate): Promise<Order> {
-    const response = await fetch(`${API_URL}/api/restaurants/${restaurantId}/orders`, {
+    const response = await apiFetch(`/api/restaurants/${restaurantId}/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -45,8 +46,8 @@ export async function updateOrder(
     orderId: number,
     data: OrderUpdate
 ): Promise<Order> {
-    const response = await fetch(
-        `${API_URL}/api/orders/${orderId}`,
+    const response = await apiFetch(
+        `/api/orders/${orderId}`,
         {
             method: "PUT",
             headers: {

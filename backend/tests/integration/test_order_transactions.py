@@ -1,19 +1,15 @@
 """Database-backed transaction guarantees for order writes."""
 
-from fastapi.testclient import TestClient
 
-from app.main import app
-
-
-def test_failed_status_and_item_update_rolls_back_all_order_changes() -> None:
-    with TestClient(app) as client:
+def test_failed_status_and_item_update_rolls_back_all_order_changes(
+    authenticated_client,
+) -> None:
+    with authenticated_client as client:
         restaurant = client.post("/api/restaurants", json={"name": "Rollback"})
         assert restaurant.status_code == 201, restaurant.text
         restaurant_id = restaurant.json()["id"]
 
-        menu = client.post(
-            f"/restaurants/{restaurant_id}/menus", json={"name": "Main"}
-        )
+        menu = client.post(f"/restaurants/{restaurant_id}/menus", json={"name": "Main"})
         assert menu.status_code == 200, menu.text
         menu_item = client.post(
             f"/menus/{menu.json()['menu_id']}/items",
@@ -23,7 +19,11 @@ def test_failed_status_and_item_update_rolls_back_all_order_changes() -> None:
 
         created = client.post(
             f"/api/restaurants/{restaurant_id}/orders",
-            json={"items": [{"menu_item_id": menu_item.json()["menu_item_id"], "quantity": 1}]},
+            json={
+                "items": [
+                    {"menu_item_id": menu_item.json()["menu_item_id"], "quantity": 1}
+                ]
+            },
         )
         assert created.status_code == 201, created.text
         order_id = created.json()["order_id"]

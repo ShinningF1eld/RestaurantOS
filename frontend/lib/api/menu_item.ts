@@ -1,17 +1,18 @@
+import { apiFetch } from "./client";
 import type {
     MenuItem,
     MenuItemCreate,
     MenuItemUpdate,
 } from "@/types/menu_item";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 
 
 export async function getMenuItems(
     menuId: number
 ): Promise<MenuItem[]> {
-    const response = await fetch(
-        `${API_URL}/menus/${menuId}/items`
+    const response = await apiFetch(
+        `/menus/${menuId}/items`
     );
 
     if (!response.ok) {
@@ -25,8 +26,8 @@ export async function getMenuItems(
 export async function getMenuItem(
     menuItemId: number
 ): Promise<MenuItem> {
-    const response = await fetch(
-        `${API_URL}/menu-items/${menuItemId}`
+    const response = await apiFetch(
+        `/menu-items/${menuItemId}`
     );
 
     if (!response.ok) {
@@ -41,8 +42,8 @@ export async function createMenuItem(
     menuId: number,
     data: MenuItemCreate
 ): Promise<MenuItem> {
-    const response = await fetch(
-        `${API_URL}/menus/${menuId}/items`,
+    const response = await apiFetch(
+        `/menus/${menuId}/items`,
         {
             method: "POST",
             headers: {
@@ -64,8 +65,8 @@ export async function updateMenuItem(
     menuItemId: number,
     data: MenuItemUpdate
 ): Promise<MenuItem> {
-    const response = await fetch(
-        `${API_URL}/menu-items/${menuItemId}`,
+    const response = await apiFetch(
+        `/menu-items/${menuItemId}`,
         {
             method: "PUT",
             headers: {
@@ -86,8 +87,8 @@ export async function updateMenuItem(
 export async function deleteMenuItem(
     menuItemId: number
 ): Promise<void> {
-    const response = await fetch(
-        `${API_URL}/menu-items/${menuItemId}`,
+    const response = await apiFetch(
+        `/menu-items/${menuItemId}`,
         {
             method: "DELETE",
         }

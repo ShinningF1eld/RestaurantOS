@@ -1,6 +1,7 @@
 # RestaurantOS current state
 
-Last verified: 2026-09-16 after Milestone 2 completion.
+Last verified: 2026-09-30 after Milestone 3 completion. Historical results are
+dated below; the Milestone 3 section records the current validation evidence.
 
 This document describes the repository as it exists. It is not a statement that
 roadmap features are complete.
@@ -8,7 +9,7 @@ roadmap features are complete.
 ## Repository and runtime baseline
 
 - Backend: FastAPI 0.141.1, SQLAlchemy 2.0.52 async sessions, Alembic 1.19.1.
-- Frontend: Next.js 16.3.1, React 19.2.8, TypeScript, and Tailwind CSS 4.
+- Frontend: Next.js 16.3.7, React 19.2.8, TypeScript, and Tailwind CSS 4.
 - Database: PostgreSQL 16 in Docker Compose, host port `5433` to container port
   `5432`, with the named volume `postgres_data`.
 - Supported baseline: Python 3.12 in documentation and CI; Node.js 24 in CI.
@@ -25,8 +26,9 @@ and are not suitable for shared or deployed environments.
 |---|---|---|
 | Backend and Alembic | `DATABASE_URL` | `backend/.env.example` |
 | Backend runtime | `ENVIRONMENT`, `LOG_LEVEL`, `DATABASE_ECHO` | `backend/.env.example` |
+| Authentication | Required independent `AUTH_JWT_SECRET`, `AUTH_RATE_LIMIT_SECRET`; trusted origins, cookie security, lifetimes and limits | `backend/.env.example` | <!-- pragma: allowlist secret -->
 | Backend tests | `TEST_DATABASE_URL` (database name must end in `_test`) | `backend/.env.example` |
-| Frontend | `NEXT_PUBLIC_API_URL` | `frontend/.env.example` |
+| Frontend | `NEXT_PUBLIC_API_URL`, server-only `API_URL` | `frontend/.env.example` |
 
 Both real local environment files are ignored. The example files contain no
 real credentials and remain commit-trackable.
@@ -42,16 +44,20 @@ The current models and tables are:
 | MenuItem | `menu_item_id` | Belongs to a menu; numeric price; availability flag |
 | Order | `order_id` | Belongs to a restaurant; controlled lifecycle and payment status; subtotal/total |
 | OrderItem | `order_item_id` | Belongs to an order; nullable catalog reference plus immutable name, price, and line-total snapshots |
+| User | UUID `id` | Normalized unique email, Argon2id hash, active/disabled status |
+| AuthSession | UUID `id` | User, absolute expiry, family revocation |
+| RefreshToken | UUID `id` | Token digest, family, consumed history and successor |
+| RateLimitBucket | Key digest + window start | Atomic shared counters and expiry |
 
 Alembic has one linear chain:
 
 ```text
-9007636220c5 -> 694f7189fe51 -> 2d7747d9f5b1 -> 4a1e9a2dc8e4 (head)
+9007636220c5 -> 694f7189fe51 -> 2d7747d9f5b1 -> 4a1e9a2dc8e4 -> 72bd03a1f901 (head)
 ```
 
 The existing local database was verified at head and `alembic check` reported
 no model drift. A separately named empty local database was upgraded through all
-four revisions to head, checked for drift, and removed. CI also performs the
+five revisions to head, checked for drift, and removed. CI also performs the
 zero-to-head upgrade against a clean PostgreSQL service before integration tests.
 
 Known deferred data-model work includes explicit currency and restaurant
@@ -61,7 +67,9 @@ status transitions in the application.
 
 ## Backend endpoint inventory
 
-There are 21 business endpoints plus three utility endpoints.
+There are 21 protected business endpoints, four authentication endpoints and
+three utility endpoints. `/api/test-db` requires authentication and returns 404
+in production. Public health/probe responses and API docs contain no business data.
 
 | Area | Methods and paths |
 |---|---|
@@ -70,6 +78,7 @@ There are 21 business endpoints plus three utility endpoints.
 | Menu items | `POST/GET /menus/{menu_id}/items`; `GET/PUT/DELETE /menu-items/{menu_item_id}` |
 | Orders | `POST/GET /api/restaurants/{restaurant_id}/orders`; `GET/PUT/DELETE /api/orders/{order_id}` |
 | Analytics | `GET /api/restaurants/{restaurant_id}/analytics/dashboard` |
+| Authentication | `POST /auth/login`; `POST /auth/refresh`; `POST /auth/logout`; `GET /auth/me` |
 | Utility | `GET /health`; `GET /api/test`; `GET /api/test-db` |
 
 The current prefixes are intentionally documented, not endorsed: menu routes
@@ -79,6 +88,8 @@ roadmap's target `/api/v1` convention.
 ## Frontend route inventory
 
 - `/`
+- `/login`
+- `/session/renew`
 - `/dashboard/restaurants`
 - `/restaurants/[restaurant_id]/dashboard`
 - `/restaurants/[restaurant_id]/orders`
@@ -102,7 +113,9 @@ and API failures instead of substituting mock data.
 ### Catalog management
 
 The browser usually uses small modules under `frontend/lib/api` and
-`NEXT_PUBLIC_API_URL` to call FastAPI. The root-page connectivity probe is an
+`NEXT_PUBLIC_API_URL` to call FastAPI through the shared credentialed browser
+transport. Server-rendered pages use a separate server-only transport forwarding
+only the access cookie. The root-page connectivity probe is an
 exception: it hardcodes `http://localhost:8000/api/test`. Router handlers
 translate HTTP schemas into typed commands and delegate to restaurant/catalog
 application services. Services own explicit transaction contexts and focused
@@ -159,13 +172,14 @@ python -m alembic check
 npm run lint
 npm run typecheck
 npm run build
+python scripts/run-browser-tests.py # from root, with built frontend and isolated DB
 ```
 
 Mypy now checks the full backend application. Important core, domain,
 repository, schema, service, and HTTP-adapter modules additionally disallow
 untyped function definitions.
 
-### Reproduced results
+### Historical reproduced results (Milestones 0–2, 2026-09-16)
 
 | Command/check | Reproduced result |
 |---|---|
@@ -203,13 +217,13 @@ from zero through `4a1e9a2dc8e4` and removed after verification. OpenAPI was
 inspected for the order create request, paginated response, payment status, and
 nullable historical catalog reference.
 
-Authentication, multi-tenancy, inventory, events, currency/timezone modeling,
+At Milestone 1 completion, authentication, multi-tenancy, inventory, events, currency/timezone modeling,
 and production payment integration are
 intentionally deferred to later milestones.
 
-The Milestone 1 workflow therefore remains an unauthenticated local-development
-flow. It does not claim tenant isolation or production authorization; those
-security boundaries are explicit requirements of Milestones 3 and 4.
+That historical Milestone 1 workflow was an unauthenticated local-development
+flow. Milestone 3 now adds authentication; tenant isolation and RBAC remain
+Milestone 4 requirements.
 
 ## Milestone 2 completion evidence
 
@@ -229,3 +243,64 @@ suffix. The final lead review passed Ruff, full-app mypy, 56 backend tests,
 Alembic drift detection, frontend ESLint and TypeScript, and the Next.js
 production build. No schema migration or public API route/schema change was
 introduced.
+
+## Milestone 3 completion evidence
+
+Milestone 3 is complete locally on 2026-09-30. Two GPT-6.1 Sol agents at medium
+reasoning implemented backend and test work; the lead integrated the frontend,
+reviewed the code, corrected findings, and ran the combined verification.
+
+Authentication is the first feature-first module under `app/modules/auth`.
+The service/domain/repository responsibilities from Milestone 2 remain intact.
+Legacy catalog, order and analytics folders are intentionally unchanged.
+
+| Roadmap exit criterion | Verified evidence |
+|---|---|
+| Protected routes require authentication | Real HTTP tests enumerate all business operations and reject anonymous access; authenticated catalog/order transaction and sale regressions pass. |
+| Browser refresh preserves a valid session safely | Chromium verifies reload, expired-access SSR deep-link renewal, one rotation across concurrent tabs, HttpOnly cookies and absence of tokens from browser storage/HTML. |
+| Happy path and abuse cases covered | Generic login failures, disabled users, JWT claim/signature/expiry checks, refresh replay committing family revocation, rotation/logout/disable races, atomic rollback, CSRF/CORS, rate limits and storage-outage failures pass. |
+
+Reproduced validation (Windows; Python 3.13.15, Node 24; CI targets Python 3.12):
+
+| Command | Result |
+|---|---|
+| `npm run build` in frontend | Passed on patched Next.js 16.3.7 |
+| `./scripts/validate.ps1 -SkipBuild` from root, immediately after the current build | Passed all remaining gates, including Compose, pip check, candidate-file secret scan, Ruff, mypy (60 sources), application/test DB migrations, model drift, pytest, ESLint, TypeScript and real browser tests |
+| Backend pytest in that validation | 147 passed; 57 existing deprecation warnings |
+| Browser suite via `scripts/run-browser-tests.py` in that validation | 12 passed against real FastAPI/PostgreSQL and production Next.js with Chromium |
+| `python scripts/check-auth-migration.py` using the backend venv and `TEST_DATABASE_URL` | Clean-to-head and previous-head upgrade passed; auth downgrade/re-upgrade on disposable data preserved restaurant/order/name/price history; no model drift |
+| `npm audit fix` after patch dependency updates | Reported zero known vulnerabilities |
+
+The full validation uses an explicit isolated `TEST_DATABASE_URL` ending in
+`_test`. Browser runs fail clearly if ports are occupied or database setup is
+unavailable. Temporary migration databases were dropped after verification.
+The existing application DB was upgraded additively to `72bd03a1f901`; its
+restaurant/order data was not rewritten. Local secrets were initialized in the
+ignored `.env` without printing or replacing existing values. No default account
+was created: operators provision their own password using the documented CLI.
+
+Lead review fixed an access-expiry response clearing the usable refresh cookie,
+a redundant migration constraint that caused model drift, per-call password
+limiter allocation, malformed JWT claim handling, and credential-bearing CLI
+validation errors. Browser verification additionally prevented repeated automatic
+refresh after a failed/ambiguous rotation. Tests exercise real auth dependencies;
+there is no production bypass flag.
+
+Remaining boundaries and limitations:
+
+- All provisioned accounts share the workspace until Milestone 4; no public
+  registration, organization authorization or role enforcement is claimed.
+- Production requires a same-host HTTPS frontend/API gateway; hosting/deployment
+  has not been implemented or verified. Local Chromium is verified, other browser
+  engines are not. Browsers without Web Locks require re-login at expiry.
+- A lost refresh response can require re-login. Fixed-window auth limits can
+  burst at a boundary; Redis migration and measured tuning remain future work.
+- Existing naive-UTC ORM timestamp and Starlette TestClient deprecations remain.
+  A cancelled Next.js streamed navigation logged a destination-stream-close
+  diagnostic during browser testing; all browser assertions passed.
+- GitHub Actions definitions include a separate real-browser job, but were not
+  executed remotely because this work is intentionally not pushed.
+
+See [authentication operations](runbooks/authentication.md),
+[API contract](api/authentication.md), [feature module ADR](adr/0002-feature-modules.md)
+and [session ADR](adr/0003-authentication-sessions.md).

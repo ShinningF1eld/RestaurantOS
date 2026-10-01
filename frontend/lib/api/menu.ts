@@ -1,17 +1,18 @@
+import { apiFetch } from "./client";
 import type {
     Menu,
     MenuCreate,
     MenuUpdate,
 } from "@/types/menu";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 
 
 export async function getRestaurantMenus(
     restaurantId: number
 ): Promise<Menu[]> {
-    const response = await fetch(
-        `${API_URL}/restaurants/${restaurantId}/menus`
+    const response = await apiFetch(
+        `/restaurants/${restaurantId}/menus`
     );
 
     if (!response.ok) {
@@ -25,8 +26,8 @@ export async function getRestaurantMenus(
 export async function getMenu(
     menuId: number
 ): Promise<Menu> {
-    const response = await fetch(
-        `${API_URL}/menus/${menuId}`
+    const response = await apiFetch(
+        `/menus/${menuId}`
     );
 
     if (!response.ok) {
@@ -41,8 +42,8 @@ export async function createMenu(
     restaurantId: number,
     data: MenuCreate
 ): Promise<Menu> {
-    const response = await fetch(
-        `${API_URL}/restaurants/${restaurantId}/menus`,
+    const response = await apiFetch(
+        `/restaurants/${restaurantId}/menus`,
         {
             method: "POST",
             headers: {
@@ -64,8 +65,8 @@ export async function updateMenu(
     menuId: number,
     data: MenuUpdate
 ): Promise<Menu> {
-    const response = await fetch(
-        `${API_URL}/menus/${menuId}`,
+    const response = await apiFetch(
+        `/menus/${menuId}`,
         {
             method: "PUT",
             headers: {
@@ -86,8 +87,8 @@ export async function updateMenu(
 export async function deleteMenu(
     menuId: number
 ): Promise<void> {
-    const response = await fetch(
-        `${API_URL}/menus/${menuId}`,
+    const response = await apiFetch(
+        `/menus/${menuId}`,
         {
             method: "DELETE",
         }

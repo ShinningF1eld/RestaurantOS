@@ -17,12 +17,14 @@ if settings.environment == "test":
     engine = create_async_engine(
         settings.database_url,
         echo=settings.database_echo,
+        hide_parameters=True,
         poolclass=NullPool,
     )
 else:
     engine = create_async_engine(
         settings.database_url,
         echo=settings.database_echo,
+        hide_parameters=True,
     )
 
 AsyncSessionLocal = async_sessionmaker(

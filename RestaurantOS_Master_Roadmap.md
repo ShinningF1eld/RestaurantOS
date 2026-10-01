@@ -60,27 +60,34 @@ The finished portfolio project should demonstrate:
 
 ## 2. Verified current state
 
-Milestone 0 verified the repository on 2026-09-16. Detailed evidence and known
+The repository was rechecked during Milestone 3 on 2026-09-30. Detailed evidence and known
 limitations are maintained in [`docs/current-state.md`](docs/current-state.md).
 
-- The frontend uses Next.js 16.3.1, React 19.2.8, TypeScript strict mode, and
+- The frontend uses Next.js 16.3.7, React 19.2.8, TypeScript strict mode, and
   Tailwind CSS 4.
 - The backend uses FastAPI 0.141.1, async SQLAlchemy 2.0.52, and Alembic 1.19.1.
 - Docker Compose manages PostgreSQL 16 only, with host port `5433` mapped to
   container port `5432` and clearly labeled local-development credentials.
-- The schema contains Restaurant, Menu, MenuItem, Order, and OrderItem across a
-  linear three-revision Alembic chain. Zero-to-head migration was reproduced on
-  a temporary empty database.
+- The schema contains Restaurant, Menu, MenuItem, Order, OrderItem, User,
+  AuthSession, RefreshToken, and auth rate counters across a linear five-revision
+  Alembic chain. Clean and previous-head upgrades were reproduced on temporary
+  databases, preserving historical orders.
 - The API exposes restaurant, menu, menu-item, order, and early dashboard
   analytics operations. Route prefixes are inconsistent and unversioned.
-- The frontend provides restaurant CRUD, menu/menu-item management, order
-  listing and direct status actions, and analytics. It does not provide order
-  entry or payment UI, and some operational screens/data remain mock content.
-- Order creation calculates prices on the server and rejects cross-restaurant
-  items, but it does not reject unavailable items, enforce status transitions,
-  or preserve an item-name snapshot.
-- Authentication, authorization, tenancy, payment representation, inventory,
-  workers/events, and deployment infrastructure are not implemented.
+- The frontend provides restaurant and catalog CRUD, order entry/listing/status
+  actions, analytics, login/logout and browser session renewal. Inventory and
+  employee screens still contain mock content.
+- Orders reject cross-restaurant and unavailable items, calculate prices on the
+  server, enforce status transitions, preserve name/price snapshots, and carry
+  basic payment status. Completed orders contribute to analytics.
+- Authentication uses Argon2id, access JWT cookies, rotating refresh tokens,
+  session-family replay revocation, active-account checks, CSRF/CORS controls,
+  and persistent login/refresh limits. Business endpoints require identity.
+- Auth is the first feature-first module (`app/modules/auth`); existing services
+  and repositories remain in place until each feature's next substantive change.
+- Tenant isolation/RBAC, inventory, workers/events, payment-provider integration,
+  and deployment infrastructure remain future work. Provisioned users currently
+  share the existing workspace; public registration is deferred to tenancy work.
 - Milestone 0 documentation, environment examples, smoke testing, local
   validation, and CI definitions now exist. Local validation and the GitHub
   Actions workflow have passed, so Milestone 0 is complete.
@@ -507,6 +514,11 @@ Create clear places for business rules before adding identity, inventory, and as
 ---
 
 ## Milestone 3 — Authentication and session security
+
+**Status: Complete (verified locally 2026-09-30).** See
+[`docs/current-state.md`](docs/current-state.md#milestone-3-completion-evidence)
+for the exit-criteria review, 147 backend tests and 12 real-browser tests.
+CI definitions are updated; this change has not been pushed or run on GitHub.
 
 ### Objective
 
@@ -1378,7 +1390,7 @@ After Milestone 0, give Sol only one milestone or vertical slice at a time. A st
 | 0. Repository audit and baseline | Complete | [`docs/current-state.md`](docs/current-state.md); local validation and GitHub Actions passed |
 | 1. Core restaurant workflow | Complete | [`docs/current-state.md`](docs/current-state.md#milestone-1-completion-evidence); [`backend/tests/test_order_flow_integration.py`](backend/tests/test_order_flow_integration.py) |
 | 2. Application boundaries | Complete | [`docs/current-state.md`](docs/current-state.md#milestone-2-completion-evidence); 56 backend tests and full-app mypy passed |
-| 3. Authentication | Not verified | |
+| 3. Authentication | Complete locally | [`docs/current-state.md`](docs/current-state.md#milestone-3-completion-evidence); 147 backend and 12 browser tests; CI not yet run for this change |
 | 4. Multi-tenancy and RBAC | Not started/verify | |
 | 5. Transactional ordering and inventory | Not started/verify | |
 | 6. Test architecture and quality gates | Not verified | |
