@@ -12,5 +12,5 @@ def normalize_email(email: str) -> str:
 
 
 def validate_password(password: str) -> None:
-    if not 15 <= len(password) <= 128:
-        raise ValueError("Password must contain 15–128 characters")
+    if not 6 <= len(password) <= 128:
+        raise ValueError("Password must contain 6–128 characters")

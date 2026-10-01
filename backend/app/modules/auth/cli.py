@@ -81,7 +81,7 @@ async def cleanup(batch_size: int = 500) -> int:
 async def run(command: str, email: str | None, batch_size: int) -> None:
     try:
         if command == "create-user" and email:
-            password = getpass.getpass("Password (15–128 characters): ")
+            password = getpass.getpass("Password (6–128 characters): ")
             if password != getpass.getpass("Confirm password: "):
                 raise ValueError("Passwords do not match")
             await create_user(email, password)
