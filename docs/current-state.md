@@ -1,7 +1,11 @@
 # RestaurantOS current state
 
-Last verified: 2026-09-30 after Milestone 3 completion. Historical results are
-dated below; the Milestone 3 section records the current validation evidence.
+Last verification: 2026-10-02 for Milestone 4, including PostgreSQL acceptance
+and live cutover. Historical Milestone 3/schema results are dated below.
+
+Milestone 4 schema/model expansion was verified separately on 2026-10-01.
+The new migration was tested in disposable databases only; the application
+database was not migrated by that work. See the Milestone 4 section below.
 
 This document describes the repository as it exists. It is not a statement that
 roadmap features are complete.
@@ -39,7 +43,7 @@ The current models and tables are:
 
 | Entity | Primary key | Important relationships/fields |
 |---|---|---|
-| Restaurant | `id` | Has menus and orders |
+| Restaurant | `id` | Belongs to exactly one organization; has menus and orders |
 | Menu | `menu_id` | Belongs to a restaurant; has menu items |
 | MenuItem | `menu_item_id` | Belongs to a menu; numeric price; availability flag |
 | Order | `order_id` | Belongs to a restaurant; controlled lifecycle and payment status; subtotal/total |
@@ -48,14 +52,18 @@ The current models and tables are:
 | AuthSession | UUID `id` | User, absolute expiry, family revocation |
 | RefreshToken | UUID `id` | Token digest, family, consumed history and successor |
 | RateLimitBucket | Key digest + window start | Atomic shared counters and expiry |
+| Organization | UUID `id` | Unique generated display number and slug; active/archived status |
+| Membership | UUID `id` | Unique user; one organization; OWNER/MANAGER/EMPLOYEE; active/revoked |
+| RestaurantAssignment | `membership_id` + `restaurant_id` | Membership and restaurant must belong to the same organization |
+| AuditEntry | UUID `id` | Organization-scoped safe mutation facts; Owner-only inspection |
 
 Alembic has one linear chain:
 
 ```text
-9007636220c5 -> 694f7189fe51 -> 2d7747d9f5b1 -> 4a1e9a2dc8e4 -> 72bd03a1f901 (head)
+9007636220c5 -> 694f7189fe51 -> 2d7747d9f5b1 -> 4a1e9a2dc8e4 -> 72bd03a1f901 -> 83c7e1b4a902 -> 94d8f2c5b013 (head; live database verified)
 ```
 
-The existing local database was verified at head and `alembic check` reported
+At Milestone 3, the existing local database was verified at its head and `alembic check` reported
 no model drift. A separately named empty local database was upgraded through all
 five revisions to head, checked for drift, and removed. CI also performs the
 zero-to-head upgrade against a clean PostgreSQL service before integration tests.
@@ -67,7 +75,7 @@ status transitions in the application.
 
 ## Backend endpoint inventory
 
-There are 21 protected business endpoints, four authentication endpoints and
+There are 29 protected business endpoints, four authentication endpoints and
 three utility endpoints. `/api/test-db` requires authentication and returns 404
 in production. Public health/probe responses and API docs contain no business data.
 
@@ -78,6 +86,8 @@ in production. Public health/probe responses and API docs contain no business da
 | Menu items | `POST/GET /menus/{menu_id}/items`; `GET/PUT/DELETE /menu-items/{menu_item_id}` |
 | Orders | `POST/GET /api/restaurants/{restaurant_id}/orders`; `GET/PUT/DELETE /api/orders/{order_id}` |
 | Analytics | `GET /api/restaurants/{restaurant_id}/analytics/dashboard` |
+| Tenancy | `GET /api/access`; `POST /api/organizations`; `GET /api/organization`; `GET/POST /api/memberships`; `PUT/DELETE /api/memberships/{membership_id}` |
+| Audit | `GET /api/audit` |
 | Authentication | `POST /auth/login`; `POST /auth/refresh`; `POST /auth/logout`; `GET /auth/me` |
 | Utility | `GET /health`; `GET /api/test`; `GET /api/test-db` |
 
@@ -101,7 +111,8 @@ roadmap's target `/api/v1` convention.
 Restaurant CRUD, menu CRUD, menu-item CRUD, multi-item order entry, paginated
 order listing/status actions, and dashboard metrics are present. The restaurant
 workspace has route-level `loading.tsx`, `error.tsx`, and `not-found.tsx`
-boundaries. Inventory and employees remain mock UI for later milestones.
+boundaries. Inventory remains mock UI for later milestones. Staff access uses the real
+Owner membership administration API. Controls/navigation reflect capabilities.
 
 The shared restaurant navigation still links to nonexistent `tables` and
 `settings` routes, and the root page shows hardcoded operational figures. These
@@ -222,8 +233,8 @@ and production payment integration are
 intentionally deferred to later milestones.
 
 That historical Milestone 1 workflow was an unauthenticated local-development
-flow. Milestone 3 now adds authentication; tenant isolation and RBAC remain
-Milestone 4 requirements.
+flow. Milestone 3 added authentication; Milestone 4 now enforces tenant isolation
+and RBAC. Inventory, events and provider integration remain future work.
 
 ## Milestone 2 completion evidence
 
@@ -288,8 +299,9 @@ there is no production bypass flag.
 
 Remaining boundaries and limitations:
 
-- All provisioned accounts share the workspace until Milestone 4; no public
-  registration, organization authorization or role enforcement is claimed.
+- At Milestone 3 completion, provisioned accounts shared the workspace. Milestone 4
+  now enforces organization authorization and roles; public registration remains
+  unimplemented.
 - Production requires a same-host HTTPS frontend/API gateway; hosting/deployment
   has not been implemented or verified. Local Chromium is verified, other browser
   engines are not. Browsers without Web Locks require re-login at expiry.
@@ -304,3 +316,59 @@ Remaining boundaries and limitations:
 See [authentication operations](runbooks/authentication.md),
 [API contract](api/authentication.md), [feature module ADR](adr/0002-feature-modules.md)
 and [session ADR](adr/0003-authentication-sessions.md).
+
+## Milestone 4 completion evidence
+
+The schema-only slice adds Organization, Membership, RestaurantAssignment and
+AuditEntry models in new tenancy/audit feature modules, using the shared Base.
+Revision `83c7e1b4a902` extends `72bd03a1f901`, adds the nullable restaurant
+organization FK, and backfills legacy restaurants into a named development
+organization. Composite FKs reject cross-organization assignments and audit
+restaurant links. Membership roles are exactly OWNER, MANAGER and EMPLOYEE;
+EMPLOYEE receives the planned kitchen permissions in the completed slice below.
+
+Verified on 2026-10-01: Ruff and full-backend mypy (68 sources), 163 PostgreSQL
+backend tests including 16 new schema tests, clean/previous-head migration
+upgrades, no model drift, and downgrade/re-upgrade preserving historical orders
+and users. Checks ran against newly created disposable databases, which were
+removed afterward. No application database upgrade or commit was performed.
+
+Implemented on 2026-10-02: one-organization-per-user uniqueness, non-null
+restaurant tenant scope, organization display numbers (development workspace 1),
+explicit idempotent legacy Owner bootstrap and authenticated first-Owner creation,
+Owner staff administration, fresh membership/assignment checks, centralized
+capabilities, scoped repositories and transactional allowlisted audits. Business
+implementations now reside in corresponding feature modules. The unused top-level
+domain/repository/service/router/schema compatibility folders have been removed.
+Role-aware screens include Owner staff administration and Employee
+preparation controls without financial/menu/staff mutation controls.
+
+Verified on 2026-10-02 after PostgreSQL recovered:
+
+- All 231 backend tests passed, including 104 database-free unit tests and
+  PostgreSQL integration coverage for isolation, assignments, revocation, role
+  changes, last-Owner protection, bootstrap and transactional audit rollback.
+- All 13 Chromium tests passed against a separate disposable database, including
+  real kitchen controls and direct forbidden/mixed writes. Browser findings fixed
+  outage messaging and a session-renewal broadcast that reloaded the page during
+  a retried write. Renewal now preserves the page; login/logout still coordinate
+  identity changes across tabs. The regression asserts one retry and no reload.
+- Clean and previous-head migration rehearsals passed with no model drift,
+  preserved users/order snapshots, idempotent bootstrap and disposable
+  downgrade/re-upgrade. The checker removed its temporary databases.
+- Ruff, full-app mypy (98 sources), frontend ESLint, TypeScript and the production
+  build passed. Candidate repository files passed secret scanning.
+- The live database was backed up, the backup restored and fingerprint-verified
+  in a disposable database, and the live database migrated to `94d8f2c5b013`
+  with no model drift. Restaurant 1 belongs to organization 1 and the sole
+  existing user has an active OWNER membership. Bootstrap ran twice with exactly
+  one membership and one bootstrap audit entry. All original account, catalog,
+  order and item data was preserved except the new restaurant organization link.
+  Restore/browser databases created for verification were removed; the backup
+  remains in the ignored `.local-backups` folder.
+
+Milestone 4's exit criteria are verified locally: every business endpoint has an
+explicit policy, cross-tenant integration tests cover reads/writes/nested IDs/list
+endpoints, and sensitive mutation audits contain safe facts without secrets.
+Remote CI was not run. See [role/API policies](api/tenancy.md),
+[schema](architecture/tenancy-schema.md) and [cutover runbook](runbooks/tenancy.md).

@@ -3,7 +3,13 @@
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-from app.core.errors import ConflictError, DomainError, NotFoundError, ValidationError
+from app.core.errors import (
+    ConflictError,
+    DomainError,
+    ForbiddenError,
+    NotFoundError,
+    ValidationError,
+)
 
 
 def domain_error_status(error: DomainError) -> int:
@@ -11,6 +17,8 @@ def domain_error_status(error: DomainError) -> int:
 
     if isinstance(error, NotFoundError):
         return 404
+    if isinstance(error, ForbiddenError):
+        return 403
     if isinstance(error, ConflictError):
         return 409
     if isinstance(error, ValidationError):

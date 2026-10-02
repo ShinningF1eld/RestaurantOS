@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 
 from app.core.errors import NotFoundError
-from app.services.catalog import CatalogService, CreateMenu, CreateMenuItem
+from app.modules.catalog.service import CatalogService, CreateMenu, CreateMenuItem
 
 
 class RecordingTransaction:
@@ -33,7 +33,7 @@ class RecordingSession:
 
 
 class MissingRestaurantRepository:
-    def __init__(self, _: RecordingSession) -> None:
+    def __init__(self, _: RecordingSession, scope=None) -> None:
         pass
 
     async def get_by_id(self, _: int) -> None:
@@ -41,25 +41,25 @@ class MissingRestaurantRepository:
 
 
 class UnusedCatalogRepository:
-    def __init__(self, _: RecordingSession) -> None:
+    def __init__(self, _: RecordingSession, scope=None) -> None:
         pass
 
 
 @pytest.mark.asyncio
 async def test_create_menu_uses_one_transaction_and_raises_typed_not_found(
     monkeypatch: pytest.MonkeyPatch,
+    fake_access,
+    unit_principal,
 ) -> None:
     """A failed catalog command is contained by the service transaction."""
-    import app.services.catalog as catalog_service_module
+    import app.modules.catalog.service as catalog_service_module
 
-    monkeypatch.setattr(
-        catalog_service_module, "RestaurantRepository", MissingRestaurantRepository
-    )
+    fake_access(catalog_service_module)
     monkeypatch.setattr(
         catalog_service_module, "CatalogRepository", UnusedCatalogRepository
     )
     session = RecordingSession()
-    service = CatalogService(session)  # type: ignore[arg-type]
+    service = CatalogService(session, unit_principal)  # type: ignore[arg-type]
 
     with pytest.raises(NotFoundError, match="Restaurant not found"):
         await service.create_menu(404, CreateMenu(name="Missing", description=None))

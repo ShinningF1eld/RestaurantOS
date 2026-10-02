@@ -6,15 +6,18 @@ import pytest
 from app.db.database import AsyncSessionLocal
 from app.db.models.order import Order, OrderItem
 from app.db.models.restaurant import Restaurant
-from app.repositories.analytics import AnalyticsRepository
-from app.services.analytics import AnalyticsService
+from app.modules.analytics.service import AnalyticsService
 
 
 @pytest.mark.asyncio
 async def test_analytics_queries_count_completed_orders_and_preserve_item_fallback(
+    owner_principal,
+    auth_user,
 ) -> None:
     async with AsyncSessionLocal() as session:
-        restaurant = Restaurant(name="Analytics test")
+        restaurant = Restaurant(
+            name="Analytics test", organization_id=auth_user["organization_id"]
+        )
         session.add(restaurant)
         await session.flush()
 
@@ -48,7 +51,7 @@ async def test_analytics_queries_count_completed_orders_and_preserve_item_fallba
         )
         await session.commit()
 
-        service = AnalyticsService(AnalyticsRepository(session))
+        service = AnalyticsService(session, owner_principal)
         dashboard = await service.get_restaurant_dashboard_analytics(
             restaurant.id,
             today=datetime(2026, 9, 16).date(),

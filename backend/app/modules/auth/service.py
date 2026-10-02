@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.db.database import AsyncSessionLocal
@@ -169,3 +170,12 @@ async def logout(refresh: str | None, access: str | None) -> None:
                     family.revoked_reason = "logout"
     except SQLAlchemyError as error:
         raise AuthStorageError() from error
+
+
+async def active_account_id(session: "AsyncSession", email: str) -> "UUID | None":
+    """Public identity lookup for owner-created memberships; no credentials leave auth."""
+    from app.modules.auth.repo.users import find_by_email
+    from app.modules.auth.domain.policies import normalize_email
+
+    user = await find_by_email(session, normalize_email(email))
+    return user.id if user is not None and user.status == "active" else None

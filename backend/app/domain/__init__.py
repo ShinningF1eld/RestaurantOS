@@ -1,1 +1,0 @@
-"""Framework-independent business rules."""

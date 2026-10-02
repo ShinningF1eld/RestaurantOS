@@ -1,3 +1,4 @@
+import { getAccess } from "@/lib/api/server";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import StatusBadge from "@/components/ui/StatusBadge";
@@ -66,7 +67,9 @@ function getStatusTone(status: string) {
     return "neutral";
 }
 
-export default function InventoryPage() {
+export default async function InventoryPage() {
+    const access = await getAccess();
+    if (!access.capabilities.includes("menu.manage")) return <p role="alert">Inventory is unavailable for your role.</p>;
     const criticalItems = inventoryItems.filter((item) => item.status === "Critical");
     const lowItems = inventoryItems.filter((item) => item.status === "Low");
     const okItems = inventoryItems.filter((item) => item.status === "OK");

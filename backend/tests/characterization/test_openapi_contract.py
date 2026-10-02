@@ -49,15 +49,19 @@ def test_openapi_keeps_write_response_statuses_and_response_models() -> None:
 
     paths = document["paths"]
     assert "201" in paths["/api/restaurants"]["post"]["responses"]
-    assert "201" in paths["/api/restaurants/{restaurant_id}/orders"]["post"]["responses"]
+    assert (
+        "201" in paths["/api/restaurants/{restaurant_id}/orders"]["post"]["responses"]
+    )
     assert "204" in paths["/api/restaurants/{restaurant_id}"]["delete"]["responses"]
     assert "204" in paths["/api/orders/{order_id}"]["delete"]["responses"]
 
     restaurant_response = paths["/api/restaurants"]["post"]["responses"]["201"]
-    order_response = paths["/api/restaurants/{restaurant_id}/orders"]["post"]["responses"]["201"]
-    assert restaurant_response["content"]["application/json"]["schema"]["$ref"].endswith(
-        "/RestaurantResponse"
-    )
+    order_response = paths["/api/restaurants/{restaurant_id}/orders"]["post"][
+        "responses"
+    ]["201"]
+    assert restaurant_response["content"]["application/json"]["schema"][
+        "$ref"
+    ].endswith("/RestaurantResponse")
     assert order_response["content"]["application/json"]["schema"]["$ref"].endswith(
         "/OrderResponse"
     )

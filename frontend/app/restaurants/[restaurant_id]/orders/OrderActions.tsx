@@ -8,14 +8,18 @@ import {
     updateOrder,
 } from "@/lib/api/order";
 
+import type { AccessContext } from "@/types/access";
+import type { OrderStatus } from "@/types/order";
+
 interface OrderActionsProps {
     orderId: number;
     status: string;
+    access: AccessContext;
 }
 
 export default function OrderActions({
     orderId,
-    status,
+    status, access,
 }: OrderActionsProps) {
     const router = useRouter();
     const [isUpdating, setIsUpdating] = useState(false);
@@ -30,6 +34,11 @@ export default function OrderActions({
         READY: "COMPLETED",
     };
 
+    const canAdvance = access.capabilities.includes("order.status.update") &&
+        !isClosed && Boolean(nextStatus[status]) &&
+        (access.role !== "EMPLOYEE" || status === "ACCEPTED" || status === "PREPARING");
+    const canCancel = access.capabilities.includes("order.cancel") && !isClosed;
+
     async function updateStatus(
         action: "advance" | "cancel"
     ) {
@@ -38,7 +47,7 @@ export default function OrderActions({
 
         try {
             if (action === "advance") {
-                await updateOrder(orderId, { status: nextStatus[status] as never });
+                await updateOrder(orderId, { status: nextStatus[status] as OrderStatus });
             } else {
                 await cancelOrder(orderId);
             }
@@ -54,23 +63,23 @@ export default function OrderActions({
     return (
         <div className="space-y-2">
             <div className="flex flex-wrap gap-2">
-                <button
+                {canAdvance && <button
                     type="button"
                     disabled={isUpdating || isClosed}
                     onClick={() => updateStatus("advance")}
                     className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
                     {nextStatus[status] ? `Mark ${nextStatus[status].toLowerCase()}` : "Complete"}
-                </button>
+                </button>}
 
-                <button
+                {canCancel && <button
                     type="button"
                     disabled={isUpdating || isClosed}
                     onClick={() => updateStatus("cancel")}
                     className="rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
                 >
                     Cancel
-                </button>
+                </button>}
             </div>
 
             {error ? (

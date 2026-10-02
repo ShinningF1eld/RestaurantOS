@@ -7,15 +7,21 @@ from app.core.errors import NotFoundError
 from app.db.database import AsyncSessionLocal
 from app.db.models.menu import Menu
 from app.db.models.menu_items import MenuItem
-from app.services.catalog import CatalogService, CreateMenu, CreateMenuItem
-from app.services.restaurant import CreateRestaurant, RestaurantService, UpdateRestaurant
+from app.modules.catalog.service import CatalogService, CreateMenu, CreateMenuItem
+from app.modules.restaurants.service import (
+    CreateRestaurant,
+    RestaurantService,
+    UpdateRestaurant,
+)
 
 
 @pytest.mark.asyncio
-async def test_catalog_commands_commit_atomically_and_rollback_missing_parent() -> None:
+async def test_catalog_commands_commit_atomically_and_rollback_missing_parent(
+    owner_principal,
+) -> None:
     """Service commands commit complete writes and leave failed writes absent."""
     async with AsyncSessionLocal() as session:
-        catalog_service = CatalogService(session)
+        catalog_service = CatalogService(session, owner_principal)
 
         with pytest.raises(NotFoundError, match="Restaurant not found"):
             await catalog_service.create_menu(
@@ -23,12 +29,12 @@ async def test_catalog_commands_commit_atomically_and_rollback_missing_parent() 
                 CreateMenu(name="Should not persist", description=None),
             )
 
-        restaurant = await RestaurantService(session).create(
+        restaurant = await RestaurantService(session, owner_principal).create(
             CreateRestaurant(
                 name="Transactional restaurant", address="Original address", phone=None
             )
         )
-        restaurant = await RestaurantService(session).update(
+        restaurant = await RestaurantService(session, owner_principal).update(
             restaurant.id,
             UpdateRestaurant(
                 name=None,

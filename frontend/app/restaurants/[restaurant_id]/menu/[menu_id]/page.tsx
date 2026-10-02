@@ -1,6 +1,7 @@
+import { notFound } from "next/navigation";
 import Link from "next/link";
 
-import { getMenuItems } from "@/lib/api/server";
+import { getAccess, getMenuItems } from "@/lib/api/server";
 import { getMenu} from "@/lib/api/server";
 
 import MenuItemList from "@/components/menu/MenuItemList";
@@ -23,10 +24,13 @@ export default async function MenuItemsPage({
     const restaurantId = Number(restaurant_id);
     const menuId = Number(menu_id);
 
-    const [menu, menuItems] = await Promise.all([
+    const [menu, menuItems, access] = await Promise.all([
         getMenu(menuId),
         getMenuItems(menuId),
+        getAccess(),
     ]);
+    if (menu.restaurant_id !== restaurantId) notFound();
+    const canManage = access.capabilities.includes("menu.manage");
     const availableItems = menuItems.filter((item) => item.is_available);
 
     return (
@@ -35,7 +39,7 @@ export default async function MenuItemsPage({
                 eyebrow="Menu detail"
                 title={menu.name}
                 description={menu.description || "Manage item availability, pricing, and descriptions for this menu."}
-                actions={<><MenuActions menu={menu} restaurantId={restaurantId} /><Link href={`/restaurants/${restaurantId}/menu`} className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-stone-50">Back to menus</Link></>}
+                actions={<>{canManage && <MenuActions menu={menu} restaurantId={restaurantId} />}<Link href={`/restaurants/${restaurantId}/menu`} className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-stone-50">Back to menus</Link></>}
             />
 
             <div className="grid gap-4 md:grid-cols-3">
@@ -56,6 +60,7 @@ export default async function MenuItemsPage({
             <MenuItemList
                 menuId={menuId}
                 menuItems={menuItems}
+                canManage={canManage}
             />
         </div>
     );

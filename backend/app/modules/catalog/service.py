@@ -1,0 +1,240 @@
+"""Catalog application service and framework-independent command inputs."""
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.errors import ConflictError, NotFoundError
+from app.modules.catalog.repo.models import Menu
+from app.modules.catalog.repo.models import MenuItem
+from app.modules.catalog.repo.queries import CatalogRepository
+from app.modules.auth.domain.principal import AuthenticatedPrincipal
+from app.modules.tenancy.access import AccessService
+from app.modules.tenancy.domain.policies import AccessContext
+from app.modules.audit.service import record
+
+
+from app.modules.catalog.domain.commands import (
+    CreateMenu as CreateMenu,
+    UpdateMenu as UpdateMenu,
+    CreateMenuItem as CreateMenuItem,
+    UpdateMenuItem as UpdateMenuItem,
+    DeleteMenuItemOutcome as DeleteMenuItemOutcome,
+)
+
+
+class CatalogService:
+    """Coordinates catalog use cases and owns write transactions."""
+
+    def __init__(
+        self, session: AsyncSession, principal: AuthenticatedPrincipal
+    ) -> None:
+        self._session = session
+        self._access = AccessService(session, principal)
+
+    async def _prepare(self, *, lock: bool = False) -> AccessContext:
+        context = await self._access.current(lock=lock)
+        self._catalog = CatalogRepository(self._session, context)
+        return context
+
+    async def create_menu(self, restaurant_id: int, command: CreateMenu) -> Menu:
+        """Create a menu only for an existing restaurant."""
+        async with self._session.begin():
+            context = await self._prepare(lock=True)
+            await self._access.restaurant(context, restaurant_id, "menu.manage")
+            menu = Menu(
+                restaurant_id=restaurant_id,
+                name=command.name,
+                description=command.description,
+            )
+            await self._catalog.add_menu(menu)
+            await self._catalog.flush()
+            await self._catalog.refresh_menu(menu)
+            record(
+                self._session,
+                context,
+                "menu.created",
+                "menu",
+                menu.menu_id,
+                restaurant_id=menu.restaurant_id,
+            )
+        return menu
+
+    async def list_menus(self, restaurant_id: int) -> list[Menu]:
+        """List menus only within an accessible restaurant."""
+        context = await self._prepare()
+        await self._access.restaurant(context, restaurant_id, "menu.read")
+        return list(await self._catalog.list_menus_for_restaurant(restaurant_id))
+
+    async def get_menu(self, menu_id: int) -> Menu:
+        """Get a menu or raise the public not-found domain error."""
+        context = await self._prepare()
+        menu = await self._catalog.get_menu_by_id(menu_id)
+        if menu is None:
+            raise NotFoundError("Menu not found")
+        context.require("menu.read")
+        return menu
+
+    async def update_menu(self, menu_id: int, command: UpdateMenu) -> Menu:
+        """Apply supplied menu fields atomically."""
+        async with self._session.begin():
+            context = await self._prepare(lock=True)
+            menu = await self._catalog.get_menu_by_id(menu_id)
+            if menu is None:
+                raise NotFoundError("Menu not found")
+            context.require("menu.manage")
+            if command.name is not None:
+                menu.name = command.name
+            if command.description is not None:
+                menu.description = command.description
+            await self._catalog.flush()
+            await self._catalog.refresh_menu(menu)
+            record(
+                self._session,
+                context,
+                "menu.updated",
+                "menu",
+                menu.menu_id,
+                restaurant_id=menu.restaurant_id,
+            )
+        return menu
+
+    async def delete_menu(self, menu_id: int) -> None:
+        """Delete a menu atomically."""
+        async with self._session.begin():
+            context = await self._prepare(lock=True)
+            menu = await self._catalog.get_menu_by_id(menu_id)
+            if menu is None:
+                raise NotFoundError("Menu not found")
+            context.require("menu.manage")
+            if await self._catalog.menu_has_items(menu_id):
+                raise ConflictError("Remove menu items before deleting the menu")
+            record(
+                self._session,
+                context,
+                "menu.deleted",
+                "menu",
+                menu_id,
+                restaurant_id=menu.restaurant_id,
+            )
+            await self._catalog.delete_menu(menu)
+
+    async def create_menu_item(self, menu_id: int, command: CreateMenuItem) -> MenuItem:
+        """Create a menu item only for an existing menu."""
+        async with self._session.begin():
+            context = await self._prepare(lock=True)
+            menu = await self._catalog.get_menu_by_id(menu_id)
+            if menu is None:
+                raise NotFoundError("Menu not found")
+            context.require("menu.manage")
+            menu_item = MenuItem(
+                menu_id=menu_id,
+                name=command.name,
+                description=command.description,
+                price=command.price,
+                is_available=command.is_available,
+            )
+            await self._catalog.add_menu_item(menu_item)
+            await self._catalog.flush()
+            await self._catalog.refresh_menu_item(menu_item)
+            menu = await self._catalog.get_menu_by_id(menu_item.menu_id)
+            assert menu is not None
+            record(
+                self._session,
+                context,
+                "menu_item.created",
+                "menu_item",
+                menu_item.menu_item_id,
+                restaurant_id=menu.restaurant_id,
+                changes={
+                    "price": str(menu_item.price),
+                    "is_available": menu_item.is_available,
+                },
+            )
+        return menu_item
+
+    async def list_menu_items(self, menu_id: int) -> list[MenuItem]:
+        """List items only within an accessible menu."""
+        context = await self._prepare()
+        if await self._catalog.get_menu_by_id(menu_id) is None:
+            raise NotFoundError("Menu not found")
+        context.require("menu.read")
+        return list(await self._catalog.list_menu_items_for_menu(menu_id))
+
+    async def get_menu_item(self, menu_item_id: int) -> MenuItem:
+        """Get a menu item or raise the public not-found domain error."""
+        context = await self._prepare()
+        menu_item = await self._catalog.get_menu_item_by_id(menu_item_id)
+        if menu_item is None:
+            raise NotFoundError("Menu item not found")
+        context.require("menu.read")
+        return menu_item
+
+    async def update_menu_item(
+        self, menu_item_id: int, command: UpdateMenuItem
+    ) -> MenuItem:
+        """Apply supplied menu-item fields atomically."""
+        async with self._session.begin():
+            context = await self._prepare(lock=True)
+            menu_item = await self._catalog.get_menu_item_by_id(menu_item_id)
+            if menu_item is None:
+                raise NotFoundError("Menu item not found")
+            context.require("menu.manage")
+            if command.name is not None:
+                menu_item.name = command.name
+            if command.description is not None:
+                menu_item.description = command.description
+            if command.price is not None:
+                menu_item.price = command.price
+            if command.is_available is not None:
+                menu_item.is_available = command.is_available
+            await self._catalog.flush()
+            await self._catalog.refresh_menu_item(menu_item)
+            menu = await self._catalog.get_menu_by_id(menu_item.menu_id)
+            assert menu is not None
+            record(
+                self._session,
+                context,
+                "menu_item.updated",
+                "menu_item",
+                menu_item.menu_item_id,
+                restaurant_id=menu.restaurant_id,
+                changes={
+                    "price": str(menu_item.price),
+                    "is_available": menu_item.is_available,
+                },
+            )
+        return menu_item
+
+    async def delete_menu_item(self, menu_item_id: int) -> DeleteMenuItemOutcome:
+        """Delete unused items, preserving historical sales by deactivating used ones."""
+        async with self._session.begin():
+            context = await self._prepare(lock=True)
+            menu_item = await self._catalog.get_menu_item_by_id(menu_item_id)
+            if menu_item is None:
+                raise NotFoundError("Menu item not found")
+            context.require("menu.manage")
+            if await self._catalog.menu_item_has_order_history(menu_item_id):
+                menu_item.is_available = False
+                menu = await self._catalog.get_menu_by_id(menu_item.menu_id)
+                assert menu is not None
+                record(
+                    self._session,
+                    context,
+                    "menu_item.deactivated",
+                    "menu_item",
+                    menu_item_id,
+                    restaurant_id=menu.restaurant_id,
+                    changes={"is_available": False},
+                )
+                return "deactivated"
+            menu = await self._catalog.get_menu_by_id(menu_item.menu_id)
+            assert menu is not None
+            record(
+                self._session,
+                context,
+                "menu_item.deleted",
+                "menu_item",
+                menu_item_id,
+                restaurant_id=menu.restaurant_id,
+            )
+            await self._catalog.delete_menu_item(menu_item)
+            return "deleted"

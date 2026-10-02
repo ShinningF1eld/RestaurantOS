@@ -1,6 +1,6 @@
 # System context
 
-Last updated: 2026-09-30.
+Last updated: 2026-10-02 (module organization; runtime boundaries unchanged).
 
 RestaurantOS currently runs as a small modular-monolith-shaped application: one
 Next.js frontend, one FastAPI process, and one PostgreSQL database. Only the
@@ -41,8 +41,15 @@ The request dependency owns session lifetime, application command services own
 transactions, and repositories never commit or roll back.
 
 Authentication is the first feature-first module, `app/modules/auth`, containing
-its router, schemas, service, domain and repo. Existing catalog/order/analytics
-layers remain in place. Principal lookup uses its own short-lived read session
+its router, schemas, service, domain and repo. `app/modules` is the primary home
+for business features, and subsequent modules follow the same structure:
+`service.py` for use cases, `domain/` for pure rules, and `repo/` for persistence.
+Tenancy, audit, restaurants, catalog, orders and analytics now use these
+module layers. Unused top-level business-layer compatibility folders have been
+removed. Shared infrastructure remains outside modules. See
+[ADR 0002](../adr/0002-feature-modules.md).
+
+Principal lookup uses its own short-lived read session
 so it does not open a transaction on a business command's session.
 
 ## Trust and configuration boundaries
@@ -57,8 +64,8 @@ so it does not open a transaction on a business command's session.
   cookies, server-side revocation/replay detection and PostgreSQL rate limits.
 - CORS permits exact configured origins; unsafe operations also check Origin and
   a custom CSRF header. Production cookies require HTTPS on one shared host.
-- All business routes require active identity. There is no RBAC or tenant
-  boundary yet; provisioned accounts share the existing workspace.
+- Business routes require active identity and organization membership, then
+  enforce Owner/Manager/Employee capabilities and restaurant assignments.
 - There is no Redis, worker,
   object storage, or external payment provider in the current system.
 - `/health` is a process liveness response and does not query dependencies.
@@ -73,3 +80,12 @@ There are no backend or frontend Dockerfiles and no deployed environment is
 defined in this repository. GitHub Actions provides validation only. Production
 containerization, release migrations, deployment, and observability remain
 later roadmap milestones.
+
+
+Business access resolves active organization membership and branch assignments
+on every operation, then applies named capabilities and scoped queries. Owners
+administer staff; Managers operate assigned branches; Employees read assigned
+operations and advance preparation only. Audits share each mutation's PostgreSQL
+transaction and are visible only to the organization's Owners. Local acceptance
+passed 231 backend tests and 13 Chromium tests on 2026-10-02; the live database
+was backed up, migrated and bootstrapped. See the tenancy runbook.

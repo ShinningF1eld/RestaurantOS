@@ -39,7 +39,10 @@ def clean_database() -> None:
         with engine.begin() as connection:
             connection.execute(
                 text(
-                    "TRUNCATE TABLE auth_rate_limit_buckets, auth_refresh_tokens, auth_sessions, users, order_items, orders, menu_items, menus, restaurants RESTART IDENTITY CASCADE"
+                    "TRUNCATE TABLE audit_entries, restaurant_assignments, memberships, "
+                    "organizations, auth_rate_limit_buckets, auth_refresh_tokens, "
+                    "auth_sessions, users, order_items, orders, menu_items, menus, "
+                    "restaurants RESTART IDENTITY CASCADE"
                 )
             )
 
@@ -70,7 +73,31 @@ def auth_user() -> dict[str, str]:
             ),
             {**account, "password_hash": password_hash},
         )
+        organization_id = str(uuid4())
+        connection.execute(
+            text(
+                "INSERT INTO organizations (id,name,slug) VALUES (:id,'Test workspace','test-workspace')"
+            ),
+            {"id": organization_id},
+        )
+        connection.execute(
+            text(
+                "INSERT INTO memberships (id,user_id,organization_id,role) VALUES (:id,:user,:org,'OWNER')"
+            ),
+            {"id": str(uuid4()), "user": account["id"], "org": organization_id},
+        )
+        account["organization_id"] = organization_id
     return account
+
+
+@pytest.fixture
+def owner_principal(auth_user):
+    from uuid import UUID, uuid4
+    from app.modules.auth.domain.principal import AuthenticatedPrincipal
+
+    return AuthenticatedPrincipal(
+        UUID(auth_user["id"]), auth_user["email"], "active", uuid4()
+    )
 
 
 @pytest.fixture

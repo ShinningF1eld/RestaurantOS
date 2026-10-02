@@ -1,6 +1,6 @@
 import pytest
 
-from app.domain.order import (
+from app.modules.orders.domain.policies import (
     InvalidOrderStatusTransitionError,
     InvalidPaymentStatusError,
     OrderItemsLockedError,
@@ -74,7 +74,9 @@ def test_payment_status_is_normalized_and_validated(
 
 
 def test_invalid_payment_status_has_stable_error_message() -> None:
-    with pytest.raises(InvalidPaymentStatusError, match="Invalid payment status") as error:
+    with pytest.raises(
+        InvalidPaymentStatusError, match="Invalid payment status"
+    ) as error:
         ensure_valid_payment_status("refunded")
 
     assert error.value.payment_status == "REFUNDED"

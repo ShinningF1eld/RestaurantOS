@@ -6,11 +6,11 @@ import path from "node:path";
 const api = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 const origin = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 const headers = { Origin: origin, "X-CSRF-Protection": "1" };
-type Account = { email: string; password: string };
+type Account = { id: string; email: string; password: string };
 const test = base.extend<{ account: Account }>({
   account: async ({}, provideAccount) => {
     const id = randomUUID();
-    const account = { email: `browser-${id}@example.test`, password: `Browser test ${randomUUID()}` }; // pragma: allowlist secret
+    const account = { id, email: `browser-${id}@example.test`, password: `Browser test ${randomUUID()}` }; // pragma: allowlist secret
     const python = process.env.PLAYWRIGHT_PYTHON ?? path.resolve("../backend/.venv", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
     const seed = path.resolve("tests/seed-auth.py");
     execFileSync(python, [seed, "create", id], { stdio: "pipe", input: JSON.stringify(account), timeout: 20_000 });
@@ -199,6 +199,8 @@ test("successful renewal retries one rejected business write exactly once", asyn
   await expireAccess(page);
   let writes = 0;
   let refreshes = 0;
+  let navigations = 0;
+  page.on("framenavigated", frame => { if (frame === page.mainFrame()) navigations++; });
   page.on("request", request => {
     if (request.url() === `${api}/api/restaurants` && request.method() === "POST") writes++;
     if (request.url() === `${api}/auth/refresh`) refreshes++;
@@ -212,6 +214,41 @@ test("successful renewal retries one rejected business write exactly once", asyn
   await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   expect(writes).toBe(2);
   expect(refreshes).toBe(1);
+  expect(navigations).toBe(0);
   const restaurants = await (await page.request.get(`${api}/api/restaurants`)).json();
   expect(restaurants.filter((restaurant: { name: string }) => restaurant.name === name)).toHaveLength(1);
+});
+
+
+test("employee kitchen controls reflect live permissions and the API rejects mixed writes", async ({ page, account }) => {
+  await signIn(page, account);
+  const { restaurantId, menuId } = await createCatalog(page);
+  const items = await (await page.request.get(`${api}/menus/${menuId}/items`)).json();
+  const created = await page.request.post(`${api}/api/restaurants/${restaurantId}/orders`, { headers,
+    data: { items: [{ menu_item_id: items[0].menu_item_id, quantity: 1 }] } });
+  expect(created.status()).toBe(201);
+  const orderId = (await created.json()).order_id;
+  for (const status of ["SUBMITTED", "ACCEPTED"]) {
+    expect((await page.request.put(`${api}/api/orders/${orderId}`, { headers, data: { status } })).ok()).toBeTruthy();
+  }
+  const python = process.env.PLAYWRIGHT_PYTHON ?? path.resolve("../backend/.venv", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
+  execFileSync(python, [path.resolve("tests/seed-auth.py"), "employee", account.id, String(restaurantId)], { stdio: "pipe", timeout: 20_000 });
+  await page.goto(`/restaurants/${restaurantId}/orders`);
+  await expect(page.getByRole("heading", { name: "New order", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Cancel", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Dashboard", exact: true })).toHaveCount(0);
+  const forbidden = await page.request.put(`${api}/api/orders/${orderId}`, { headers, data: { status: "PREPARING", payment_status: null } });
+  expect(forbidden.status()).toBe(403);
+  for (const status of ["preparing", "ready"]) {
+    const update = page.waitForResponse(response => response.url().endsWith(`/api/orders/${orderId}`) && response.request().method() === "PUT");
+    await page.getByRole("button", { name: `Mark ${status}`, exact: true }).click();
+    expect((await update).status()).toBe(200);
+  }
+  await expect(page.getByRole("button", { name: "Mark completed", exact: true })).toHaveCount(0);
+  await page.goto(`/restaurants/${restaurantId}/menu/${menuId}`);
+  await expect(page.getByRole("button", { name: "Add menu item", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Edit", exact: true })).toHaveCount(0);
+  expect((await page.request.put(`${api}/menu-items/${items[0].menu_item_id}`, { headers, data: { price: "99" } })).status()).toBe(403);
+  await page.goto(`/restaurants/${restaurantId}/dashboard`);
+  await expect(page).toHaveURL(new URL(`/restaurants/${restaurantId}/orders`, origin).href);
 });

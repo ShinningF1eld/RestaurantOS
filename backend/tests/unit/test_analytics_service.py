@@ -4,12 +4,12 @@ from decimal import Decimal
 import pytest
 
 from app.core.errors import NotFoundError
-from app.repositories.analytics import (
+from app.modules.analytics.repo.queries import (
     CompletedTotals,
     SalesGraphRow,
     TopSellingItemRow,
 )
-from app.services.analytics import AnalyticsService
+from app.modules.analytics.service import AnalyticsService
 
 
 class FakeAnalyticsRepository:
@@ -64,9 +64,14 @@ class FakeAnalyticsRepository:
 
 
 @pytest.mark.asyncio
-async def test_dashboard_service_calculates_metrics_and_seven_day_window() -> None:
+async def test_dashboard_service_calculates_metrics_and_seven_day_window(
+    fake_access, unit_principal
+) -> None:
+    import app.modules.analytics.service as module
+
+    fake_access(module)
     repository = FakeAnalyticsRepository()
-    service = AnalyticsService(repository)
+    service = AnalyticsService(None, unit_principal, repository)
 
     result = await service.get_restaurant_dashboard_analytics(
         7,
@@ -99,9 +104,14 @@ async def test_dashboard_service_calculates_metrics_and_seven_day_window() -> No
 
 
 @pytest.mark.asyncio
-async def test_dashboard_service_raises_typed_error_for_missing_restaurant() -> None:
+async def test_dashboard_service_raises_typed_error_for_missing_restaurant(
+    fake_access, unit_principal
+) -> None:
+    import app.modules.analytics.service as module
+
+    fake_access(module)
     repository = FakeAnalyticsRepository(exists=False)
-    service = AnalyticsService(repository)
+    service = AnalyticsService(None, unit_principal, repository)
 
     with pytest.raises(NotFoundError, match="Restaurant not found"):
         await service.get_restaurant_dashboard_analytics(

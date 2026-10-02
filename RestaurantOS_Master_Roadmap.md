@@ -69,25 +69,27 @@ limitations are maintained in [`docs/current-state.md`](docs/current-state.md).
 - Docker Compose manages PostgreSQL 16 only, with host port `5433` mapped to
   container port `5432` and clearly labeled local-development credentials.
 - The schema contains Restaurant, Menu, MenuItem, Order, OrderItem, User,
-  AuthSession, RefreshToken, and auth rate counters across a linear five-revision
-  Alembic chain. Clean and previous-head upgrades were reproduced on temporary
-  databases, preserving historical orders.
+  AuthSession, RefreshToken, auth rate counters, Organization, Membership,
+  RestaurantAssignment and AuditEntry across a linear seven-revision Alembic
+  chain at `94d8f2c5b013`. Clean and previous-head upgrades were reproduced on
+  temporary databases, preserving historical orders and accounts.
 - The API exposes restaurant, menu, menu-item, order, and early dashboard
   analytics operations. Route prefixes are inconsistent and unversioned.
 - The frontend provides restaurant and catalog CRUD, order entry/listing/status
-  actions, analytics, login/logout and browser session renewal. Inventory and
-  employee screens still contain mock content.
+  actions, analytics, login/logout and browser session renewal. Owner staff
+  administration uses the real API; Employee controls reflect kitchen permissions.
+  Inventory still contains mock content.
 - Orders reject cross-restaurant and unavailable items, calculate prices on the
   server, enforce status transitions, preserve name/price snapshots, and carry
   basic payment status. Completed orders contribute to analytics.
 - Authentication uses Argon2id, access JWT cookies, rotating refresh tokens,
   session-family replay revocation, active-account checks, CSRF/CORS controls,
   and persistent login/refresh limits. Business endpoints require identity.
-- Auth is the first feature-first module (`app/modules/auth`); existing services
-  and repositories remain in place until each feature's next substantive change.
-- Tenant isolation/RBAC, inventory, workers/events, payment-provider integration,
-  and deployment infrastructure remain future work. Provisioned users currently
-  share the existing workspace; public registration is deferred to tenancy work.
+- Business features reside in `app/modules/<feature>` with corresponding domain,
+  repo and service layers. Obsolete top-level compatibility folders were removed.
+- Tenant isolation and Owner/Manager/Employee capabilities are verified locally.
+  Inventory, workers/events, payment-provider integration, public registration
+  and deployment infrastructure remain future work.
 - Milestone 0 documentation, environment examples, smoke testing, local
   validation, and CI definitions now exist. Local validation and the GitHub
   Actions workflow have passed, so Milestone 0 is complete.
@@ -183,25 +185,37 @@ Avoid ceremony that does not create value. Simple reads can remain simple, but c
 ### 3.3 Suggested repository structure
 
 Adapt existing names rather than performing a blind rewrite.
+`app/modules` is the primary business-feature folder. Each module follows the
+auth convention: `service.py`, `domain/`, and `repo/`, with its own `router.py`,
+`schemas.py`, and dependencies when it exposes HTTP operations. Shared technical
+infrastructure stays outside modules. See
+[`docs/adr/0002-feature-modules.md`](docs/adr/0002-feature-modules.md) for the
+layer responsibilities and incremental migration policy.
 
 ```text
 backend/
   app/
-    api/
-      dependencies/
-      routers/
+    main.py
+    http/                   # shared middleware and HTTP error adapters
     core/
       config.py
-      security.py
       logging.py
       errors.py
     db/
+      database.py
       base.py
-      session.py
-      migrations/
     modules/
-      identity/
-      organizations/
+      auth/
+        router.py
+        schemas.py
+        dependencies.py
+        service.py
+        domain/
+        repo/
+          models.py
+      tenancy/              # same per-module layering as auth
+      audit/
+      restaurants/
       catalog/
       orders/
       inventory/
@@ -209,14 +223,14 @@ backend/
       forecasting/
       documents/
       ai_analyst/
-      audit/
     infrastructure/
       cache/
       events/
       object_storage/
       observability/
     workers/
-    tests/
+  alembic/
+  tests/
 frontend/
   app/
   components/
@@ -276,7 +290,10 @@ Suggested initial roles:
 - `OWNER`
 - `MANAGER`
 - `EMPLOYEE`
-- `KITCHEN`
+
+The three-role decision for Milestone 4 assigns kitchen operational permissions
+to `EMPLOYEE`; there is no separate kitchen or cashier role. See
+[`docs/architecture/tenancy-schema.md`](docs/architecture/tenancy-schema.md).
 
 Implement permissions as named capabilities, not scattered role comparisons. Example capabilities:
 
@@ -566,6 +583,20 @@ Replace anonymous access with secure user identity and renewable sessions.
 
 ## Milestone 4 — Multi-tenancy and RBAC
 
+**Status: Complete locally (verified 2026-10-02).**
+Organization/membership/assignment constraints, owner bootstrap, named role
+capabilities, tenant-scoped business queries and transactional audit writers are
+implemented. Each user belongs to at most one organization; restaurants require
+exactly one. All 231 backend tests and 13 Chromium tests passed, covering the
+required permissions and exit criteria. Clean/previous-head upgrades, no model
+drift, bootstrap idempotence and disposable downgrade/re-upgrade passed.
+The live database was backed up and migrated to `94d8f2c5b013`; restaurant 1
+belongs to organization 1 and its sole existing user is Owner. Original data
+preservation and backup restoration were verified. See
+[`docs/current-state.md`](docs/current-state.md#milestone-4-completion-evidence),
+[`docs/runbooks/tenancy.md`](docs/runbooks/tenancy.md) and
+[`docs/api/tenancy.md`](docs/api/tenancy.md).
+
 ### Objective
 
 Make organization and restaurant boundaries enforceable and demonstrably safe.
@@ -576,7 +607,8 @@ Make organization and restaurant boundaries enforceable and demonstrably safe.
 - Organization owner bootstrap flow.
 - Restaurant belongs to exactly one organization.
 - Membership and optional restaurant assignment.
-- Permission mapping for owner, manager, employee, and kitchen roles.
+- Permission mapping for owner, manager, and employee roles; employee has the
+  kitchen operational permissions.
 - Reusable authorization dependency/policy layer.
 - Tenant-scoped repositories and queries.
 - Staff invitation can initially be represented by an admin-created membership; email invitation may come later.
@@ -598,7 +630,7 @@ A URL or payload containing `organization_id` or `restaurant_id` is never proof 
 - User from organization A cannot read or mutate organization B data.
 - Employee cannot manage staff or financial analytics.
 - Manager cannot promote self to owner.
-- Kitchen role can update allowed order statuses but cannot edit menu prices.
+- Employee can update allowed preparation statuses but cannot edit menu prices.
 - Removed membership immediately loses access.
 - List endpoints never leak cross-tenant rows.
 
@@ -1391,7 +1423,7 @@ After Milestone 0, give Sol only one milestone or vertical slice at a time. A st
 | 1. Core restaurant workflow | Complete | [`docs/current-state.md`](docs/current-state.md#milestone-1-completion-evidence); [`backend/tests/test_order_flow_integration.py`](backend/tests/test_order_flow_integration.py) |
 | 2. Application boundaries | Complete | [`docs/current-state.md`](docs/current-state.md#milestone-2-completion-evidence); 56 backend tests and full-app mypy passed |
 | 3. Authentication | Complete locally | [`docs/current-state.md`](docs/current-state.md#milestone-3-completion-evidence); 147 backend and 12 browser tests; CI not yet run for this change |
-| 4. Multi-tenancy and RBAC | Not started/verify | |
+| 4. Multi-tenancy and RBAC | Complete locally | [`docs/current-state.md`](docs/current-state.md#milestone-4-completion-evidence); 231 backend and 13 browser tests; live migration and Owner bootstrap verified |
 | 5. Transactional ordering and inventory | Not started/verify | |
 | 6. Test architecture and quality gates | Not verified | |
 | 7. Redis caching and rate limiting | Not started/verify | |

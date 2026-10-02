@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { getRestaurantMenus } from "@/lib/api/server";
+import { getAccess, getRestaurantMenus } from "@/lib/api/server";
 
 import CreateMenu from "@/components/menu/CreateMenu";
 import EmptyState from "@/components/ui/EmptyState";
@@ -21,7 +21,8 @@ export default async function MenuPage({
 
     const restaurantId = Number(restaurant_id);
 
-    const menus = await getRestaurantMenus(restaurantId);
+    const [menus, access] = await Promise.all([getRestaurantMenus(restaurantId), getAccess()]);
+    const canManage = access.capabilities.includes("menu.manage");
 
     return (
         <div className="space-y-8">
@@ -29,7 +30,7 @@ export default async function MenuPage({
                 eyebrow="Menu control"
                 title="Menus"
                 description="Organize menu sets for service periods, ordering channels, and seasonal offers."
-                actions={<CreateMenu restaurantId={restaurantId} />}
+                actions={canManage && <CreateMenu restaurantId={restaurantId} />}
             />
 
             <div className="grid gap-4 md:grid-cols-3">
@@ -45,7 +46,7 @@ export default async function MenuPage({
                 <EmptyState
                     title="No menus yet"
                     description="Create your first menu to start adding dishes and managing the restaurant's offerings."
-                    action={<CreateMenu restaurantId={restaurantId} />}
+                    action={canManage && <CreateMenu restaurantId={restaurantId} />}
                 />
             ) : (
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
