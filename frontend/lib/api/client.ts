@@ -59,7 +59,8 @@ export function renewSession(): Promise<void> {
         failedRefresh = failure instanceof Error ? failure : new Error("Session renewal failed. Please sign in again.");
         throw failedRefresh;
       }
-      broadcast("active");
+      // Renewal preserves identity and updates the shared cookies. Broadcasting
+      // a login event would reload tabs while their rejected writes are retrying.
     }).finally(() => { pendingRefresh = null; });
   }
   return pendingRefresh;

@@ -15,6 +15,7 @@ import {
     RestaurantUpdate,
 } from "@/types/restaurant";
 import { getAccess } from "@/lib/api/access";
+import { ApiError } from "@/lib/api/errors";
 import type { AccessContext } from "@/types/access";
 import RestaurantForm from "./components/RestaurantForm";
 import SessionMenu from "@/features/auth/SessionMenu";
@@ -39,8 +40,10 @@ export default function RestaurantsPage() {
                 const [data, context] = await Promise.all([getRestaurants(), getAccess()]);
                 setRestaurants(data);
                 setAccess(context);
-            } catch {
-                setError("Restaurant access is unavailable. Ask your owner to assign your account.");
+            } catch (error) {
+                setError(error instanceof ApiError && error.status === 403
+                    ? "Restaurant access is unavailable. Ask your owner to assign your account."
+                    : "Failed to load restaurants");
             } finally {
                 setLoading(false);
             }

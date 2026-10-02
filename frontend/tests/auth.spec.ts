@@ -199,6 +199,8 @@ test("successful renewal retries one rejected business write exactly once", asyn
   await expireAccess(page);
   let writes = 0;
   let refreshes = 0;
+  let navigations = 0;
+  page.on("framenavigated", frame => { if (frame === page.mainFrame()) navigations++; });
   page.on("request", request => {
     if (request.url() === `${api}/api/restaurants` && request.method() === "POST") writes++;
     if (request.url() === `${api}/auth/refresh`) refreshes++;
@@ -212,6 +214,7 @@ test("successful renewal retries one rejected business write exactly once", asyn
   await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   expect(writes).toBe(2);
   expect(refreshes).toBe(1);
+  expect(navigations).toBe(0);
   const restaurants = await (await page.request.get(`${api}/api/restaurants`)).json();
   expect(restaurants.filter((restaurant: { name: string }) => restaurant.name === name)).toHaveLength(1);
 });

@@ -69,25 +69,27 @@ limitations are maintained in [`docs/current-state.md`](docs/current-state.md).
 - Docker Compose manages PostgreSQL 16 only, with host port `5433` mapped to
   container port `5432` and clearly labeled local-development credentials.
 - The schema contains Restaurant, Menu, MenuItem, Order, OrderItem, User,
-  AuthSession, RefreshToken, and auth rate counters across a linear five-revision
-  Alembic chain. Clean and previous-head upgrades were reproduced on temporary
-  databases, preserving historical orders.
+  AuthSession, RefreshToken, auth rate counters, Organization, Membership,
+  RestaurantAssignment and AuditEntry across a linear seven-revision Alembic
+  chain at `94d8f2c5b013`. Clean and previous-head upgrades were reproduced on
+  temporary databases, preserving historical orders and accounts.
 - The API exposes restaurant, menu, menu-item, order, and early dashboard
   analytics operations. Route prefixes are inconsistent and unversioned.
 - The frontend provides restaurant and catalog CRUD, order entry/listing/status
-  actions, analytics, login/logout and browser session renewal. Inventory and
-  employee screens still contain mock content.
+  actions, analytics, login/logout and browser session renewal. Owner staff
+  administration uses the real API; Employee controls reflect kitchen permissions.
+  Inventory still contains mock content.
 - Orders reject cross-restaurant and unavailable items, calculate prices on the
   server, enforce status transitions, preserve name/price snapshots, and carry
   basic payment status. Completed orders contribute to analytics.
 - Authentication uses Argon2id, access JWT cookies, rotating refresh tokens,
   session-family replay revocation, active-account checks, CSRF/CORS controls,
   and persistent login/refresh limits. Business endpoints require identity.
-- Auth is the first feature-first module (`app/modules/auth`); existing services
-  and repositories remain in place until each feature's next substantive change.
-- Tenant isolation/RBAC, inventory, workers/events, payment-provider integration,
-  and deployment infrastructure remain future work. Provisioned users currently
-  share the existing workspace; public registration is deferred to tenancy work.
+- Business features reside in `app/modules/<feature>` with corresponding domain,
+  repo and service layers. Obsolete top-level compatibility folders were removed.
+- Tenant isolation and Owner/Manager/Employee capabilities are verified locally.
+  Inventory, workers/events, payment-provider integration, public registration
+  and deployment infrastructure remain future work.
 - Milestone 0 documentation, environment examples, smoke testing, local
   validation, and CI definitions now exist. Local validation and the GitHub
   Actions workflow have passed, so Milestone 0 is complete.
@@ -581,14 +583,17 @@ Replace anonymous access with secure user identity and renewable sessions.
 
 ## Milestone 4 — Multi-tenancy and RBAC
 
-**Status: Implemented in code; database acceptance and live cutover deferred (2026-10-02).**
+**Status: Complete locally (verified 2026-10-02).**
 Organization/membership/assignment constraints, owner bootstrap, named role
 capabilities, tenant-scoped business queries and transactional audit writers are
 implemented. Each user belongs to at most one organization; restaurants require
-exactly one. The existing-user/restaurant bootstrap to organization number 1 is
-ready but has not run. Database-backed integration, migration and browser checks
-are deferred at the user's request while Docker is unavailable. Exit criteria
-coverage is written; it remains unverified on PostgreSQL. See
+exactly one. All 231 backend tests and 13 Chromium tests passed, covering the
+required permissions and exit criteria. Clean/previous-head upgrades, no model
+drift, bootstrap idempotence and disposable downgrade/re-upgrade passed.
+The live database was backed up and migrated to `94d8f2c5b013`; restaurant 1
+belongs to organization 1 and its sole existing user is Owner. Original data
+preservation and backup restoration were verified. See
+[`docs/current-state.md`](docs/current-state.md#milestone-4-completion-evidence),
 [`docs/runbooks/tenancy.md`](docs/runbooks/tenancy.md) and
 [`docs/api/tenancy.md`](docs/api/tenancy.md).
 
@@ -1418,7 +1423,7 @@ After Milestone 0, give Sol only one milestone or vertical slice at a time. A st
 | 1. Core restaurant workflow | Complete | [`docs/current-state.md`](docs/current-state.md#milestone-1-completion-evidence); [`backend/tests/test_order_flow_integration.py`](backend/tests/test_order_flow_integration.py) |
 | 2. Application boundaries | Complete | [`docs/current-state.md`](docs/current-state.md#milestone-2-completion-evidence); 56 backend tests and full-app mypy passed |
 | 3. Authentication | Complete locally | [`docs/current-state.md`](docs/current-state.md#milestone-3-completion-evidence); 147 backend and 12 browser tests; CI not yet run for this change |
-| 4. Multi-tenancy and RBAC | In progress: schema/models only | [`docs/architecture/tenancy-schema.md`](docs/architecture/tenancy-schema.md); authorization pending |
+| 4. Multi-tenancy and RBAC | Complete locally | [`docs/current-state.md`](docs/current-state.md#milestone-4-completion-evidence); 231 backend and 13 browser tests; live migration and Owner bootstrap verified |
 | 5. Transactional ordering and inventory | Not started/verify | |
 | 6. Test architecture and quality gates | Not verified | |
 | 7. Redis caching and rate limiting | Not started/verify | |

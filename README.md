@@ -14,9 +14,9 @@ permissions are the kitchen preparation permissions. Backend features follow
 `app/modules/<feature>/{service.py,domain/,repo/}`, as with auth.
 
 See the [role/API contract](docs/api/tenancy.md) and
-[cutover runbook](docs/runbooks/tenancy.md). The new constraint migration and live
-owner assignment have not run; database acceptance is deferred at the user's
-request while Docker Desktop is unavailable.
+[cutover runbook](docs/runbooks/tenancy.md). Local database acceptance and live
+cutover completed on 2026-10-02: restaurant 1 belongs to organization 1, and the
+sole existing user is its Owner. See [verification evidence](docs/current-state.md#milestone-4-completion-evidence).
 
 ## Prerequisites
 

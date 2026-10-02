@@ -64,8 +64,8 @@ so it does not open a transaction on a business command's session.
   cookies, server-side revocation/replay detection and PostgreSQL rate limits.
 - CORS permits exact configured origins; unsafe operations also check Origin and
   a custom CSRF header. Production cookies require HTTPS on one shared host.
-- All business routes require active identity. There is no RBAC or tenant
-  boundary yet; provisioned accounts share the existing workspace.
+- Business routes require active identity and organization membership, then
+  enforce Owner/Manager/Employee capabilities and restaurant assignments.
 - There is no Redis, worker,
   object storage, or external payment provider in the current system.
 - `/health` is a process liveness response and does not query dependencies.
@@ -86,5 +86,6 @@ Business access resolves active organization membership and branch assignments
 on every operation, then applies named capabilities and scoped queries. Owners
 administer staff; Managers operate assigned branches; Employees read assigned
 operations and advance preparation only. Audits share each mutation's PostgreSQL
-transaction and are visible only to the organization's Owners. Database tests
-and live cutover for this slice remain deferred; see the tenancy runbook.
+transaction and are visible only to the organization's Owners. Local acceptance
+passed 231 backend tests and 13 Chromium tests on 2026-10-02; the live database
+was backed up, migrated and bootstrapped. See the tenancy runbook.

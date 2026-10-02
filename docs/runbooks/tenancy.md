@@ -1,14 +1,20 @@
 # Milestone 4 cutover and recovery
 
-The October 2 implementation has **not been applied to the live database**.
-Docker Desktop cannot start its Windows socket listeners. The user requested
-deferring database tests; migration execution, PostgreSQL/browser checks and the
-existing owner assignment remain pending. Do not treat code checks as proof of
-database isolation or migration success.
+Local cutover and acceptance completed on **2026-10-02** after PostgreSQL recovered.
+The live database is at `94d8f2c5b013`, restaurant 1 belongs to organization 1,
+and the sole existing user has an active OWNER membership. The bootstrap ran
+twice with one membership and one bootstrap audit entry.
+
+Before migration, a custom-format backup was saved to the ignored local path
+`.local-backups/restaurantos-before-m4-20261002-064956-utc.dump`. Restoration into
+a disposable database matched the original revision and every existing user,
+restaurant, menu, menu item, order and order item. After live migration, row
+fingerprints confirmed all original data was unchanged except the new restaurant
+organization association. No live downgrade or restore was performed.
 
 ## Back up before applying constraints
 
-Once Docker/PostgreSQL is working, stop API writers during this local cutover.
+For subsequent cutovers, stop API writers while applying constraints.
 From the repository root, create a timestamped backup in the ignored folder:
 
 ```powershell
@@ -59,8 +65,10 @@ the restaurant association; the command confirms it and assigns the owner.
 
 Log in as the existing user and inspect `/api/access`, `/api/organization` and
 `/api/restaurants`: OWNER, organization number 1 and the existing restaurant
-must be present. Verify a historical order's snapshots. **This command has not
-been run against the user's database.**
+must be present. Verify a historical order's snapshots. The local cutover
+verified the persisted membership/organization/restaurant association and all
+original row fingerprints; authenticated API behavior was exercised in isolated
+test databases rather than logging in as the existing user.
 
 For a fresh workspace without an existing restaurant, provision an account via
 `app.modules.auth.cli create-user`, log in and use `POST /api/organizations` to
@@ -68,13 +76,14 @@ create its organization and OWNER membership before creating restaurants. For
 staff accounts, provision them first and have an Owner create their memberships.
 See [API policies and demonstration](../api/tenancy.md).
 
-## Deferred database acceptance
+## Database acceptance
 
 Configure `TEST_DATABASE_URL` with a database name ending in `_test`. The checker
 creates and removes only its own disposable databases:
 
 ```powershell
 backend/.venv/Scripts/python.exe scripts/check-tenancy-migration.py --run-tests
+backend/.venv/Scripts/python.exe scripts/migrate-test-db.py
 backend/.venv/Scripts/python.exe scripts/run-browser-tests.py
 ```
 
@@ -85,8 +94,10 @@ and writes, list/count scoping, branch assignment restrictions, Employee status
 and mixed-field rules, Manager self-promotion denial, last-owner protection,
 immediate revocation/role changes, owner creation, atomic staff validation, safe
 audit facts and rollback on audit failure. Browser coverage includes the kitchen
-controls and direct forbidden API calls. None of these PostgreSQL-backed checks
-were executed in this implementation pass.
+controls and direct forbidden API calls. On 2026-10-02, **231 backend tests and
+13 Chromium tests passed**. Clean and previous-head upgrades, model drift checks,
+bootstrap idempotence, and disposable downgrade/re-upgrade all passed. Test and
+restore databases created for this verification were removed afterward.
 
 Without PostgreSQL, `scripts/validate.ps1 -SkipDatabase` runs unit tests and skips
 database-backed browser tests. Lint, type checks, build and secret scanning still

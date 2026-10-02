@@ -1,9 +1,7 @@
 # Milestone 4: tenancy and authorization
 
-Implemented in code on 2026-10-02; PostgreSQL acceptance and live cutover are
-pending because the user requested deferring database tests while Docker fails.
-The earlier schema-only slice was verified on 2026-10-01; that evidence does not
-verify the new constraint migration or access behavior.
+Implemented and verified locally on 2026-10-02, including PostgreSQL acceptance
+and live cutover. The earlier schema-only slice was verified on 2026-10-01.
 
 The modular monolith uses `app/modules` for auth, tenancy, audit, restaurants,
 catalog, orders and analytics. Each feature owns `service.py`, `domain/` and
@@ -61,15 +59,20 @@ assigns the sole existing active user as Owner only after confirming the sole
 restaurant belongs to development organization 1. For new accounts/workspaces,
 `POST /api/organizations` creates the first Owner and organization atomically.
 
-[Cutover, backups, rollback and deferred acceptance](../runbooks/tenancy.md)
-include the exact migration/bootstrap commands. Both revisions must be applied
-before running this version of the API. The live database was not modified by
-this implementation; its existing restaurant/user assignment is still pending.
+[Cutover, backups, rollback and acceptance](../runbooks/tenancy.md) include the
+exact migration/bootstrap commands. Both revisions must be applied before running
+this version of the API. The local live database is at `94d8f2c5b013`: restaurant 1
+belongs to organization 1 and its sole existing user is Owner. Backup restoration
+and original-data preservation were verified, and repeating bootstrap added no
+duplicate membership or audit entry.
 
 Tests are present for schema integrity, every cross-tenant direct/nested read and
 write, collection/count scope, Employee limitations, Manager self-promotion,
 revocation, live role/assignment changes, bootstrap, safe audit facts and atomic
 failure. Unit tests compile real PostgreSQL scope predicates without connecting.
-The database-backed integration, migration rehearsal and browser suites were not
-run in this pass. These are still required before declaring Milestone 4 fully
-verified against its exit criteria.
+All 231 backend tests and 13 Chromium tests passed, including database-backed
+integration and Employee permission checks. Clean/previous-head migrations,
+drift detection and disposable downgrade/re-upgrade also passed. The Milestone 4
+exit criteria are verified locally: all business endpoints have explicit policies,
+cross-tenant reads/writes/nested IDs/lists are covered, and sensitive mutations
+produce safe transactional audit facts.
