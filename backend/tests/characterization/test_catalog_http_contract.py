@@ -1,6 +1,7 @@
 """HTTP characterization coverage for catalog write behavior."""
 
 from fastapi.testclient import TestClient
+import pytest
 
 
 def create_restaurant(client: TestClient, name: str = "Catalog Test") -> int:
@@ -31,6 +32,35 @@ def create_menu_item(
     )
     assert response.status_code == 200, response.text
     return response.json()["menu_item_id"]
+
+
+@pytest.mark.parametrize("price", ["-0.01", "0.001", "100000000", "NaN", "Infinity"])
+def test_invalid_price_returns_422_without_changing_item(authenticated_client, price):
+    client = authenticated_client
+    restaurant_id = create_restaurant(client)
+    menu_id = create_menu(client, restaurant_id)
+    item_id = create_menu_item(client, menu_id)
+
+    created = client.post(f"/menus/{menu_id}/items", json={"name": "Bad", "price": price})
+    assert created.status_code == 422
+    updated = client.put(
+        f"/menu-items/{item_id}", json={"name": "Should not persist", "price": price}
+    )
+    assert updated.status_code == 422
+    persisted = client.get(f"/menu-items/{item_id}").json()
+    assert persisted["name"] == "Dish"
+    assert persisted["price"] == "10.00"
+    assert len(client.get(f"/menus/{menu_id}/items").json()) == 1
+
+
+@pytest.mark.parametrize("price", ["0.00", "0.01", "99999999.99"])
+def test_price_boundaries_round_trip(authenticated_client, price):
+    client = authenticated_client
+    restaurant_id = create_restaurant(client)
+    menu_id = create_menu(client, restaurant_id)
+    item_id = create_menu_item(client, menu_id, price=price)
+    assert client.get(f"/menu-items/{item_id}").json()["price"] == price
+    assert client.put(f"/menu-items/{item_id}", json={"price": price}).json()["price"] == price
 
 
 def test_catalog_updates_and_deletes_preserve_status_and_response_shapes(

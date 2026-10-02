@@ -1,6 +1,6 @@
 from decimal import Decimal
 from typing import TYPE_CHECKING
-from sqlalchemy import Boolean, ForeignKey, Numeric, String
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -35,6 +35,11 @@ class Menu(Base):
 
 class MenuItem(Base):
     __tablename__ = "menu_items"
+    __table_args__ = (
+        CheckConstraint(
+            "price >= 0 AND price <= 99999999.99", name="ck_menu_items_price_range"
+        ),
+    )
 
     menu_item_id: Mapped[int] = mapped_column(primary_key=True, index=True)
 

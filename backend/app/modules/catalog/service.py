@@ -3,6 +3,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, NotFoundError
+from app.modules.catalog.domain.policies import validate_menu_price
 from app.modules.catalog.repo.models import Menu
 from app.modules.catalog.repo.models import MenuItem
 from app.modules.catalog.repo.queries import CatalogRepository
@@ -129,7 +130,7 @@ class CatalogService:
                 menu_id=menu_id,
                 name=command.name,
                 description=command.description,
-                price=command.price,
+                price=validate_menu_price(command.price),
                 is_available=command.is_available,
             )
             await self._catalog.add_menu_item(menu_item)
@@ -183,7 +184,7 @@ class CatalogService:
             if command.description is not None:
                 menu_item.description = command.description
             if command.price is not None:
-                menu_item.price = command.price
+                menu_item.price = validate_menu_price(command.price)
             if command.is_available is not None:
                 menu_item.is_available = command.is_available
             await self._catalog.flush()
