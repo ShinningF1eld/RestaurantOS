@@ -1,19 +1,28 @@
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.modules.catalog.domain.policies import MAX_MENU_PRICE
+
+
+MenuPrice = Annotated[
+    Decimal, Field(ge=0, le=MAX_MENU_PRICE, max_digits=10, decimal_places=2)
+]
 
 
 class MenuItemCreate(BaseModel):
     name: str
     description: str | None = None
-    price: Decimal
+    price: MenuPrice
     is_available: bool = True
 
 
 class MenuItemUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
-    price: Decimal | None = None
+    price: MenuPrice | None = None
     is_available: bool | None = None
 
 

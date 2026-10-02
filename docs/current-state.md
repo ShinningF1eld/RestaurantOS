@@ -73,6 +73,17 @@ timezone fields, database-level status constraints, and broader restaurant/menu
 deletion policies. Milestone 1 preserves ordered-item history and centralizes
 status transitions in the application.
 
+Catalog price hardening adds revision `b37a6d91e204` after the verified live
+Milestone 4 head above. Menu-item create/update inputs and service calls accept
+only finite prices from `0` through `99999999.99`, with at most two meaningful
+decimal places (trailing zeros are allowed). Invalid API prices return 422
+instead of being rounded or overflowing the database column. The new database
+constraint rejects negative and non-finite stored prices; PostgreSQL's existing
+`NUMERIC(10,2)` still rounds direct SQL inputs with fractional cents, so importers
+must use the service validation too. Run `alembic upgrade head` when deploying
+this change. If existing prices violate the constraint, the migration fails
+without rewriting them; review and correct those values before retrying.
+
 ## Backend endpoint inventory
 
 There are 29 protected business endpoints, four authentication endpoints and
