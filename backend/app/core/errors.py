@@ -29,3 +29,7 @@ class ConflictError(DomainError):
 
 class ValidationError(DomainError):
     code = "validation_error"
+
+
+class ForbiddenError(DomainError):
+    code = "forbidden"

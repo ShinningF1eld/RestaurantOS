@@ -73,8 +73,21 @@ try {
             }
         }
 
-        Invoke-Checked "Backend tests (isolated *_test database)" {
-            & $backendPython -m pytest
+        if ($SkipDatabase) {
+            $previousTestDatabase = $env:TEST_DATABASE_URL
+            try {
+                # Unit fixtures never connect; this satisfies the shared URL guard.
+                $env:TEST_DATABASE_URL = "postgresql+asyncpg://unused:unused@localhost:1/unit_test" # pragma: allowlist secret
+                Invoke-Checked "Backend unit tests (no database)" {
+                    & $backendPython -m pytest tests/unit -p no:cacheprovider
+                }
+            }
+            finally { $env:TEST_DATABASE_URL = $previousTestDatabase }
+        }
+        else {
+            Invoke-Checked "Backend tests (isolated *_test database)" {
+                & $backendPython -m pytest
+            }
         }
     }
     finally {
@@ -88,7 +101,7 @@ try {
         if (-not $SkipBuild) {
             Invoke-Checked "Frontend production build" { npm run build }
         }
-        if (-not $SkipBrowser) {
+        if (-not $SkipBrowser -and -not $SkipDatabase) {
             Invoke-Checked "Browser authentication and sale workflow" {
                 & $backendPython (Join-Path $repositoryRoot "scripts/run-browser-tests.py")
             }

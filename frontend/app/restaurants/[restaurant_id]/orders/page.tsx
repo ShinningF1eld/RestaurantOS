@@ -1,7 +1,8 @@
 import OrderActions from "./OrderActions";
 import Link from "next/link";
 
-import { getRestaurantOrders } from "@/lib/api/server";
+import type { AccessContext } from "@/types/access";
+import { getAccess, getRestaurantOrders } from "@/lib/api/server";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import StatusBadge from "@/components/ui/StatusBadge";
@@ -46,9 +47,10 @@ function getStatusClass(status: string) {
 }
 
 function OrderCard({
-    order,
+    order, access,
 }: {
     order: Order;
+    access: AccessContext;
 }) {
     return (
         <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -158,6 +160,7 @@ function OrderCard({
                 <OrderActions
                     orderId={order.order_id}
                     status={order.status}
+                    access={access}
                 />
             </div>
         </article>
@@ -176,9 +179,11 @@ export default async function OrdersPage({
     const offset = Number.isSafeInteger(parsedOffset) && parsedOffset >= 0
         ? parsedOffset
         : 0;
+    const access = await getAccess();
+    const canCreate = access.capabilities.includes("order.create");
     const [orderPage, menus] = await Promise.all([
         getRestaurantOrders(restaurantId, limit, offset),
-        getRestaurantMenus(restaurantId),
+        canCreate ? getRestaurantMenus(restaurantId) : Promise.resolve([]),
     ]);
     const menuItemLists = await Promise.all(menus.map((menu) => getMenuItems(menu.menu_id)));
     const orderableItems = menuItemLists.flat().filter((item) => item.is_available);
@@ -201,7 +206,7 @@ export default async function OrdersPage({
                 description="Review customer orders, track ticket state, and keep the kitchen flow current."
             />
 
-            <OrderEntry restaurantId={restaurantId} items={orderableItems} />
+            {canCreate && <OrderEntry restaurantId={restaurantId} items={orderableItems} />}
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
@@ -246,6 +251,7 @@ export default async function OrdersPage({
                         <OrderCard
                             key={order.order_id}
                             order={order}
+                            access={access}
                         />
                     ))}
                 </div>

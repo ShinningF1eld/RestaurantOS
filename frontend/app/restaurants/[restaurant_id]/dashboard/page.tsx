@@ -1,4 +1,5 @@
-import { getRestaurantDashboardAnalytics } from "@/lib/api/server";
+import { getAccess, getRestaurantDashboardAnalytics } from "@/lib/api/server";
+import { redirect } from "next/navigation";
 import PageHeader from "@/components/ui/PageHeader";
 import StatCard from "@/components/ui/StatCard";
 import StatusBadge from "@/components/ui/StatusBadge";
@@ -210,6 +211,8 @@ export default async function DashboardPage({
 }: DashboardPageProps) {
     const { restaurant_id } = await params;
     const restaurantId = Number(restaurant_id);
+    const access = await getAccess();
+    if (!access.capabilities.includes("analytics.read")) redirect(`/restaurants/${restaurantId}/orders`);
     const analytics = await getRestaurantDashboardAnalytics(restaurantId);
 
     return (

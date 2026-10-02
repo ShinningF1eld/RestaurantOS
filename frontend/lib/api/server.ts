@@ -9,6 +9,7 @@ import type { Menu } from "@/types/menu";
 import type { MenuItem } from "@/types/menu_item";
 import type { PaginatedOrders } from "@/types/order";
 import type { RestaurantDashboardAnalytics } from "@/types/analytics";
+import type { AccessContext, Membership } from "@/types/access";
 
 export { ApiError } from "./errors";
 
@@ -29,6 +30,8 @@ async function read<T>(path: string): Promise<T> {
 }
 
 export const getRestaurant = (id: number) => read<Restaurant>(`/api/restaurants/${id}`);
+export const getAccess = () => read<AccessContext>("/api/access");
+export const getMemberships = () => read<Membership[]>("/api/memberships");
 export const getRestaurantMenus = (id: number) => read<Menu[]>(`/restaurants/${id}/menus`);
 export const getMenu = (id: number) => read<Menu>(`/menus/${id}`);
 export const getMenuItems = (id: number) => read<MenuItem[]>(`/menus/${id}/items`);

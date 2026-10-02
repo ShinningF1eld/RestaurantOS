@@ -93,15 +93,24 @@ def test_database_rejects_other_roles(tenant_rows, role):
             )
 
 
-def test_duplicate_membership_is_rejected(tenant_rows):
-    org_a, _, user, _, _, _ = tenant_rows
-    with pytest.raises(IntegrityError, match="uq_memberships_user_org"):
+@pytest.mark.parametrize("second_organization", [False, True])
+def test_duplicate_membership_is_rejected(tenant_rows, second_organization):
+    org_a, org_b, user, _, _, _ = tenant_rows
+    with pytest.raises(IntegrityError, match="uq_memberships_user"):
         with Session(engine) as db, db.begin():
             db.add(
                 Membership(
-                    user_id=user.id, organization_id=org_a.id, role=MembershipRole.OWNER
+                    user_id=user.id,
+                    organization_id=org_b.id if second_organization else org_a.id,
+                    role=MembershipRole.OWNER,
                 )
             )
+
+
+def test_restaurant_cannot_be_created_without_organization():
+    with pytest.raises(IntegrityError):
+        with Session(engine) as db, db.begin():
+            db.add(Restaurant(name="Missing tenant"))
 
 
 @pytest.mark.parametrize("use_membership_org", [True, False])

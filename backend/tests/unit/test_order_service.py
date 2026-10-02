@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.menu_items import MenuItem
 from app.db.models.order import Order
-from app.domain.order import OrderItemsLockedError
-from app.services.order import (
+from app.modules.orders.domain.policies import OrderItemsLockedError
+from app.modules.orders.service import (
     CreateOrder,
     OrderItemCommand,
     OrderService,
@@ -41,6 +41,9 @@ class FakeSession:
         self.events: list[str] = []
         self.exit_exception_type: type[BaseException] | None = None
 
+    def add(self, value) -> None:
+        self.events.append("audit-added")
+
     def begin(self) -> FakeTransaction:
         return FakeTransaction(self)
 
@@ -65,7 +68,7 @@ class FakeOrderRepository:
         self._session.events.append("restaurant-exists")
         return self._restaurant_exists
 
-    async def get_by_id(self, order_id: int) -> Order | None:
+    async def get_by_id(self, order_id: int, *, lock: bool = False) -> Order | None:
         self._session.events.append("get-order")
         return self.order
 
@@ -108,10 +111,15 @@ def item(menu_item_id: int = 1, price: str = "12.50") -> MenuItem:
 
 
 @pytest.mark.asyncio
-async def test_create_builds_price_snapshots_inside_one_transaction() -> None:
+async def test_create_builds_price_snapshots_inside_one_transaction(
+    fake_access, unit_principal
+) -> None:
+    import app.modules.orders.service as module
+
+    fake_access(module)
     session = FakeSession()
     repository = FakeOrderRepository(session, menu_items=[item()])
-    service = OrderService(cast(AsyncSession, session), repository)
+    service = OrderService(cast(AsyncSession, session), unit_principal, repository)
 
     order = await service.create(
         7,
@@ -130,6 +138,7 @@ async def test_create_builds_price_snapshots_inside_one_transaction() -> None:
         "add-order",
         "flush",
         "get-order",
+        "audit-added",
         "transaction-exited",
     ]
     assert order.subtotal == Decimal("25.00")
@@ -140,7 +149,12 @@ async def test_create_builds_price_snapshots_inside_one_transaction() -> None:
 
 
 @pytest.mark.asyncio
-async def test_failed_status_and_item_update_exits_transaction_with_error() -> None:
+async def test_failed_status_and_item_update_exits_transaction_with_error(
+    fake_access, unit_principal
+) -> None:
+    import app.modules.orders.service as module
+
+    fake_access(module)
     session = FakeSession()
     existing_order = Order(
         order_id=4,
@@ -152,7 +166,7 @@ async def test_failed_status_and_item_update_exits_transaction_with_error() -> N
         items=[],
     )
     repository = FakeOrderRepository(session, order=existing_order)
-    service = OrderService(cast(AsyncSession, session), repository)
+    service = OrderService(cast(AsyncSession, session), unit_principal, repository)
 
     with pytest.raises(OrderItemsLockedError):
         await service.update(
@@ -164,6 +178,7 @@ async def test_failed_status_and_item_update_exits_transaction_with_error() -> N
                 notes=None,
                 items=(OrderItemCommand(menu_item_id=1, quantity=2, notes=None),),
                 payment_status=None,
+                fields=frozenset({"status", "items"}),
             ),
         )
 

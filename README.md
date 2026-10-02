@@ -6,16 +6,17 @@ Compose. The current implementation includes restaurant, menu, menu-item, and
 order APIs plus an early analytics dashboard. See
 [`docs/current-state.md`](docs/current-state.md) for verified limitations.
 
-Business APIs require a provisioned account. Milestone 3 adds secure login,
-rotating browser sessions, logout, and authentication rate limits in the new
-`backend/app/modules/auth` feature module. Accounts currently share the workspace;
-tenant permissions are Milestone 4. See the [auth runbook](docs/runbooks/authentication.md)
-and [API contract](docs/api/authentication.md).
+Business APIs require a provisioned account and active organization membership.
+Milestone 3 supplies cookie sessions and authentication rate limits. Milestone 4
+adds Owner, Manager and Employee capabilities, branch assignments, scoped queries,
+owner bootstrap, staff administration and transactional audit facts. Employee
+permissions are the kitchen preparation permissions. Backend features follow
+`app/modules/<feature>/{service.py,domain/,repo/}`, as with auth.
 
-Milestone 4's [tenancy schema expansion](docs/architecture/tenancy-schema.md)
-defines Owner, Manager, and Employee memberships and restaurant assignments.
-This is a schema-only foundation; tenant authorization and owner bootstrap are
-still pending, and existing business APIs continue to share the workspace.
+See the [role/API contract](docs/api/tenancy.md) and
+[cutover runbook](docs/runbooks/tenancy.md). The new constraint migration and live
+owner assignment have not run; database acceptance is deferred at the user's
+request while Docker Desktop is unavailable.
 
 ## Prerequisites
 
@@ -89,6 +90,13 @@ Open <http://localhost:3000>. FastAPI documentation is available at
 Use `localhost` consistently on both ports; host-only cookies also support server
 rendering. Sign in using the account and password entered in the provisioning
 command. Secrets stay in the ignored backend `.env` file.
+For a fresh setup, create the account's organization first using authenticated
+`POST /api/organizations` in FastAPI `/docs`; this creates its OWNER membership.
+Then create restaurants. For the existing one-user/one-restaurant database, use
+the explicit `bootstrap-existing` command after migrations as described in the
+cutover runbook. Newly provisioned staff accounts require an Owner-created
+membership before business access is available.
+
 
 ## macOS and Linux setup
 

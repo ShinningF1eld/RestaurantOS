@@ -1,7 +1,7 @@
 # RestaurantOS current state
 
-Last verified: 2026-09-30 after Milestone 3 completion. Historical results are
-dated below; the Milestone 3 section records the current validation evidence.
+Last code verification: 2026-10-02 for Milestone 4. PostgreSQL acceptance and
+live cutover are deferred. Historical Milestone 3/schema results are dated below.
 
 Milestone 4 schema/model expansion was verified separately on 2026-10-01.
 The new migration was tested in disposable databases only; the application
@@ -56,10 +56,10 @@ The current models and tables are:
 Alembic has one linear chain:
 
 ```text
-9007636220c5 -> 694f7189fe51 -> 2d7747d9f5b1 -> 4a1e9a2dc8e4 -> 72bd03a1f901 (head)
+9007636220c5 -> 694f7189fe51 -> 2d7747d9f5b1 -> 4a1e9a2dc8e4 -> 72bd03a1f901 -> 83c7e1b4a902 -> 94d8f2c5b013 (code head)
 ```
 
-The existing local database was verified at head and `alembic check` reported
+At Milestone 3, the existing local database was verified at its head and `alembic check` reported
 no model drift. A separately named empty local database was upgraded through all
 five revisions to head, checked for drift, and removed. CI also performs the
 zero-to-head upgrade against a clean PostgreSQL service before integration tests.
@@ -71,7 +71,7 @@ status transitions in the application.
 
 ## Backend endpoint inventory
 
-There are 21 protected business endpoints, four authentication endpoints and
+There are 29 protected business endpoints, four authentication endpoints and
 three utility endpoints. `/api/test-db` requires authentication and returns 404
 in production. Public health/probe responses and API docs contain no business data.
 
@@ -82,6 +82,8 @@ in production. Public health/probe responses and API docs contain no business da
 | Menu items | `POST/GET /menus/{menu_id}/items`; `GET/PUT/DELETE /menu-items/{menu_item_id}` |
 | Orders | `POST/GET /api/restaurants/{restaurant_id}/orders`; `GET/PUT/DELETE /api/orders/{order_id}` |
 | Analytics | `GET /api/restaurants/{restaurant_id}/analytics/dashboard` |
+| Tenancy | `GET /api/access`; `POST /api/organizations`; `GET /api/organization`; `GET/POST /api/memberships`; `PUT/DELETE /api/memberships/{membership_id}` |
+| Audit | `GET /api/audit` |
 | Authentication | `POST /auth/login`; `POST /auth/refresh`; `POST /auth/logout`; `GET /auth/me` |
 | Utility | `GET /health`; `GET /api/test`; `GET /api/test-db` |
 
@@ -105,7 +107,8 @@ roadmap's target `/api/v1` convention.
 Restaurant CRUD, menu CRUD, menu-item CRUD, multi-item order entry, paginated
 order listing/status actions, and dashboard metrics are present. The restaurant
 workspace has route-level `loading.tsx`, `error.tsx`, and `not-found.tsx`
-boundaries. Inventory and employees remain mock UI for later milestones.
+boundaries. Inventory remains mock UI for later milestones. Staff access uses the real
+Owner membership administration API. Controls/navigation reflect capabilities.
 
 The shared restaurant navigation still links to nonexistent `tables` and
 `settings` routes, and the root page shows hardcoded operational figures. These
@@ -309,7 +312,7 @@ See [authentication operations](runbooks/authentication.md),
 [API contract](api/authentication.md), [feature module ADR](adr/0002-feature-modules.md)
 and [session ADR](adr/0003-authentication-sessions.md).
 
-## Milestone 4 schema/model expansion
+## Milestone 4 implementation and deferred acceptance
 
 The schema-only slice adds Organization, Membership, RestaurantAssignment and
 AuditEntry models in new tenancy/audit feature modules, using the shared Base.
@@ -325,7 +328,25 @@ upgrades, no model drift, and downgrade/re-upgrade preserving historical orders
 and users. Checks ran against newly created disposable databases, which were
 removed afterward. No application database upgrade or commit was performed.
 
-Milestone 4 remains in progress: owner bootstrap, tenant-aware services and
-repositories, permission enforcement, audit writers and the final restaurant
-NOT NULL constraint are pending. Business access still has the Milestone 3
-shared-workspace behavior. See [tenancy schema and cutover notes](architecture/tenancy-schema.md).
+Implemented on 2026-10-02: one-organization-per-user uniqueness, non-null
+restaurant tenant scope, organization display numbers (development workspace 1),
+explicit idempotent legacy Owner bootstrap and authenticated first-Owner creation,
+Owner staff administration, fresh membership/assignment checks, centralized
+capabilities, scoped repositories and transactional allowlisted audits. Business
+implementations now reside in corresponding feature modules, with legacy import
+facades. Role-aware screens include Owner staff administration and Employee
+preparation controls without financial/menu/staff mutation controls.
+
+Current verification: 104 database-free unit tests, full-app mypy (121 sources),
+Ruff, frontend ESLint/TypeScript and production build passed. The new integration
+and browser tests are written, but PostgreSQL tests, migration execution/rehearsal,
+Alembic drift and browser execution are deferred at the user's explicit request.
+Docker Desktop fails during Windows socket listener startup. Remote CI was not
+run. Earlier 163-test schema results apply only to the October 1 slice.
+
+The live existing restaurant/user assignment has not run. Apply the documented
+backup/migration/bootstrap procedure after PostgreSQL starts. Every business API
+has a policy in code; cross-tenant read/write/nested/list coverage and safe audit
+rollback coverage are present. Milestone 4's database acceptance and exit criteria
+remain unverified until these checks run. See [role/API policies](api/tenancy.md),
+[schema](architecture/tenancy-schema.md) and [cutover runbook](runbooks/tenancy.md).

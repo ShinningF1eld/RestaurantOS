@@ -10,13 +10,14 @@ from sqlalchemy import (
     ForeignKey,
     ForeignKeyConstraint,
     Index,
+    Identity,
     String,
     UniqueConstraint,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.models.base import Base
+from app.db.base import Base
 from app.modules.tenancy.domain.roles import MembershipRole
 
 
@@ -34,6 +35,7 @@ class Organization(Base):
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    number: Mapped[int] = mapped_column(Identity(), unique=True)
     name: Mapped[str] = mapped_column(String(255))
     slug: Mapped[str] = mapped_column(String(100), unique=True)
     status: Mapped[str] = mapped_column(
@@ -50,7 +52,7 @@ class Organization(Base):
 class Membership(Base):
     __tablename__ = "memberships"
     __table_args__ = (
-        UniqueConstraint("user_id", "organization_id", name="uq_memberships_user_org"),
+        UniqueConstraint("user_id", name="uq_memberships_user"),
         UniqueConstraint("id", "organization_id", name="uq_memberships_id_org"),
         CheckConstraint(
             "role IN ('OWNER', 'MANAGER', 'EMPLOYEE')", name="ck_memberships_role"

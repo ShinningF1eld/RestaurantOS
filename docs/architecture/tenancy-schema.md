@@ -1,92 +1,75 @@
-# Milestone 4: tenancy schema expansion
+# Milestone 4: tenancy and authorization
 
-Implemented on 2026-10-01 as the schema/model slice only. Authorization, owner
-bootstrap, membership APIs, and audit writers are not implemented yet. This
-schema does not make the existing business endpoints tenant-isolated.
+Implemented in code on 2026-10-02; PostgreSQL acceptance and live cutover are
+pending because the user requested deferring database tests while Docker fails.
+The earlier schema-only slice was verified on 2026-10-01; that evidence does not
+verify the new constraint migration or access behavior.
 
-## Models and integrity
+The modular monolith uses `app/modules` for auth, tenancy, audit, restaurants,
+catalog, orders and analytics. Each feature owns `service.py`, `domain/` and
+`repo/`, plus HTTP adapters as needed. Domain code has no HTTP/database imports;
+services enforce policies and own write transactions; repositories never commit.
+Shared Base/session infrastructure lives in `app/db`. The former layer-first
+files are compatibility import facades with no separate implementation. See
+[ADR 0002](../adr/0002-feature-modules.md).
 
-| Table | Purpose and constraints |
+## Model integrity
+
+| Table | Constraints and purpose |
 |---|---|
-| `organizations` | UUID tenant root, unique normalized slug, nonblank name, active/archived status, timezone-aware timestamps |
-| `memberships` | UUID user-to-organization membership, unique user/org pair, active/revoked status, exactly OWNER/MANAGER/EMPLOYEE |
-| `restaurants` | Nullable organization FK and lookup index during expansion; unique id/org pair supports composite tenant FKs |
-| `restaurant_assignments` | Unique membership/restaurant pair; composite FKs require membership and restaurant to belong to the same organization |
-| `audit_entries` | Organization, optional restaurant and actor, action/resource snapshot, JSON-object change summary, request ID, UTC timestamp |
+| `organizations` | UUID storage ID, generated unique integer `number`, normalized unique slug, nonblank name, active/archived status, UTC timestamps |
+| `memberships` | UUID ID; **unique user ID**, so one organization per user even after revocation; OWNER/MANAGER/EMPLOYEE only; active/revoked status |
+| `restaurants` | Non-null single organization FK with no default; tenant-aware creation supplies scope; unique id/org pair supports composite FKs |
+| `restaurant_assignments` | Unique membership/restaurant pair; composite FKs require both parents in the same organization |
+| `audit_entries` | Organization, optional restaurant/actor, action/resource snapshots, JSON-object facts, request ID, UTC timestamp |
 
-New models reuse the shared SQLAlchemy Base and are explicitly registered in
-application startup and Alembic, as with auth. Organization/membership/assignment/audit
-links use restrictive deletion to avoid silently cascading business or audit
-history. An audit actor can be set to null when an otherwise unreferenced user
-is deleted; resource IDs are snapshots without a resource FK.
+Tenant links use restrictive deletion to preserve history. Deleting an otherwise
+unreferenced audit actor nulls its actor FK while retaining the audit record.
+Resource IDs are snapshots, independent of resource deletion. Owners access all
+branches in their organization; Managers/Employees need explicit assignments.
+Assignments have no role override. Organization number **1** denotes the legacy
+development organization while UUID storage IDs remain compatible with the
+schema already introduced.
 
-The role model follows the user's three-role decision. Planned permissions:
+## Enforcement
 
-- OWNER: organization-wide restaurant/catalog/order/analytics operations and
-  membership/ownership administration.
-- MANAGER: assigned-restaurant profile, catalog, operational order and payment
-  management, and analytics; no staff or ownership administration.
-- EMPLOYEE: assigned-restaurant operational reads and only ACCEPTED -> PREPARING
-  and PREPARING -> READY updates. This takes the previously proposed kitchen
-  role's permissions, not the previous cashier/employee permissions. No order
-  creation, item/payment changes, completion/cancellation, staff administration,
-  financial analytics, or menu price changes.
+The shared access service resolves current active membership, organization and
+assignments from PostgreSQL on each operation. Capabilities and Employee status
+rules are pure policies in tenancy's domain. Repositories scope direct lookups,
+nested catalog/order references, lists, counts and analytics through the
+restaurant's organization and assignments. Foreign/unassigned resources are 404;
+forbidden operations are 403. Cookies still carry identity, not mutable roles.
 
-These are intended policy semantics, not enforced capabilities in this slice.
-Assignment-level role overrides are not introduced. Membership owns the role.
-Future audit writers must allowlist safe changes and insert within the business
-transaction. JSON-object validation alone does not sanitize secrets or enforce
-append-only storage; those responsibilities remain in the audit implementation.
+Owner membership edits serialize on the organization row and protect the last
+active Owner. Business writes acquire shared membership/assignment locks so
+revocation cannot bypass an authorized write boundary. Status writes lock the
+order before checking its transition. Audit facts are staged within the same
+transaction; failures roll back the business mutation. Audit reads are Owner-only
+and organization-scoped; no audit mutation API is exposed. See the complete
+[role matrix, endpoint policies and demonstration](../api/tenancy.md).
 
-## Migration and cutover
+## Migrations and verification
 
-`83c7e1b4a902` follows `72bd03a1f901` in the existing linear chain. It:
+`83c7e1b4a902` follows `72bd03a1f901` and creates the tenant tables, development
+organization and legacy restaurant backfill. It intentionally grants no user
+access. `94d8f2c5b013` then rejects duplicate user memberships, fills remaining
+null restaurant scope, numbers the development organization 1, enforces
+restaurant NOT NULL and user-only membership uniqueness.
 
-1. Creates the new tables and nullable restaurant organization FK.
-2. Creates `RestaurantOS Development Workspace` (`restaurantos-development`).
-3. Backfills every existing restaurant into that development organization.
+The explicit idempotent `app.modules.tenancy.cli bootstrap-existing` command
+assigns the sole existing active user as Owner only after confirming the sole
+restaurant belongs to development organization 1. For new accounts/workspaces,
+`POST /api/organizations` creates the first Owner and organization atomically.
 
-It does not provision a user, promote an existing account, change auth sessions,
-or rewrite menu/order/item snapshots. The restaurant FK has no server default;
-the current creation service can still insert null organization IDs until the
-next slice supplies authenticated membership scope.
+[Cutover, backups, rollback and deferred acceptance](../runbooks/tenancy.md)
+include the exact migration/bootstrap commands. Both revisions must be applied
+before running this version of the API. The live database was not modified by
+this implementation; its existing restaurant/user assignment is still pending.
 
-Before changing a shared/application database, back up with PostgreSQL's normal
-backup tooling and verify that restore is available. Apply the revision through
-Alembic using the configured database. Before the contract migration, implement
-the explicit idempotent owner bootstrap and tenant-aware restaurant creation;
-then backfill any restaurants created during expansion, verify all tenant FKs,
-and apply NOT NULL. Bootstrap must select an active owner explicitly rather than
-granting all existing users access.
-
-Application rollback can keep the additive schema. Downgrading to `72bd03a1f901`
-preserves restaurant/catalog/order/auth rows but **deletes organizations,
-memberships, assignments, audit entries, and restaurant tenant associations**.
-Do not downgrade after real tenant usage without a verified backup and a data
-recovery plan. The checker rehearses downgrade only on disposable data.
-
-## Verification
-
-From the repository root, with `TEST_DATABASE_URL` configured for local
-PostgreSQL and ending in `_test`:
-
-```powershell
-backend/.venv/Scripts/python.exe scripts/check-tenancy-migration.py --run-tests
-```
-
-The checker creates randomly named disposable databases, rehearses clean and
-previous-head upgrades, checks model drift, verifies legacy order snapshots and
-user preservation across downgrade/re-upgrade, and optionally runs the complete
-backend suite. It removes only databases successfully created by that invocation.
-It does not migrate the application database or truncate the configured test DB.
-
-`backend/tests/integration/test_tenancy_schema.py` verifies role constraints,
-unique memberships/assignments, both cross-organization assignment directions,
-cross-organization audit rejection, JSON-object summaries, restrictive tenant
-deletion, UTC model round-trips, and audit preservation when its actor is deleted.
-
-Verified locally: Ruff, full-app mypy, 163 backend tests (16 new schema tests),
-clean/previous-head migration checks, downgrade/re-upgrade history preservation,
-and no Alembic model drift. Validation used disposable databases only; the
-application database was not migrated. Existing datetime/TestClient deprecation
-warnings remain. No frontend code or browser behavior changed in this slice.
+Tests are present for schema integrity, every cross-tenant direct/nested read and
+write, collection/count scope, Employee limitations, Manager self-promotion,
+revocation, live role/assignment changes, bootstrap, safe audit facts and atomic
+failure. Unit tests compile real PostgreSQL scope predicates without connecting.
+The database-backed integration, migration rehearsal and browser suites were not
+run in this pass. These are still required before declaring Milestone 4 fully
+verified against its exit criteria.

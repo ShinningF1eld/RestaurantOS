@@ -1,5 +1,3 @@
-from sqlalchemy.orm import DeclarativeBase
+"""Compatibility import for shared metadata."""
 
-
-class Base(DeclarativeBase):
-    pass
+from app.db.base import Base as Base

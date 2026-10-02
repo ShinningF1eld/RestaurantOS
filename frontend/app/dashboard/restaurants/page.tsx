@@ -14,6 +14,8 @@ import {
     RestaurantCreate,
     RestaurantUpdate,
 } from "@/types/restaurant";
+import { getAccess } from "@/lib/api/access";
+import type { AccessContext } from "@/types/access";
 import RestaurantForm from "./components/RestaurantForm";
 import SessionMenu from "@/features/auth/SessionMenu";
 import PageHeader from "@/components/ui/PageHeader";
@@ -22,6 +24,8 @@ import StatusBadge from "@/components/ui/StatusBadge";
 
 export default function RestaurantsPage() {
     const router = useRouter();
+    const [access, setAccess] = useState<AccessContext | null>(null);
+    const can = (capability: string) => access?.capabilities.includes(capability) ?? false;
     const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -32,10 +36,11 @@ export default function RestaurantsPage() {
     useEffect(() => {
         async function loadRestaurants() {
             try {
-                const data = await getRestaurants();
+                const [data, context] = await Promise.all([getRestaurants(), getAccess()]);
                 setRestaurants(data);
+                setAccess(context);
             } catch {
-                setError("Failed to load restaurants");
+                setError("Restaurant access is unavailable. Ask your owner to assign your account.");
             } finally {
                 setLoading(false);
             }
@@ -145,7 +150,7 @@ export default function RestaurantsPage() {
                     eyebrow="Workspace"
                     title="Restaurants"
                     description="Choose a location, update profile information, or add a new restaurant to the operations console."
-                    actions={(
+                    actions={can("restaurant.create") && (
                     <button
                         onClick={() => setShowForm(true)}
                         className="rounded-md bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
@@ -210,7 +215,7 @@ export default function RestaurantsPage() {
                                 key={restaurant.id}
                                 onClick={() =>
                                     router.push(
-                                        `/restaurants/${restaurant.id}/dashboard`
+                                        `/restaurants/${restaurant.id}/${can("analytics.read") ? "dashboard" : "orders"}`
                                     )
                                 }
                                 className="cursor-pointer rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:border-slate-300 hover:shadow-md"
@@ -233,7 +238,7 @@ export default function RestaurantsPage() {
                                         </p>
                                     </div>
                                     <div className="flex shrink-0 gap-2">
-                                        <button
+                                        {can("restaurant.update") && <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setEditingRestaurant(restaurant);
@@ -241,9 +246,9 @@ export default function RestaurantsPage() {
                                             className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-stone-50"
                                         >
                                             Edit
-                                        </button>
+                                        </button>}
 
-                                        <button
+                                        {can("restaurant.delete") && <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 handleDelete(restaurant.id);
@@ -251,7 +256,7 @@ export default function RestaurantsPage() {
                                             className="rounded-md border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
                                         >
                                             Delete
-                                        </button>
+                                        </button>}
                                     </div>
                                 </div>
                             </div>

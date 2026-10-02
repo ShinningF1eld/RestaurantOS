@@ -1,63 +1,10 @@
-from datetime import datetime
-from decimal import Decimal
+"""Compatibility imports; implementation belongs to the feature module."""
 
-from pydantic import BaseModel, ConfigDict, Field
-
-
-class OrderItemCreate(BaseModel):
-    menu_item_id: int
-    quantity: int = Field(gt=0)
-    notes: str | None = None
-
-
-class OrderItemResponse(BaseModel):
-    order_item_id: int
-    order_id: int
-    menu_item_id: int | None
-    menu_item_name: str
-    quantity: int
-    unit_price: Decimal
-    line_total: Decimal
-    notes: str | None = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class OrderCreate(BaseModel):
-    table_number: str | None = None
-    customer_name: str | None = None
-    notes: str | None = None
-    items: list[OrderItemCreate] = Field(min_length=1)
-
-
-class OrderUpdate(BaseModel):
-    table_number: str | None = None
-    customer_name: str | None = None
-    status: str | None = None
-    notes: str | None = None
-    items: list[OrderItemCreate] | None = Field(default=None, min_length=1)
-    payment_status: str | None = None
-
-
-class OrderResponse(BaseModel):
-    order_id: int
-    restaurant_id: int
-    table_number: str | None = None
-    customer_name: str | None = None
-    status: str
-    payment_status: str
-    notes: str | None = None
-    subtotal: Decimal
-    total: Decimal
-    created_at: datetime
-    updated_at: datetime
-    items: list[OrderItemResponse]
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class PaginatedOrders(BaseModel):
-    items: list[OrderResponse]
-    total: int
-    limit: int
-    offset: int
+from app.modules.orders.schemas import (
+    OrderItemCreate as OrderItemCreate,
+    OrderItemResponse as OrderItemResponse,
+    OrderCreate as OrderCreate,
+    OrderUpdate as OrderUpdate,
+    OrderResponse as OrderResponse,
+    PaginatedOrders as PaginatedOrders,
+)

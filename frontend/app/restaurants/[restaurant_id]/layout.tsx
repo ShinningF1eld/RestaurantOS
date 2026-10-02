@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ReactNode } from "react";
 
-import { ApiError, getRestaurant } from "@/lib/api/server";
+import { ApiError, getAccess, getRestaurant } from "@/lib/api/server";
 
 interface RestaurantLayoutProps {
     children: ReactNode;
@@ -33,43 +33,44 @@ export default async function RestaurantLayout({
         throw error;
     }
 
+    const access = await getAccess();
     const navigation = [
         {
-            name: "Dashboard",
+            name: "Dashboard", capability: "analytics.read",
             shortName: "Dash",
             href: `/restaurants/${restaurant_id}/dashboard`,
         },
         {
-            name: "Orders",
+            name: "Orders", capability: "order.read",
             shortName: "Orders",
             href: `/restaurants/${restaurant_id}/orders`,
         },
         {
-            name: "Menu",
+            name: "Menu", capability: "menu.read",
             shortName: "Menu",
             href: `/restaurants/${restaurant_id}/menu`,
         },
         {
-            name: "Tables",
+            name: "Tables", capability: "restaurant.update",
             shortName: "Tables",
             href: `/restaurants/${restaurant_id}/tables`,
         },
         {
-            name: "Inventory",
+            name: "Inventory", capability: "menu.manage",
             shortName: "Stock",
             href: `/restaurants/${restaurant_id}/inventory`,
         },
         {
-            name: "Employees",
+            name: "Employees", capability: "staff.manage",
             shortName: "Team",
             href: `/restaurants/${restaurant_id}/employees`,
         },
         {
-            name: "Settings",
+            name: "Settings", capability: "restaurant.update",
             shortName: "Setup",
             href: `/restaurants/${restaurant_id}/settings`,
         },
-    ];
+    ].filter(item => access.capabilities.includes(item.capability));
 
     return (
         <div className="min-h-screen bg-stone-50 text-slate-950">

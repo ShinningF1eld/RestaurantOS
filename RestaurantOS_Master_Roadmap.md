@@ -183,25 +183,37 @@ Avoid ceremony that does not create value. Simple reads can remain simple, but c
 ### 3.3 Suggested repository structure
 
 Adapt existing names rather than performing a blind rewrite.
+`app/modules` is the primary business-feature folder. Each module follows the
+auth convention: `service.py`, `domain/`, and `repo/`, with its own `router.py`,
+`schemas.py`, and dependencies when it exposes HTTP operations. Shared technical
+infrastructure stays outside modules. See
+[`docs/adr/0002-feature-modules.md`](docs/adr/0002-feature-modules.md) for the
+layer responsibilities and incremental migration policy.
 
 ```text
 backend/
   app/
-    api/
-      dependencies/
-      routers/
+    main.py
+    http/                   # shared middleware and HTTP error adapters
     core/
       config.py
-      security.py
       logging.py
       errors.py
     db/
+      database.py
       base.py
-      session.py
-      migrations/
     modules/
-      identity/
-      organizations/
+      auth/
+        router.py
+        schemas.py
+        dependencies.py
+        service.py
+        domain/
+        repo/
+          models.py
+      tenancy/              # same per-module layering as auth
+      audit/
+      restaurants/
       catalog/
       orders/
       inventory/
@@ -209,14 +221,14 @@ backend/
       forecasting/
       documents/
       ai_analyst/
-      audit/
     infrastructure/
       cache/
       events/
       object_storage/
       observability/
     workers/
-    tests/
+  alembic/
+  tests/
 frontend/
   app/
   components/
@@ -569,11 +581,16 @@ Replace anonymous access with secure user identity and renewable sessions.
 
 ## Milestone 4 — Multi-tenancy and RBAC
 
-**Status: In progress — schema/model expansion implemented (2026-10-01).**
-Organization, membership, restaurant assignment and audit tables are defined;
-the restaurant organization FK remains nullable until tenant-aware creation and
-explicit owner bootstrap are implemented. Access policies are not yet enforced.
-See [`docs/architecture/tenancy-schema.md`](docs/architecture/tenancy-schema.md).
+**Status: Implemented in code; database acceptance and live cutover deferred (2026-10-02).**
+Organization/membership/assignment constraints, owner bootstrap, named role
+capabilities, tenant-scoped business queries and transactional audit writers are
+implemented. Each user belongs to at most one organization; restaurants require
+exactly one. The existing-user/restaurant bootstrap to organization number 1 is
+ready but has not run. Database-backed integration, migration and browser checks
+are deferred at the user's request while Docker is unavailable. Exit criteria
+coverage is written; it remains unverified on PostgreSQL. See
+[`docs/runbooks/tenancy.md`](docs/runbooks/tenancy.md) and
+[`docs/api/tenancy.md`](docs/api/tenancy.md).
 
 ### Objective
 

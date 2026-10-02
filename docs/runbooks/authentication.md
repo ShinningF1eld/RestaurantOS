@@ -15,7 +15,9 @@ Pop-Location
 
 Copy `.env.example` first on a fresh checkout. The create-user command asks for
 a password and confirmation without echo. It does not create an organization or
-grant a special owner role; all active accounts share the existing workspace.
+grant a special owner role. Business access requires an explicit organization
+membership; see the [tenancy cutover runbook](tenancy.md) for Owner bootstrap
+and staff assignment.
 Use 15–128 characters. Never pass passwords on the command line.
 
 Start API with Uvicorn `--no-proxy-headers` for direct local operation. Set

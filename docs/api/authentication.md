@@ -41,5 +41,6 @@ logins create independent families. Disabling an account rejects all of its
 sessions. Rotation never extends the family's absolute expiry. A refresh whose
 response is lost may require signing in again; do not retry it blindly.
 
-All authenticated accounts currently share business data. Organization and role
-restrictions are milestone 4 and are not implied by this API.
+Business operations additionally require an active organization membership and
+role capability. See [tenancy policies](tenancy.md) for organization/branch scope,
+Owner bootstrap and Employee preparation permissions.

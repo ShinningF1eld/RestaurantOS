@@ -11,7 +11,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.models.base import Base
+from app.db.base import Base
 
 
 class User(Base):
@@ -75,9 +75,7 @@ class RefreshToken(Base):
 
 class RateLimitBucket(Base):
     __tablename__ = "auth_rate_limit_buckets"
-    __table_args__ = (
-        CheckConstraint("attempt_count > 0", name="ck_auth_rate_count"),
-    )
+    __table_args__ = (CheckConstraint("attempt_count > 0", name="ck_auth_rate_count"),)
     key_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
     window_start: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), primary_key=True

@@ -22,11 +22,13 @@ from app.modules.auth.domain.errors import (
 from app.modules.auth.router import router as auth_router, clear_cookies
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from app.routers.analytics import router as analytics_router
-from app.routers.menu import router as menu_router
-from app.routers.menu_item import router as menu_item_router
-from app.routers.order import router as order_router
-from app.routers.restaurant import router as restaurant_router
+from app.modules.analytics.router import router as analytics_router
+from app.modules.catalog.menu_router import router as menu_router
+from app.modules.catalog.item_router import router as menu_item_router
+from app.modules.tenancy.router import router as tenancy_router
+from app.modules.audit.router import router as audit_router
+from app.modules.orders.router import router as order_router
+from app.modules.restaurants.router import router as restaurant_router
 
 
 settings = get_settings()
@@ -44,6 +46,8 @@ for business_router in (
     menu_item_router,
     order_router,
     analytics_router,
+    tenancy_router,
+    audit_router,
 ):
     app.include_router(business_router, dependencies=[Depends(get_current_principal)])
 

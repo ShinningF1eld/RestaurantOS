@@ -15,11 +15,12 @@ import {
 interface MenuItemListProps {
     menuId: number;
     menuItems: MenuItem[];
+    canManage: boolean;
 }
 
 export default function MenuItemList({
     menuId,
-    menuItems,
+    menuItems, canManage,
 }: MenuItemListProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [editingItem, setEditingItem] =
@@ -64,7 +65,7 @@ export default function MenuItemList({
 
     return (
         <>
-            <div className="flex justify-end">
+            {canManage && <div className="flex justify-end">
                 <button
                     type="button"
                     onClick={openCreate}
@@ -72,14 +73,14 @@ export default function MenuItemList({
                 >
                     Add menu item
                 </button>
-            </div>
+            </div>}
 
             {menuItems.length === 0 ? (
                 <div className="mt-8">
                     <EmptyState
                         title="No menu items yet"
                         description="Add the first dish, drink, modifier, or service item to start building this menu."
-                        action={(
+                        action={canManage && (
                             <button
                                 type="button"
                                 onClick={openCreate}
@@ -122,7 +123,7 @@ export default function MenuItemList({
                                     {item.price.toLocaleString()}
                                 </span>
 
-                                <div className="flex items-center">
+                                {canManage && <div className="flex items-center">
                                     {/* Edit */}
                                     <button
                                         type="button"
@@ -153,14 +154,14 @@ export default function MenuItemList({
                                             />
                                         </svg>
                                     </button>
-                                </div>
+                                </div>}
                             </div>
                         </div>
                     ))}
                 </div>
             )}
 
-            {isOpen && (
+            {canManage && isOpen && (
                 <MenuItemForm
                     menuId={menuId}
                     menuItem={editingItem}

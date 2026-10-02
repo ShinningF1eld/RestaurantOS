@@ -2,14 +2,14 @@
 
 import argparse
 import os
-from pathlib import Path
 import secrets
 import subprocess
 import sys
+from pathlib import Path
 from uuid import uuid4
 
-from dotenv import load_dotenv
 import psycopg
+from dotenv import load_dotenv
 from psycopg import sql
 from sqlalchemy.engine import make_url
 
@@ -26,7 +26,7 @@ environment = {
     "AUTH_RATE_LIMIT_SECRET": secrets.token_urlsafe(48),
 }
 previous_head = "72bd03a1f901"  # pragma: allowlist secret
-schema_head = "83c7e1b4a902"  # pragma: allowlist secret
+schema_head = "94d8f2c5b013"  # pragma: allowlist secret
 
 
 def database_environment(database: str) -> dict[str, str]:
@@ -111,6 +111,28 @@ def main() -> None:
                     ).fetchone() == ((1,) if scenario == "upgrade" else (0,))
                 if scenario == "upgrade":
                     assert history(database) == before
+                    # The explicit command promotes only the sole legacy account.
+                    for _ in range(2):
+                        subprocess.run(
+                            [
+                                sys.executable,
+                                "-m",
+                                "app.modules.tenancy.cli",
+                                "bootstrap-existing",
+                            ],
+                            cwd=backend,
+                            env=database_environment(database),
+                            check=True,
+                        )
+                    with psycopg.connect(
+                        url.set(database=database).render_as_string(hide_password=False)
+                    ) as db:
+                        assert db.execute(
+                            "SELECT m.role,g.number FROM memberships m JOIN organizations g ON g.id=m.organization_id"
+                        ).fetchone() == ("OWNER", 1)
+                        assert db.execute(
+                            "SELECT count(*) FROM audit_entries WHERE action='membership.bootstrapped'"
+                        ).fetchone() == (1,)
                     migrate(database, "downgrade", previous_head)
                     assert history(database) == before
                     migrate(database, "upgrade", schema_head)

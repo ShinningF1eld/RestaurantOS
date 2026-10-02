@@ -1,6 +1,6 @@
 # System context
 
-Last updated: 2026-09-30.
+Last updated: 2026-10-02 (module organization; runtime boundaries unchanged).
 
 RestaurantOS currently runs as a small modular-monolith-shaped application: one
 Next.js frontend, one FastAPI process, and one PostgreSQL database. Only the
@@ -41,8 +41,14 @@ The request dependency owns session lifetime, application command services own
 transactions, and repositories never commit or roll back.
 
 Authentication is the first feature-first module, `app/modules/auth`, containing
-its router, schemas, service, domain and repo. Existing catalog/order/analytics
-layers remain in place. Principal lookup uses its own short-lived read session
+its router, schemas, service, domain and repo. `app/modules` is the primary home
+for business features, and subsequent modules follow the same structure:
+`service.py` for use cases, `domain/` for pure rules, and `repo/` for persistence.
+Tenancy, audit, restaurants, catalog, orders and analytics now use these
+module layers. Legacy layer-first paths are compatibility import facades. Shared infrastructure remains outside modules. See
+[ADR 0002](../adr/0002-feature-modules.md).
+
+Principal lookup uses its own short-lived read session
 so it does not open a transaction on a business command's session.
 
 ## Trust and configuration boundaries
@@ -73,3 +79,11 @@ There are no backend or frontend Dockerfiles and no deployed environment is
 defined in this repository. GitHub Actions provides validation only. Production
 containerization, release migrations, deployment, and observability remain
 later roadmap milestones.
+
+
+Business access resolves active organization membership and branch assignments
+on every operation, then applies named capabilities and scoped queries. Owners
+administer staff; Managers operate assigned branches; Employees read assigned
+operations and advance preparation only. Audits share each mutation's PostgreSQL
+transaction and are visible only to the organization's Owners. Database tests
+and live cutover for this slice remain deferred; see the tenancy runbook.
