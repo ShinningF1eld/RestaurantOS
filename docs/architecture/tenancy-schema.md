@@ -9,8 +9,8 @@ The modular monolith uses `app/modules` for auth, tenancy, audit, restaurants,
 catalog, orders and analytics. Each feature owns `service.py`, `domain/` and
 `repo/`, plus HTTP adapters as needed. Domain code has no HTTP/database imports;
 services enforce policies and own write transactions; repositories never commit.
-Shared Base/session infrastructure lives in `app/db`. The former layer-first
-files are compatibility import facades with no separate implementation. See
+Shared Base/session infrastructure lives in `app/db`. The unused top-level
+business-layer compatibility folders have been removed. See
 [ADR 0002](../adr/0002-feature-modules.md).
 
 ## Model integrity

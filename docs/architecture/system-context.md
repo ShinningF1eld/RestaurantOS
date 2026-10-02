@@ -45,7 +45,8 @@ its router, schemas, service, domain and repo. `app/modules` is the primary home
 for business features, and subsequent modules follow the same structure:
 `service.py` for use cases, `domain/` for pure rules, and `repo/` for persistence.
 Tenancy, audit, restaurants, catalog, orders and analytics now use these
-module layers. Legacy layer-first paths are compatibility import facades. Shared infrastructure remains outside modules. See
+module layers. Unused top-level business-layer compatibility folders have been
+removed. Shared infrastructure remains outside modules. See
 [ADR 0002](../adr/0002-feature-modules.md).
 
 Principal lookup uses its own short-lived read session

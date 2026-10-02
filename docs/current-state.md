@@ -333,11 +333,12 @@ restaurant tenant scope, organization display numbers (development workspace 1),
 explicit idempotent legacy Owner bootstrap and authenticated first-Owner creation,
 Owner staff administration, fresh membership/assignment checks, centralized
 capabilities, scoped repositories and transactional allowlisted audits. Business
-implementations now reside in corresponding feature modules, with legacy import
-facades. Role-aware screens include Owner staff administration and Employee
+implementations now reside in corresponding feature modules. The unused top-level
+domain/repository/service/router/schema compatibility folders have been removed.
+Role-aware screens include Owner staff administration and Employee
 preparation controls without financial/menu/staff mutation controls.
 
-Current verification: 104 database-free unit tests, full-app mypy (121 sources),
+Current verification: 104 database-free unit tests, full-app mypy (98 sources),
 Ruff, frontend ESLint/TypeScript and production build passed. The new integration
 and browser tests are written, but PostgreSQL tests, migration execution/rehearsal,
 Alembic drift and browser execution are deferred at the user's explicit request.

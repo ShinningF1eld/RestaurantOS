@@ -46,8 +46,9 @@ repositories or ORM tables into business logic. One PostgreSQL database and
 shared transaction/session infrastructure remain in use.
 
 Restaurant/catalog/order/analytics implementations now live in their modules.
-The old layer-first paths are compatibility import facades without independent
-logic. ORM tables and public business URLs retain their names. `app/db/base.py`
+The unused top-level `domain`, `repositories`, `services`, `routers` and `schemas`
+compatibility folders have been removed. ORM tables and public business URLs
+retain their names. `app/db/base.py`
 is the shared metadata root; migrations register every module's models. No
 separate databases, generic base repository or additional service directory is
 introduced. Cross-feature relational joins remain in repositories; business
