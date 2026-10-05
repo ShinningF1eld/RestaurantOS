@@ -352,7 +352,7 @@ Use a ledger instead of only mutating a single stock number.
 | Entity | Important fields and rules |
 |---|---|
 | Ingredient | restaurant_id, name, unit, reorder threshold, active/archive state; implemented |
-| Recipe component | menu_item_id, ingredient_id, quantity required, wastage factor if needed; not implemented |
+| Recipe component | menu_item_id, ingredient_id, positive quantity per portion in the ingredient's fixed base unit; implemented |
 | Inventory movement | ingredient_id, delta, opening/receipt/waste/count kind, balance snapshot, actor, reason, idempotency key; implemented |
 | Inventory balance | ingredient_id, current quantity, version; transactionally maintained; implemented |
 
@@ -670,11 +670,13 @@ low-stock status, and movement history. The inventory API contract is in
 [`docs/api/inventory.md`](docs/api/inventory.md), and verification is recorded
 in [`docs/current-state.md`](docs/current-state.md#milestone-5-inventory-steps-1-3).
 
-This completes the standalone inventory foundation only. Orders do not read
-recipes or change stock; recipe components, order-linked consumption or
-reservation, cancellation compensation, and order-submission idempotency remain
-open parts of Milestone 5. The inventory migration is tested on disposable
-databases and has not been applied to the existing application database.
+Recipes now connect menu items to ingredient quantities per portion. Tracking is
+explicit and initially disabled for existing items; enabling it requires a valid
+recipe. Menu items expose current out-of-stock status from real balances. See
+[`docs/api/recipes.md`](docs/api/recipes.md). Transactional order integration and
+order-submission idempotency remain in progress until their verification gates
+pass. The existing application database was verified at inventory revision
+`c48b7e02f315`; recipe and order migrations are additive.
 
 ### Scope
 
@@ -690,12 +692,16 @@ databases and has not been applied to the existing application database.
 - Add an idempotency key to order submission.
 - Define cancellation behavior and inventory compensation.
 
-### Recommended initial inventory policy
+### Selected initial inventory policy
 
-For simplicity, the proposed policy is to consume inventory when an order is
-accepted and reverse it if an accepted order is cancelled. This policy is not
-implemented. Document why it is chosen before connecting inventory to orders;
-do not silently mix reservation and consumption semantics.
+The user selected consumption when an order is accepted, with **no stock return
+on cancellation**, on 2026-10-05. This replaces the earlier proposed cancellation
+reversal policy. Draft creation and submission perform stock checks but create
+no reservation or movement; acceptance deducts atomically. Preparing, ready,
+completion, and cancellation do not deduct again. Accepted orders retain their
+actual consumption even after cancellation or recipe changes. This keeps stock
+honest when accepted ingredients have already been allocated or prepared; do not
+automatically record a second waste deduction for that same consumption.
 
 ### Required tests
 
@@ -704,7 +710,8 @@ do not silently mix reservation and consumption semantics.
 - Failure during any item write rolls back the order and inventory changes.
 - Duplicate idempotency key with identical request returns the original result.
 - Same key with a different request is rejected.
-- Cancellation creates compensating ledger movements exactly once.
+- Cancellation preserves accepted consumption and never restores stock; repeated
+  cancellation and recipe changes cannot duplicate or reverse deductions.
 
 ### Exit criteria
 

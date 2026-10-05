@@ -5,6 +5,9 @@ export interface MenuItem {
     description: string | null;
     price: number;
     is_available: boolean;
+    inventory_tracking: boolean;
+    out_of_stock: boolean;
+    available_portions: number | null;
 }
 
 export interface MenuItemCreate {

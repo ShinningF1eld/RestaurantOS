@@ -148,6 +148,20 @@ export default function InventoryManager({
   }, [restaurantId, ingredientOffset]);
 
   useEffect(() => {
+    const refresh = () => {
+      if (!busy && document.visibilityState === "visible") void load(false);
+    };
+    const timer = window.setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [busy, load]);
+
+  useEffect(() => {
     let active = true;
     void inventoryApi(restaurantId).list(ingredientOffset)
       .then((rows) => {

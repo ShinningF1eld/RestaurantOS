@@ -34,6 +34,10 @@ class Menu(Base):
 
 
 class MenuItem(Base):
+    __allow_unmapped__ = True
+    restaurant_id: int
+    out_of_stock: bool = False
+    available_portions: int | None = None
     __tablename__ = "menu_items"
     __table_args__ = (
         CheckConstraint(
@@ -58,6 +62,13 @@ class MenuItem(Base):
         Boolean,
         nullable=False,
         default=True,
+    )
+
+    inventory_tracking: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
     )
 
     menu: Mapped["Menu"] = relationship(

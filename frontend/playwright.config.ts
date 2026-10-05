@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const webPort = Number(process.env.PLAYWRIGHT_WEB_PORT ?? "3000");
+
 // Start the API separately against the same TEST_DATABASE_URL as fixture seeding.
 // A production Next build exercises server rendering as deployed.
 export default defineConfig({
@@ -17,8 +19,8 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: process.env.PLAYWRIGHT_EXTERNAL_SERVER ? undefined : {
-    command: "npm run start -- --hostname localhost --port 3000",
-    url: "http://localhost:3000/login",
+    command: `npm run start -- --hostname localhost --port ${webPort}`,
+    url: `http://localhost:${webPort}/login`,
     reuseExistingServer: false,
     timeout: 120_000,
   },

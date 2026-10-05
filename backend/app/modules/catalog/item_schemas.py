@@ -29,9 +29,13 @@ class MenuItemUpdate(BaseModel):
 class MenuItemResponse(BaseModel):
     menu_item_id: int
     menu_id: int
+    restaurant_id: int
     name: str
     description: str | None = None
     price: Decimal
     is_available: bool
+    inventory_tracking: bool
+    out_of_stock: bool
+    available_portions: int | None
 
     model_config = ConfigDict(from_attributes=True)
