@@ -53,8 +53,9 @@ export default function OrderActions({
             }
 
             router.refresh();
-        } catch {
-            setError("Could not update this order.");
+        } catch (failure) {
+            setError(failure instanceof Error ? failure.message : "Could not update this order.");
+            router.refresh();
         } finally {
             setIsUpdating(false);
         }
@@ -83,10 +84,11 @@ export default function OrderActions({
             </div>
 
             {error ? (
-                <p className="text-xs text-red-600">
+                <p role="alert" className="text-xs text-red-600">
                     {error}
                 </p>
             ) : null}
+            {canCancel && <p className="text-xs text-slate-500">Cancelling does not return consumed ingredients to stock.</p>}
         </div>
     );
 }

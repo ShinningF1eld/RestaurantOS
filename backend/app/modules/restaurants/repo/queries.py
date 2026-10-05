@@ -12,6 +12,7 @@ from app.modules.catalog.repo.models import Menu
 from app.modules.orders.repo.models import Order
 from app.modules.tenancy.repo.models import RestaurantAssignment
 from app.modules.audit.repo.models import AuditEntry
+from app.modules.inventory.repo.models import Ingredient
 
 
 class RestaurantRepository:
@@ -49,6 +50,7 @@ class RestaurantRepository:
 
     async def has_dependents(self, restaurant_id: int) -> bool:
         for column in (
+            Ingredient.restaurant_id,
             Menu.restaurant_id,
             Order.restaurant_id,
             RestaurantAssignment.restaurant_id,

@@ -42,6 +42,7 @@ export interface OrderCreateItem {
 }
 
 export interface OrderCreate {
+    idempotency_key: string;
     table_number?: string;
     customer_name?: string;
     notes?: string;

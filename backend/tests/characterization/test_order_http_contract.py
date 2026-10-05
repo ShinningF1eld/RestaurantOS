@@ -1,6 +1,7 @@
 """HTTP characterization coverage for the order write contract."""
 
 from fastapi.testclient import TestClient
+from uuid import uuid4
 
 
 def create_restaurant(client: TestClient, name: str = "Order Test") -> int:
@@ -44,10 +45,28 @@ def create_order(
 ) -> dict:
     response = client.post(
         f"/api/restaurants/{restaurant_id}/orders",
-        json={"items": [{"menu_item_id": menu_item_id, "quantity": quantity}]},
+        json={"idempotency_key": uuid4().hex, "items": [{"menu_item_id": menu_item_id, "quantity": quantity}]},
     )
     assert response.status_code == 201, response.text
     return response.json()
+
+
+def test_order_creation_requires_an_explicit_idempotency_key(
+    authenticated_client,
+) -> None:
+    with authenticated_client as client:
+        restaurant_id = create_restaurant(client)
+        menu_item_id = create_menu_item(
+            client, restaurant_id, name="Required key dish", price="8.00"
+        )
+        response = client.post(
+            f"/api/restaurants/{restaurant_id}/orders",
+            json={"items": [{"menu_item_id": menu_item_id, "quantity": 1}]},
+        )
+        assert response.status_code == 422, response.text
+        assert client.get(f"/api/restaurants/{restaurant_id}/orders").json()[
+            "total"
+        ] == 0
 
 
 def test_draft_item_replacement_recalculates_totals_and_snapshots_item_name(

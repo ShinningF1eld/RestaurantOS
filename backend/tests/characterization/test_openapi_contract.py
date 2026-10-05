@@ -21,6 +21,7 @@ def test_openapi_exposes_current_write_routes_and_contract_schemas() -> None:
         "/menus/{menu_id}": {"get", "put", "delete"},
         "/menus/{menu_id}/items": {"get", "post"},
         "/menu-items/{menu_item_id}": {"get", "put", "delete"},
+        "/menu-items/{menu_item_id}/recipe": {"get", "put"},
         "/api/restaurants/{restaurant_id}/orders": {"get", "post"},
         "/api/orders/{order_id}": {"get", "put", "delete"},
     }
@@ -35,6 +36,8 @@ def test_openapi_exposes_current_write_routes_and_contract_schemas() -> None:
         "MenuResponse",
         "MenuItemCreate",
         "MenuItemResponse",
+        "RecipeReplaceRequest",
+        "RecipeResponse",
         "OrderCreate",
         "OrderUpdate",
         "OrderResponse",
@@ -48,6 +51,7 @@ def test_openapi_keeps_write_response_statuses_and_response_models() -> None:
         document = client.get("/openapi.json").json()
 
     paths = document["paths"]
+    schemas = document["components"]["schemas"]
     assert "201" in paths["/api/restaurants"]["post"]["responses"]
     assert (
         "201" in paths["/api/restaurants/{restaurant_id}/orders"]["post"]["responses"]
@@ -65,3 +69,5 @@ def test_openapi_keeps_write_response_statuses_and_response_models() -> None:
     assert order_response["content"]["application/json"]["schema"]["$ref"].endswith(
         "/OrderResponse"
     )
+    create_schema = schemas["OrderCreate"]
+    assert "idempotency_key" in create_schema["required"]

@@ -31,7 +31,7 @@ export default async function MenuItemsPage({
     ]);
     if (menu.restaurant_id !== restaurantId) notFound();
     const canManage = access.capabilities.includes("menu.manage");
-    const availableItems = menuItems.filter((item) => item.is_available);
+    const availableItems = menuItems.filter((item) => item.is_available && !item.out_of_stock);
 
     return (
         <div className="space-y-8">

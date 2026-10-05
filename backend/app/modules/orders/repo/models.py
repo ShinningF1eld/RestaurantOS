@@ -1,8 +1,18 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Index, Numeric, String
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    UniqueConstraint,
+    text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -51,6 +61,10 @@ class Order(Base):
         Numeric(10, 2),
         nullable=False,
         default=0,
+    )
+
+    inventory_processed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -114,3 +128,30 @@ class OrderItem(Base):
     def menu_item_name(self) -> str:
         """Compatibility name used by the existing API contract."""
         return self.item_name
+
+
+class OrderSubmission(Base):
+    """Immutable idempotency record for an order creation request."""
+
+    __tablename__ = "order_submissions"
+    __table_args__ = (
+        UniqueConstraint(
+            "restaurant_id", "idempotency_key", name="uq_order_submission_key"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    restaurant_id: Mapped[int] = mapped_column(
+        ForeignKey("restaurants.id", ondelete="RESTRICT"), nullable=False
+    )
+    idempotency_key: Mapped[str] = mapped_column(String(100), nullable=False)
+    order_id: Mapped[int | None] = mapped_column(
+        ForeignKey("orders.order_id", ondelete="SET NULL"), nullable=True
+    )
+    request_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    response_snapshot: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )

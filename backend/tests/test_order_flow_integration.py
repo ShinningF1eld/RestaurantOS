@@ -1,6 +1,7 @@
 """PostgreSQL-backed critical-path regression coverage for Milestone 1."""
 
 from fastapi.testclient import TestClient
+from uuid import uuid4
 
 
 def create_restaurant(client: TestClient, name: str) -> int:
@@ -51,20 +52,21 @@ def test_restaurant_menu_order_completion_and_analytics_flow(
         assert (
             client.post(
                 f"/api/restaurants/{first_restaurant}/orders",
-                json={"items": [{"menu_item_id": second_item, "quantity": 1}]},
+                json={"idempotency_key": uuid4().hex, "items": [{"menu_item_id": second_item, "quantity": 1}]},
             ).status_code
             == 404
         )
         assert (
             client.post(
                 f"/api/restaurants/{first_restaurant}/orders",
-                json={"items": [{"menu_item_id": unavailable_item, "quantity": 1}]},
+                json={"idempotency_key": uuid4().hex, "items": [{"menu_item_id": unavailable_item, "quantity": 1}]},
             ).status_code
             == 422
         )
         created = client.post(
             f"/api/restaurants/{first_restaurant}/orders",
             json={
+                "idempotency_key": uuid4().hex,
                 "items": [
                     {"menu_item_id": first_item, "quantity": 2, "unit_price": "0.01"}
                 ]
@@ -118,7 +120,7 @@ def test_restaurant_menu_order_completion_and_analytics_flow(
         )
         cancelled = client.post(
             f"/api/restaurants/{first_restaurant}/orders",
-            json={"items": [{"menu_item_id": later_item, "quantity": 1}]},
+            json={"idempotency_key": uuid4().hex, "items": [{"menu_item_id": later_item, "quantity": 1}]},
         )
         assert cancelled.status_code == 201
         assert (

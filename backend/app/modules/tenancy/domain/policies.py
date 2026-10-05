@@ -19,6 +19,8 @@ MANAGER_CAPABILITIES = READ_CAPABILITIES | frozenset(
         "order.payment.update",
         "order.cancel",
         "analytics.read",
+        "inventory.read",
+        "inventory.manage",
     }
 )
 ROLE_CAPABILITIES = {

@@ -27,6 +27,8 @@ from app.modules.catalog.menu_router import router as menu_router
 from app.modules.catalog.item_router import router as menu_item_router
 from app.modules.tenancy.router import router as tenancy_router
 from app.modules.audit.router import router as audit_router
+from app.modules.inventory.router import router as inventory_router
+from app.modules.recipes.router import router as recipes_router
 from app.modules.orders.router import router as order_router
 from app.modules.restaurants.router import router as restaurant_router
 
@@ -48,6 +50,8 @@ for business_router in (
     analytics_router,
     tenancy_router,
     audit_router,
+    inventory_router,
+    recipes_router,
 ):
     app.include_router(business_router, dependencies=[Depends(get_current_principal)])
 

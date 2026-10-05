@@ -2,6 +2,7 @@
 
 from fastapi.testclient import TestClient
 import pytest
+from uuid import uuid4
 
 
 def create_restaurant(client: TestClient, name: str = "Catalog Test") -> int:
@@ -128,7 +129,7 @@ def test_menu_item_with_order_history_is_deactivated_and_snapshot_is_retained(
 
         created_order = client.post(
             f"/api/restaurants/{restaurant_id}/orders",
-            json={"items": [{"menu_item_id": item_id, "quantity": 2}]},
+            json={"idempotency_key": uuid4().hex, "items": [{"menu_item_id": item_id, "quantity": 2}]},
         )
         assert created_order.status_code == 201, created_order.text
         order_id = created_order.json()["order_id"]
@@ -143,7 +144,7 @@ def test_menu_item_with_order_history_is_deactivated_and_snapshot_is_retained(
 
         unavailable = client.post(
             f"/api/restaurants/{restaurant_id}/orders",
-            json={"items": [{"menu_item_id": item_id, "quantity": 1}]},
+            json={"idempotency_key": uuid4().hex, "items": [{"menu_item_id": item_id, "quantity": 1}]},
         )
         assert unavailable.status_code == 422, unavailable.text
 

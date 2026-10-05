@@ -39,9 +39,14 @@ with engine.begin() as connection:
             )
             # Delete only this fixture's private tenant, in restrictive-FK order.
             for statement in [
+                "DELETE FROM recipe_components WHERE menu_item_id IN (SELECT i.menu_item_id FROM menu_items i JOIN menus m ON m.menu_id=i.menu_id JOIN restaurants r ON r.id=m.restaurant_id WHERE r.organization_id=:org)",
+                "DELETE FROM inventory_movements WHERE ingredient_id IN (SELECT id FROM inventory_ingredients WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org))",
+                "DELETE FROM inventory_balances WHERE ingredient_id IN (SELECT id FROM inventory_ingredients WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org))",
+                "DELETE FROM inventory_ingredients WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org)",
                 "DELETE FROM audit_entries WHERE organization_id=:org",
                 "DELETE FROM restaurant_assignments WHERE organization_id=:org",
                 "DELETE FROM memberships WHERE organization_id=:org",
+                "DELETE FROM order_submissions WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org)",
                 "DELETE FROM order_items WHERE order_id IN (SELECT order_id FROM orders WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org))",
                 "DELETE FROM orders WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org)",
                 "DELETE FROM menu_items WHERE menu_id IN (SELECT menu_id FROM menus WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org))",
@@ -49,6 +54,8 @@ with engine.begin() as connection:
                 "DELETE FROM restaurants WHERE organization_id=:org",
                 "DELETE FROM organizations WHERE id=:org",
             ]:
+                if statement.startswith("DELETE FROM order_submissions") and not connection.scalar(text("SELECT to_regclass('order_submissions')")):
+                    continue
                 connection.execute(text(statement), {"org": org})
         connection.execute(text("DELETE FROM users WHERE id=:id"), {"id": user_id})
     elif sys.argv[1] == "create":

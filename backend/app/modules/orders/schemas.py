@@ -24,6 +24,7 @@ class OrderItemResponse(BaseModel):
 
 
 class OrderCreate(BaseModel):
+    idempotency_key: str = Field(pattern=r"^[A-Za-z0-9_-]{1,100}$")
     table_number: str | None = None
     customer_name: str | None = None
     notes: str | None = None

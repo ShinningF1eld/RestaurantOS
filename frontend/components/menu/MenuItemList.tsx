@@ -3,6 +3,8 @@
 import { useState } from "react";
 
 import MenuItemForm from "./MenuItemForm";
+import RecipeEditor from "./RecipeEditor";
+import { useStockRefresh } from "@/features/inventory/useStockRefresh";
 import EmptyState from "@/components/ui/EmptyState";
 import StatusBadge from "@/components/ui/StatusBadge";
 
@@ -25,6 +27,8 @@ export default function MenuItemList({
     const [isOpen, setIsOpen] = useState(false);
     const [editingItem, setEditingItem] =
         useState<MenuItem | undefined>();
+    const [recipeItem, setRecipeItem] = useState<MenuItem | null>(null);
+    useStockRefresh(isOpen || recipeItem !== null);
 
     function openCreate() {
         setEditingItem(undefined);
@@ -110,10 +114,8 @@ export default function MenuItemList({
                                     </p>
                                 </div>
 
-                                <StatusBadge tone={item.is_available ? "green" : "neutral"}>
-                                    {item.is_available
-                                        ? "Available"
-                                        : "Unavailable"}
+                                <StatusBadge tone={!item.is_available ? "neutral" : item.out_of_stock ? "red" : "green"}>
+                                    {!item.is_available ? "Unavailable" : item.out_of_stock ? "Out of stock" : "Available"}
                                 </StatusBadge>
                             </div>
 
@@ -124,6 +126,7 @@ export default function MenuItemList({
                                 </span>
 
                                 {canManage && <div className="flex items-center">
+                                    <button type="button" onClick={() => setRecipeItem(item)} aria-label={`Recipe for ${item.name}`} className="rounded-md px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-stone-100">Recipe</button>
                                     {/* Edit */}
                                     <button
                                         type="button"
@@ -169,6 +172,7 @@ export default function MenuItemList({
                     onSuccess={handleSuccess}
                 />
             )}
+            {canManage && recipeItem && <RecipeEditor key={recipeItem.menu_item_id} item={recipeItem} onClose={() => setRecipeItem(null)} onSaved={() => { setRecipeItem(null); window.location.reload(); }} />}
         </>
     );
 }

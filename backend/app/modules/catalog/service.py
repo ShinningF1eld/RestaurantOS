@@ -8,6 +8,8 @@ from app.modules.catalog.repo.models import Menu
 from app.modules.catalog.repo.models import MenuItem
 from app.modules.catalog.repo.queries import CatalogRepository
 from app.modules.auth.domain.principal import AuthenticatedPrincipal
+from app.modules.inventory.repo.queries import InventoryRepository
+from app.modules.recipes.service import RecipeAvailabilityService
 from app.modules.tenancy.access import AccessService
 from app.modules.tenancy.domain.policies import AccessContext
 from app.modules.audit.service import record
@@ -35,6 +37,24 @@ class CatalogService:
         context = await self._access.current(lock=lock)
         self._catalog = CatalogRepository(self._session, context)
         return context
+
+    async def _attach_menu_item_availability(
+        self, menu_items: list[MenuItem]
+    ) -> list[MenuItem]:
+        availability = await RecipeAvailabilityService(self._session).for_menu_items(
+            menu_items
+        )
+        for menu_item in menu_items:
+            status = availability.get(menu_item.menu_item_id)
+            if status is None:
+                raise NotFoundError("Menu item not found")
+            # These response-only attributes keep the ORM model focused on stored
+            # catalog state while exposing current stock beside menu items.
+            menu_item.restaurant_id = status.restaurant_id
+            menu_item.inventory_tracking = status.inventory_tracking
+            menu_item.out_of_stock = status.out_of_stock
+            menu_item.available_portions = status.available_portions
+        return menu_items
 
     async def create_menu(self, restaurant_id: int, command: CreateMenu) -> Menu:
         """Create a menu only for an existing restaurant."""
@@ -150,6 +170,7 @@ class CatalogService:
                     "is_available": menu_item.is_available,
                 },
             )
+            await self._attach_menu_item_availability([menu_item])
         return menu_item
 
     async def list_menu_items(self, menu_id: int) -> list[MenuItem]:
@@ -158,7 +179,8 @@ class CatalogService:
         if await self._catalog.get_menu_by_id(menu_id) is None:
             raise NotFoundError("Menu not found")
         context.require("menu.read")
-        return list(await self._catalog.list_menu_items_for_menu(menu_id))
+        menu_items = list(await self._catalog.list_menu_items_for_menu(menu_id))
+        return await self._attach_menu_item_availability(menu_items)
 
     async def get_menu_item(self, menu_item_id: int) -> MenuItem:
         """Get a menu item or raise the public not-found domain error."""
@@ -167,6 +189,7 @@ class CatalogService:
         if menu_item is None:
             raise NotFoundError("Menu item not found")
         context.require("menu.read")
+        await self._attach_menu_item_availability([menu_item])
         return menu_item
 
     async def update_menu_item(
@@ -179,6 +202,16 @@ class CatalogService:
             if menu_item is None:
                 raise NotFoundError("Menu item not found")
             context.require("menu.manage")
+            menu = await self._catalog.get_menu_by_id(menu_item.menu_id)
+            assert menu is not None
+            await InventoryRepository(self._session, context).lock_restaurant(
+                menu.restaurant_id
+            )
+            menu_item = await self._catalog.get_menu_item_by_id(
+                menu_item_id, lock=True
+            )
+            if menu_item is None:
+                raise NotFoundError("Menu item not found")
             if command.name is not None:
                 menu_item.name = command.name
             if command.description is not None:
@@ -203,6 +236,7 @@ class CatalogService:
                     "is_available": menu_item.is_available,
                 },
             )
+            await self._attach_menu_item_availability([menu_item])
         return menu_item
 
     async def delete_menu_item(self, menu_item_id: int) -> DeleteMenuItemOutcome:
@@ -213,10 +247,18 @@ class CatalogService:
             if menu_item is None:
                 raise NotFoundError("Menu item not found")
             context.require("menu.manage")
+            menu = await self._catalog.get_menu_by_id(menu_item.menu_id)
+            assert menu is not None
+            await InventoryRepository(self._session, context).lock_restaurant(
+                menu.restaurant_id
+            )
+            menu_item = await self._catalog.get_menu_item_by_id(
+                menu_item_id, lock=True
+            )
+            if menu_item is None:
+                raise NotFoundError("Menu item not found")
             if await self._catalog.menu_item_has_order_history(menu_item_id):
                 menu_item.is_available = False
-                menu = await self._catalog.get_menu_by_id(menu_item.menu_id)
-                assert menu is not None
                 record(
                     self._session,
                     context,
@@ -227,8 +269,6 @@ class CatalogService:
                     changes={"is_available": False},
                 )
                 return "deactivated"
-            menu = await self._catalog.get_menu_by_id(menu_item.menu_id)
-            assert menu is not None
             record(
                 self._session,
                 context,
