@@ -20,6 +20,7 @@ class CreateOrder:
     customer_name: str | None
     notes: str | None
     items: tuple[OrderItemCommand, ...]
+    idempotency_key: str
 
 
 @dataclass(frozen=True, slots=True)

@@ -24,7 +24,7 @@ def workspace(authenticated_client, auth_user):
     ).json()["menu_item_id"]
     order = owner.post(
         f"/api/restaurants/{branch}/orders",
-        json={"items": [{"menu_item_id": item, "quantity": 1}]},
+        json={"idempotency_key": "tenant-local", "items": [{"menu_item_id": item, "quantity": 1}]},
     ).json()["order_id"]
     org_b = uuid4()
     accounts = {}
@@ -102,7 +102,7 @@ def workspace(authenticated_client, auth_user):
             clients["other"]
             .post(
                 f"/api/restaurants/{foreign_branch}/orders",
-                json={"items": [{"menu_item_id": foreign_item, "quantity": 1}]},
+                json={"idempotency_key": "tenant-foreign", "items": [{"menu_item_id": foreign_item, "quantity": 1}]},
             )
             .json()["order_id"]
         )
@@ -154,7 +154,8 @@ def workspace(authenticated_client, auth_user):
 def test_cross_tenant_direct_nested_reads_and_writes(workspace, method, path, payload):
     if method == "post" and path.endswith("/orders"):
         payload = {
-            "items": [{"menu_item_id": workspace["foreign_item"], "quantity": 1}]
+            "idempotency_key": "cross-tenant",
+            "items": [{"menu_item_id": workspace["foreign_item"], "quantity": 1}],
         }
     response = workspace["owner"].request(
         method,
@@ -179,7 +180,7 @@ def test_lists_counts_and_payload_references_are_scoped(workspace):
         w["owner"]
         .post(
             f"/api/restaurants/{w['branch']}/orders",
-            json={"items": [{"menu_item_id": w["foreign_item"], "quantity": 1}]},
+            json={"idempotency_key": "tenant-foreign-item", "items": [{"menu_item_id": w["foreign_item"], "quantity": 1}]},
         )
         .status_code
         == 404
@@ -212,7 +213,7 @@ def test_employee_preparation_only_and_forbidden_fields_roll_back(workspace):
         w["employee"]
         .post(
             f"/api/restaurants/{w['branch']}/orders",
-            json={"items": [{"menu_item_id": w["item"], "quantity": 1}]},
+            json={"idempotency_key": "tenant-employee", "items": [{"menu_item_id": w["item"], "quantity": 1}]},
         )
         .status_code
         == 403

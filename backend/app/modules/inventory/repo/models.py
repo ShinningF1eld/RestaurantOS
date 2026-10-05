@@ -72,15 +72,24 @@ class InventoryMovement(Base):
         ),
         CheckConstraint("version_after >= 1", name="ck_inventory_movement_version"),
         CheckConstraint(
-            "(kind IN ('opening', 'receipt') AND quantity_delta >= 0) OR (kind = 'waste' AND quantity_delta < 0) OR kind = 'count'",
+            "(kind IN ('opening', 'receipt') AND quantity_delta >= 0) OR "
+            "(kind IN ('waste', 'consumption') AND quantity_delta < 0) OR kind = 'count'",
             name="ck_inventory_movement_sign",
         ),
         UniqueConstraint(
             "ingredient_id", "idempotency_key", name="uq_inventory_movement_key"
         ),
         CheckConstraint(
-            "kind IN ('opening', 'receipt', 'waste', 'count')",
+            "kind IN ('opening', 'receipt', 'waste', 'count', 'consumption')",
             name="ck_inventory_movement_kind",
+        ),
+        UniqueConstraint(
+            "order_id", "ingredient_id", name="uq_inventory_movement_order_ingredient"
+        ),
+        CheckConstraint(
+            "(kind = 'consumption' AND order_id IS NOT NULL AND idempotency_key IS NULL) OR "
+            "(kind <> 'consumption' AND order_id IS NULL AND idempotency_key IS NOT NULL)",
+            name="ck_inventory_movement_order_link",
         ),
         CheckConstraint(
             "balance_after >= 0 AND balance_after <= 999999999.999",
@@ -98,9 +107,18 @@ class InventoryMovement(Base):
     actor_user_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
+    order_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "orders.order_id",
+            ondelete="RESTRICT",
+            name="fk_inventory_movements_order_id",
+        ),
+        nullable=True,
+        index=True,
+    )
     reason: Mapped[str] = mapped_column(String(500))
-    idempotency_key: Mapped[str] = mapped_column(String(100))
-    request_fingerprint: Mapped[str] = mapped_column(String(64))
+    idempotency_key: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    request_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

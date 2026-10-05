@@ -225,7 +225,7 @@ test("employee kitchen controls reflect live permissions and the API rejects mix
   const { restaurantId, menuId } = await createCatalog(page);
   const items = await (await page.request.get(`${api}/menus/${menuId}/items`)).json();
   const created = await page.request.post(`${api}/api/restaurants/${restaurantId}/orders`, { headers,
-    data: { items: [{ menu_item_id: items[0].menu_item_id, quantity: 1 }] } });
+    data: { idempotency_key: randomUUID(), items: [{ menu_item_id: items[0].menu_item_id, quantity: 1 }] } });
   expect(created.status()).toBe(201);
   const orderId = (await created.json()).order_id;
   for (const status of ["SUBMITTED", "ACCEPTED"]) {

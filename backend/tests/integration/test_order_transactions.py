@@ -1,5 +1,7 @@
 """Database-backed transaction guarantees for order writes."""
 
+from uuid import uuid4
+
 
 def test_failed_status_and_item_update_rolls_back_all_order_changes(
     authenticated_client,
@@ -20,6 +22,7 @@ def test_failed_status_and_item_update_rolls_back_all_order_changes(
         created = client.post(
             f"/api/restaurants/{restaurant_id}/orders",
             json={
+                "idempotency_key": uuid4().hex,
                 "items": [
                     {"menu_item_id": menu_item.json()["menu_item_id"], "quantity": 1}
                 ]

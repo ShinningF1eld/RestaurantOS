@@ -44,7 +44,7 @@ async def create_order(
     order_data: OrderCreate,
     principal: AuthenticatedPrincipal = Depends(get_current_principal),
     db: AsyncSession = Depends(get_db),
-) -> Order:
+) -> dict[str, object]:
     """Create an order from an HTTP request."""
     command = CreateOrder(
         table_number=order_data.table_number,
@@ -54,6 +54,7 @@ async def create_order(
             _item_command(item.menu_item_id, item.quantity, item.notes)
             for item in order_data.items
         ),
+        idempotency_key=order_data.idempotency_key,
     )
     return await OrderService(db, principal).create(restaurant_id, command)
 

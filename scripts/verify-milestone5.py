@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
 INVENTORY_HEAD = "c48b7e02f315"  # pragma: allowlist secret
 RECIPE_HEAD = "d57c8f13a426"  # pragma: allowlist secret
+ORDER_HEAD = "e68d9a24b537"  # pragma: allowlist secret
 
 
 def run(*command: str, env: dict[str, str], cwd: Path = BACKEND) -> None:
@@ -56,6 +57,27 @@ def seed_legacy(db: psycopg.Connection) -> None:
     db.execute("INSERT INTO inventory_ingredients(id,restaurant_id,name,normalized_name,unit,reorder_threshold,is_active,created_at,updated_at) VALUES(1,1,'Chicken','chicken','g',100,true,now(),now())")
     db.execute("INSERT INTO inventory_balances(ingredient_id,quantity,version) VALUES(1,1000,1)")
     db.execute("INSERT INTO inventory_movements(ingredient_id,kind,quantity_delta,balance_after,version_after,reason,idempotency_key,request_fingerprint,occurred_at) VALUES(1,'opening',1000,1000,1,'Legacy opening','legacy-opening',%s,now())", ("0" * 64,))
+
+
+def verify_history_downgrade_guard(db_url: str, env: dict[str, str]) -> None:
+    """A rollback must refuse to erase consumption and submission history."""
+    with psycopg.connect(db_url) as db:
+        db.execute("UPDATE orders SET inventory_processed=true WHERE order_id=1")
+        db.execute("UPDATE inventory_balances SET quantity=990,version=2 WHERE ingredient_id=1")
+        db.execute("INSERT INTO inventory_movements(ingredient_id,kind,quantity_delta,balance_after,version_after,reason,order_id,occurred_at) VALUES(1,'consumption',-10,990,2,'Migration accepted order',1,now())")
+        db.execute("INSERT INTO order_submissions(restaurant_id,idempotency_key,order_id,request_fingerprint,response_snapshot,created_at) VALUES(1,'migration-order',1,%s,'{}',now())", ("0" * 64,))
+        before = snapshot(db)
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "downgrade", RECIPE_HEAD],
+        cwd=BACKEND, env=env, capture_output=True, text=True, check=False,
+    )
+    assert result.returncode != 0 and "Cannot downgrade" in result.stderr
+    with psycopg.connect(db_url) as db:
+        assert snapshot(db) == before
+        assert db.execute("SELECT version_num FROM alembic_version").fetchone()[0] == ORDER_HEAD
+        assert db.execute("SELECT inventory_processed FROM orders WHERE order_id=1").fetchone()[0]
+        assert db.execute("SELECT count(*) FROM order_submissions").fetchone()[0] == 1
+    print("PASS: downgrade refuses to erase order inventory history", flush=True)
 
 
 @contextmanager
@@ -196,6 +218,10 @@ def main() -> None:
                     run(sys.executable, "-m", "alembic", "check", env=env)
                     with psycopg.connect(url.set(database=database).render_as_string(hide_password=False)) as db:
                         assert snapshot(db) == before
+                    if args.revision != RECIPE_HEAD:
+                        verify_history_downgrade_guard(
+                            url.set(database=database).render_as_string(hide_password=False), env
+                        )
                 else:
                     if args.tests is not None:
                         run(sys.executable, "-m", "pytest", *args.tests, env=env)

@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import datetime, timezone
 from decimal import Decimal
 from types import TracebackType
 from typing import Self, cast
@@ -63,6 +64,7 @@ class FakeOrderRepository:
         self.order = order
         self.added_order: Order | None = None
         self.deleted_order: Order | None = None
+        self.saved_submission = None
 
     async def restaurant_exists(self, restaurant_id: int) -> bool:
         self._session.events.append("restaurant-exists")
@@ -79,6 +81,25 @@ class FakeOrderRepository:
 
     async def count_for_restaurant(self, restaurant_id: int) -> int:
         return 0
+
+    async def submission(self, restaurant_id: int, key: str):
+        self._session.events.append("submission")
+        return self.saved_submission
+
+    async def add_submission(self, submission) -> None:
+        self._session.events.append("add-submission")
+        self.saved_submission = submission
+
+    async def inventory_balances(self, restaurant_id: int, ingredient_ids):
+        self._session.events.append("inventory-balances")
+        return []
+
+    async def lock_inventory_balances(self, restaurant_id: int, ingredient_ids):
+        self._session.events.append("lock-inventory-balances")
+        return []
+
+    async def has_order_history(self, order_id: int) -> bool:
+        return False
 
     async def menu_items_for_restaurant(
         self, restaurant_id: int, menu_item_ids: Sequence[int]
@@ -98,6 +119,20 @@ class FakeOrderRepository:
         self._session.events.append("flush")
         if self.order is not None and self.order.order_id is None:
             self.order.order_id = 1
+            now = datetime.now(timezone.utc)
+            self.order.created_at = now
+            self.order.updated_at = now
+            for index, row in enumerate(self.order.items, start=1):
+                row.order_id = self.order.order_id
+                row.order_item_id = index
+
+
+class FakeInventoryRepository:
+    def __init__(self, session, context):
+        self._session = session
+
+    async def lock_restaurant(self, restaurant_id: int) -> None:
+        self._session.events.append("restaurant-lock")
 
 
 def item(menu_item_id: int = 1, price: str = "12.50") -> MenuItem:
@@ -112,11 +147,12 @@ def item(menu_item_id: int = 1, price: str = "12.50") -> MenuItem:
 
 @pytest.mark.asyncio
 async def test_create_builds_price_snapshots_inside_one_transaction(
-    fake_access, unit_principal
+    fake_access, unit_principal, monkeypatch
 ) -> None:
     import app.modules.orders.service as module
 
     fake_access(module)
+    monkeypatch.setattr(module, "InventoryRepository", FakeInventoryRepository)
     session = FakeSession()
     repository = FakeOrderRepository(session, menu_items=[item()])
     service = OrderService(cast(AsyncSession, session), unit_principal, repository)
@@ -128,33 +164,40 @@ async def test_create_builds_price_snapshots_inside_one_transaction(
             customer_name="Sam",
             notes=None,
             items=(OrderItemCommand(menu_item_id=1, quantity=2, notes="No chili"),),
+            idempotency_key="unit-create",
         ),
     )
 
     assert session.events == [
         "transaction-entered",
         "restaurant-exists",
+        "restaurant-lock",
+        "submission",
+        "menu-items",
         "menu-items",
         "add-order",
         "flush",
         "get-order",
+        "add-submission",
         "audit-added",
+        "flush",
         "transaction-exited",
     ]
-    assert order.subtotal == Decimal("25.00")
-    assert order.total == Decimal("25.00")
-    assert order.items[0].item_name == "Noodles"
-    assert order.items[0].unit_price == Decimal("12.50")
-    assert order.items[0].line_total == Decimal("25.00")
+    assert order["subtotal"] == "25.00"
+    assert order["total"] == "25.00"
+    assert order["items"][0]["menu_item_name"] == "Noodles"
+    assert order["items"][0]["unit_price"] == "12.50"
+    assert order["items"][0]["line_total"] == "25.00"
 
 
 @pytest.mark.asyncio
 async def test_failed_status_and_item_update_exits_transaction_with_error(
-    fake_access, unit_principal
+    fake_access, unit_principal, monkeypatch
 ) -> None:
     import app.modules.orders.service as module
 
     fake_access(module)
+    monkeypatch.setattr(module, "InventoryRepository", FakeInventoryRepository)
     session = FakeSession()
     existing_order = Order(
         order_id=4,
