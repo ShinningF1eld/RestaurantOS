@@ -70,10 +70,11 @@ limitations are maintained in [`docs/current-state.md`](docs/current-state.md).
   container port `5432` and clearly labeled local-development credentials.
 - The schema contains Restaurant, Menu, MenuItem, Order, OrderItem, User,
   AuthSession, RefreshToken, auth rate counters, Organization, Membership,
-  RestaurantAssignment, AuditEntry, InventoryIngredient, InventoryBalance and
-  InventoryMovement across a linear nine-revision Alembic chain. Repository head
-  is `c48b7e02f315`; the application database is verified at
-  `b37a6d91e204` while the inventory migration is rehearsed on disposable DBs.
+  RestaurantAssignment, AuditEntry, InventoryIngredient, InventoryBalance,
+  InventoryMovement, RecipeComponent and OrderSubmission across a linear
+  eleven-revision Alembic chain. Repository head
+  is `e68d9a24b537`; the application database is verified at
+  `c48b7e02f315`. Recipe/order migrations are verified on disposable databases.
 - The API exposes restaurant, menu, menu-item, order, dashboard analytics,
   tenancy, audit and restaurant-scoped inventory operations. Route prefixes are
   inconsistent and unversioned.
@@ -90,9 +91,9 @@ limitations are maintained in [`docs/current-state.md`](docs/current-state.md).
 - Business features reside in `app/modules/<feature>` with corresponding domain,
   repo and service layers. Obsolete top-level compatibility folders were removed.
 - Tenant isolation and Owner/Manager/Employee capabilities are verified locally.
-  Inventory management steps 1–3 are implemented: one ingredient inventory per
-  restaurant with an audited stock ledger and role-scoped management. Recipe and
-  order-linked stock consumption, workers/events, payment-provider integration,
+  Inventory includes an audited stock ledger and role-scoped management. Recipes
+  and acceptance consume restaurant stock atomically with retry protection.
+  Workers/events, payment-provider integration,
   public registration and deployment infrastructure remain future work.
 - Milestone 0 documentation, environment examples, smoke testing, local
   validation, and CI definitions now exist. Local validation and the GitHub
@@ -662,6 +663,10 @@ Turn order creation into a realistic consistency-sensitive workflow.
 
 ### Current implementation status (2026-10-05)
 
+**Milestone 5 complete for the selected policy.** All 309 backend and 21 Chromium
+tests, static checks, production build, and disposable clean/previous-head
+migration rehearsals pass. See the completion evidence linked below.
+
 Inventory management steps 1–3 are implemented and locally verified. The
 ingredient catalog, restaurant-scoped API, role checks, balance and movement
 ledger, audit facts, idempotent retries, stale-count rejection, and management
@@ -674,8 +679,9 @@ Recipes now connect menu items to ingredient quantities per portion. Tracking is
 explicit and initially disabled for existing items; enabling it requires a valid
 recipe. Menu items expose current out-of-stock status from real balances. See
 [`docs/api/recipes.md`](docs/api/recipes.md). Transactional order integration and
-order-submission idempotency remain in progress until their verification gates
-pass. The existing application database was verified at inventory revision
+order-submission idempotency are implemented. Verification evidence and the exit
+criteria are recorded in [`docs/current-state.md`](docs/current-state.md#milestone-5-completion-evidence).
+The existing application database was verified at inventory revision
 `c48b7e02f315`; recipe and order migrations are additive.
 
 ### Scope
@@ -685,12 +691,12 @@ pass. The existing application database was verified at inventory revision
 - Validate all menu items and availability.
 - Snapshot item names/prices.
 - Calculate totals server-side.
-- Reserve or consume inventory according to one documented policy.
+- Consume inventory on acceptance according to the documented policy.
 - Roll back the entire operation on any failure.
-- Record adjustment and reversal movements instead of deleting ledger history.
+- Record manual adjustments and order consumption instead of deleting ledger history.
 - Use row locking or optimistic version checks to prevent overselling.
 - Add an idempotency key to order submission.
-- Define cancellation behavior and inventory compensation.
+- Cancellation never restores inventory; preserve its original consumption.
 
 ### Selected initial inventory policy
 
@@ -1462,7 +1468,7 @@ After Milestone 0, give Sol only one milestone or vertical slice at a time. A st
 | 2. Application boundaries | Complete | [`docs/current-state.md`](docs/current-state.md#milestone-2-completion-evidence); 56 backend tests and full-app mypy passed |
 | 3. Authentication | Complete locally | [`docs/current-state.md`](docs/current-state.md#milestone-3-completion-evidence); 147 backend and 12 browser tests; CI not yet run for this change |
 | 4. Multi-tenancy and RBAC | Complete locally | [`docs/current-state.md`](docs/current-state.md#milestone-4-completion-evidence); 231 backend and 13 browser tests; live migration and Owner bootstrap verified |
-| 5. Transactional ordering and inventory | In progress — inventory steps 1–3 complete; order/recipe integration remains | [`docs/current-state.md`](docs/current-state.md#milestone-5-inventory-steps-1-3); 278 backend tests, 17 Chromium tests, disposable migration checks passed |
+| 5. Transactional ordering and inventory | Complete — recipes, stock availability, acceptance consumption and retry safety; cancellation never restores stock | [`docs/current-state.md`](docs/current-state.md#milestone-5-completion-evidence); 309 backend tests, 21 Chromium tests, clean/previous-head migrations and concurrency checks passed |
 | 6. Test architecture and quality gates | Not verified | |
 | 7. Redis caching and rate limiting | Not started/verify | |
 | 8. Background jobs and events | Not started/verify | |

@@ -13,13 +13,16 @@ owner bootstrap, staff administration and transactional audit facts. Employee
 permissions are the kitchen preparation permissions. Backend features follow
 `app/modules/<feature>/{service.py,domain/,repo/}`, as with auth.
 
-Milestone 5 steps 1–3 are implemented: scoped, ledger-backed ingredient
-inventory supports opening stock, receipts, waste, physical counts, and stock
-history. See the
-[inventory API contract](docs/api/inventory.md) and
-[current-state notes](docs/current-state.md#milestone-5-inventory-steps-1-3).
-The additive inventory migration has not been applied to the existing local
-application database; catalog-price revision `b37a6d91e204` is applied.
+Milestone 5 adds scoped ingredient inventory, recipes, real stock availability,
+and transactional order acceptance. Stock is consumed on acceptance and **never
+returned on cancellation**. Manual stock changes and order consumption share
+locks and an auditable movement ledger; order creation and stock writes are
+retry-safe. See the [inventory](docs/api/inventory.md),
+[recipe](docs/api/recipes.md), and [order contracts](docs/api/orders.md), plus
+[verification evidence](docs/current-state.md#milestone-5-completion-evidence).
+The existing local application database is at inventory revision `c48b7e02f315`;
+deploy the additive recipe/order migrations with `alembic upgrade head` before
+running this code against that database.
 
 See the [role/API contract](docs/api/tenancy.md) and
 [cutover runbook](docs/runbooks/tenancy.md). Local database acceptance and live

@@ -51,8 +51,12 @@ append-only through the application API and services; the database does not
 install a trigger to enforce append-only access.
 
 Successful ingredient creation, edits, and stock changes also record scoped
-audit facts. Inventory does not yet deduct stock from recipes or orders and has
-no supplier, purchase-order, or inter-restaurant transfer workflow. Revision
+audit facts. Order acceptance records negative `consumption` movements in the
+same ledger and advances the same balance version used by physical counts.
+Consumption, recipe edits, and manual stock changes share the restaurant lock.
+Cancellation never restores stock. See [the order contract](orders.md).
+There is no supplier, purchase-order, or inter-restaurant transfer workflow. Revision
 `c48b7e02f315` adds the inventory tables after catalog-price revision
-`b37a6d91e204`. The catalog-price revision is applied to the existing
-application database; the inventory revision remains unapplied.
+`b37a6d91e204`. The existing application database was verified at inventory
+revision `c48b7e02f315` on 2026-10-05. Recipe and order migrations are additive
+and verified on disposable databases before deployment.
