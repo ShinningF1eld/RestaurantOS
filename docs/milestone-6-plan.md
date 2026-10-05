@@ -1,6 +1,6 @@
 # Milestone 6: test architecture and quality gates
 
-Status: Approved for publication; publishing in dependency order.  
+Status: Published; all nine issues created and verified.
 Source: `RestaurantOS_Master_Roadmap.md`, Milestone 6, lines 730–778.  
 Updated: 2026-10-05 (Asia/Bangkok).  
 Source revision: `a0012eeaa58a873a7c075780725d4dfc76e9dabd`; working tree was clean before this plan.  
@@ -24,15 +24,15 @@ Requirement references below are local aliases for the roadmap bullets, not new 
 
 | ID | Proposed issue title | Requirements | Depends on | Publication |
 |---|---|---|---|---|
-| M6-T1 | [M6] Isolate backend test layers and close critical regression gaps | Backend unit/repository/API layers; business rules and isolation | None | Draft |
-| M6-T2 | [M6] Add frontend component and API-client regression tests | Frontend component/client layers | None | Draft |
-| M6-T3 | [M6] Complete deterministic browser coverage for critical user journeys | Frontend end-to-end layer | None | Draft |
-| M6-T4 | [M6] Automate clean and previous-revision migration verification | Backend migration layer; migration smoke gate | None | Draft |
-| M6-T5 | [M6] Make dependency installs and formatting checks reproducible | Lockfile installs; lint/format/type tooling | None | Draft |
-| M6-T6 | [M6] Publish useful backend and frontend coverage reports | Coverage as feedback | M6-T1, M6-T2 | Draft |
-| M6-T7 | [M6] Add a reproducible backend production image build | Backend production build gate | M6-T5 | Draft |
-| M6-T8 | [M6] Unify safe local validation and complete CI quality gates | PostgreSQL/Redis services; all CI gates; one local command | M6-T1–M6-T7 | Draft |
-| M6-T9 | [M6] Enforce required PR checks and record milestone acceptance | Merge enforcement; milestone exit evidence | M6-T8 | Draft |
+| M6-T1 | [M6] Isolate backend test layers and close critical regression gaps | Backend unit/repository/API layers; business rules and isolation | None | [#6](https://github.com/ShinningF1eld/RestaurantOS/issues/6) |
+| M6-T2 | [M6] Add frontend component and API-client regression tests | Frontend component/client layers | None | [#7](https://github.com/ShinningF1eld/RestaurantOS/issues/7) |
+| M6-T3 | [M6] Complete deterministic browser coverage for critical user journeys | Frontend end-to-end layer | None | [#8](https://github.com/ShinningF1eld/RestaurantOS/issues/8) |
+| M6-T4 | [M6] Automate clean and previous-revision migration verification | Backend migration layer; migration smoke gate | None | [#9](https://github.com/ShinningF1eld/RestaurantOS/issues/9) |
+| M6-T5 | [M6] Make dependency installs and formatting checks reproducible | Lockfile installs; lint/format/type tooling | None | [#10](https://github.com/ShinningF1eld/RestaurantOS/issues/10) |
+| M6-T6 | [M6] Publish useful backend and frontend coverage reports | Coverage as feedback | M6-T1, M6-T2 | [#11](https://github.com/ShinningF1eld/RestaurantOS/issues/11) |
+| M6-T7 | [M6] Add a reproducible backend production image build | Backend production build gate | M6-T5 | [#12](https://github.com/ShinningF1eld/RestaurantOS/issues/12) |
+| M6-T8 | [M6] Unify safe local validation and complete CI quality gates | PostgreSQL/Redis services; all CI gates; one local command | M6-T1–M6-T7 | [#13](https://github.com/ShinningF1eld/RestaurantOS/issues/13) |
+| M6-T9 | [M6] Enforce required PR checks and record milestone acceptance | Merge enforcement; milestone exit evidence | M6-T8 | [#14](https://github.com/ShinningF1eld/RestaurantOS/issues/14) |
 
 ## Coverage and sequencing
 
@@ -40,7 +40,7 @@ M6-T1 through M6-T5 can proceed independently. M6-T6 joins the backend and front
 
 Worker/event tests are explicitly deferred to Milestone 8 because there is no worker/outbox implementation to test. Record the required future cases (delivery, retry, duplicate handling, failure recovery) in the testing strategy without creating a speculative worker or empty passing suite. Redis in this milestone is service/test infrastructure only; caching and rate-limiting features remain in Milestone 7. Pre-commit hooks are optional and omitted unless a fast, documented subset proves useful. No blanket coverage percentage is prescribed. Deployment, registry publication, feature work, and repository-wide architectural rewrites are outside scope.
 
-## Complete issue drafts
+## Published issue bodies
 
 ### M6-T1 — [M6] Isolate backend test layers and close critical regression gaps
 
@@ -148,7 +148,7 @@ Worker/event tests are explicitly deferred to Milestone 8 because there is no wo
 
 **Scope:** Add coverage collection for backend tests and frontend component/client tests. Report meaningful application modules and document intentional exclusions. Browser coverage instrumentation is not required.
 
-**Dependencies:** M6-T1, M6-T2.
+**Dependencies:** [M6-T1](https://github.com/ShinningF1eld/RestaurantOS/issues/6), [M6-T2](https://github.com/ShinningF1eld/RestaurantOS/issues/7).
 
 **Acceptance criteria:**
 
@@ -167,7 +167,7 @@ Worker/event tests are explicitly deferred to Milestone 8 because there is no wo
 
 **Scope:** Add a backend Dockerfile and appropriate build-context exclusions, using the selected runtime lock and supported Python baseline. This is an image build/smoke task, not deployment or registry publishing.
 
-**Dependencies:** M6-T5.
+**Dependencies:** [M6-T5](https://github.com/ShinningF1eld/RestaurantOS/issues/10).
 
 **Acceptance criteria:**
 
@@ -187,7 +187,7 @@ Worker/event tests are explicitly deferred to Milestone 8 because there is no wo
 
 **Scope:** Integrate the preceding tasks into `scripts/validate.ps1` (or a shared portable runner behind it), `.github/workflows/ci.yml`, and README/testing documentation. Reuse existing baseline/secret scanning and production frontend/browser checks.
 
-**Dependencies:** M6-T1, M6-T2, M6-T3, M6-T4, M6-T5, M6-T6, M6-T7.
+**Dependencies:** [M6-T1](https://github.com/ShinningF1eld/RestaurantOS/issues/6), [M6-T2](https://github.com/ShinningF1eld/RestaurantOS/issues/7), [M6-T3](https://github.com/ShinningF1eld/RestaurantOS/issues/8), [M6-T4](https://github.com/ShinningF1eld/RestaurantOS/issues/9), [M6-T5](https://github.com/ShinningF1eld/RestaurantOS/issues/10), [M6-T6](https://github.com/ShinningF1eld/RestaurantOS/issues/11), [M6-T7](https://github.com/ShinningF1eld/RestaurantOS/issues/12).
 
 **Acceptance criteria:**
 
@@ -208,7 +208,7 @@ Worker/event tests are explicitly deferred to Milestone 8 because there is no wo
 
 **Scope:** Inspect actual default-branch rules, repository permissions, workflow triggers, and check names after M6-T8. Configure the chosen required-check workflow through an authorized repository administrator and document the policy. Do not infer enforcement merely from a green workflow.
 
-**Dependencies:** M6-T8.
+**Dependencies:** [M6-T8](https://github.com/ShinningF1eld/RestaurantOS/issues/13).
 
 **Acceptance criteria:**
 
@@ -224,7 +224,16 @@ Worker/event tests are explicitly deferred to Milestone 8 because there is no wo
 
 ## Publication record
 
-Publication authorized on 2026-10-05. Labels, assignees, and GitHub milestones remain unset.
+Publication authorized on 2026-10-05. Duplicate checks found no existing issues. The connector returned HTTP 403 (Resource not accessible by integration); all nine issues were successfully created through the authenticated GitHub browser session. Labels, assignees, and GitHub milestones remain unset. No publication errors remain unresolved.
 
 | Task | Result | Issue |
 |---|---|---|
+| M6-T1 | Created 2026-10-05 via authenticated browser | [#6](https://github.com/ShinningF1eld/RestaurantOS/issues/6) |
+| M6-T2 | Created 2026-10-05 via authenticated browser | [#7](https://github.com/ShinningF1eld/RestaurantOS/issues/7) |
+| M6-T3 | Created 2026-10-05 via authenticated browser | [#8](https://github.com/ShinningF1eld/RestaurantOS/issues/8) |
+| M6-T4 | Created 2026-10-05 via authenticated browser | [#9](https://github.com/ShinningF1eld/RestaurantOS/issues/9) |
+| M6-T5 | Created 2026-10-05 via authenticated browser | [#10](https://github.com/ShinningF1eld/RestaurantOS/issues/10) |
+| M6-T6 | Created 2026-10-05 via authenticated browser | [#11](https://github.com/ShinningF1eld/RestaurantOS/issues/11) |
+| M6-T7 | Created 2026-10-05 via authenticated browser | [#12](https://github.com/ShinningF1eld/RestaurantOS/issues/12) |
+| M6-T8 | Created 2026-10-05 via authenticated browser | [#13](https://github.com/ShinningF1eld/RestaurantOS/issues/13) |
+| M6-T9 | Created 2026-10-05 via authenticated browser | [#14](https://github.com/ShinningF1eld/RestaurantOS/issues/14) |
