@@ -75,7 +75,7 @@ export default async function RestaurantLayout({
     return (
         <div className="min-h-screen bg-stone-50 text-slate-950">
             <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-                <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+                <div className="flex min-h-16 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2 sm:px-6 lg:px-8">
                     <Link
                         href="/dashboard/restaurants"
                         className="flex items-center gap-3"
@@ -93,7 +93,7 @@ export default async function RestaurantLayout({
                         </span>
                     </Link>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex min-w-0 items-center gap-4">
                         <div className="hidden text-right sm:block">
                             <p className="text-sm font-semibold">
                                 {restaurant.name}
@@ -108,8 +108,8 @@ export default async function RestaurantLayout({
                 </div>
             </header>
 
-            <div className="grid lg:grid-cols-[16rem_1fr]">
-                <aside className="border-b border-slate-200 bg-white lg:min-h-[calc(100vh-4rem)] lg:border-b-0 lg:border-r">
+            <div className="grid min-w-0 lg:grid-cols-[16rem_minmax(0,1fr)]">
+                <aside className="min-w-0 border-b border-slate-200 bg-white lg:min-h-[calc(100vh-4rem)] lg:border-b-0 lg:border-r">
                     <div className="hidden border-b border-slate-200 p-5 lg:block">
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                             Current restaurant

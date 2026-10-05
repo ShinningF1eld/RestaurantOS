@@ -290,7 +290,8 @@ test("inventory retries committed writes with the same idempotency key", async (
   await expect(page.getByRole("alert").filter({ hasText: "Simulated lost response after commit." }))
     .toContainText("Simulated lost response after commit.");
   await page.getByRole("button", { name: "Save ingredient", exact: true }).click();
-  await expect(page.getByRole("row").filter({ hasText: name })).toContainText("2.000 g");
+  const row = page.getByTestId(`ingredient-row-${ingredientId}`);
+  await expect(row).toContainText("2.000 g");
   expect(createAttempts).toBe(2);
   expect(new Set(createKeys).size).toBe(1);
   const listed = await (await page.request.get(ingredientUrl)).json();
@@ -325,7 +326,7 @@ test("inventory retries committed writes with the same idempotency key", async (
   await expect(page.getByRole("alert").filter({ hasText: "Simulated lost response after commit." }))
     .toContainText("Simulated lost response after commit.");
   await page.getByRole("button", { name: "Record stock", exact: true }).click();
-  await expect(page.getByRole("row").filter({ hasText: name })).toContainText("2.500 g");
+  await expect(row).toContainText("2.500 g");
   expect(stockAttempts).toBe(2);
   expect(new Set(stockKeys).size).toBe(1);
 
@@ -337,14 +338,14 @@ test("inventory retries committed writes with the same idempotency key", async (
   expect(history).toHaveLength(2);
 });
 
-test("switching ingredient history does not show prior rows when the new ledger fails", async ({ page, account }) => {
+test("inventory row actions expand and close history and edit beneath their ingredient", async ({ page, account }, testInfo) => {
   await signIn(page, account);
   const { restaurantId } = await createCatalog(page);
   const ingredientsUrl = `${api}/api/restaurants/${restaurantId}/inventory/ingredients`;
   const firstResponse = await page.request.post(ingredientsUrl, {
     headers,
     data: {
-      name: `History source ${randomUUID()}`,
+      name: `Rice ${randomUUID().slice(0, 8)}`,
       unit: "g",
       reorder_threshold: "0",
       opening_quantity: "2",
@@ -356,7 +357,7 @@ test("switching ingredient history does not show prior rows when the new ledger 
   const secondResponse = await page.request.post(ingredientsUrl, {
     headers,
     data: {
-      name: `History target ${randomUUID()}`,
+      name: `Bottles ${randomUUID().slice(0, 8)}`,
       unit: "piece",
       reorder_threshold: "0",
       opening_quantity: "7",
@@ -368,7 +369,20 @@ test("switching ingredient history does not show prior rows when the new ledger 
 
   await page.goto(`/restaurants/${restaurantId}/inventory`);
   const region = page.getByRole("region", { name: "Stock history" });
-  await page.getByRole("button", { name: `History for ${first.name}`, exact: true }).click();
+  const firstHistoryButton = page.getByRole("button", { name: `History for ${first.name}`, exact: true });
+  await firstHistoryButton.click();
+  await expect(firstHistoryButton).toHaveAttribute("aria-expanded", "true");
+  const firstDetails = page.getByTestId(`ingredient-details-${first.id}`);
+  await expect(firstDetails).toBeVisible();
+  expect(await firstDetails.evaluate(element => element.tagName)).toBe("TR");
+  await expect(region).toContainText("2.000 g");
+  await page.screenshot({ path: testInfo.outputPath("inventory-history-expanded.png"), fullPage: true });
+
+  await region.getByRole("button", { name: `Close history for ${first.name}`, exact: true }).click();
+  await expect(firstHistoryButton).toHaveAttribute("aria-expanded", "false");
+  await expect(firstDetails).toHaveCount(0);
+
+  await firstHistoryButton.click();
   await expect(region).toContainText("2.000 g");
   const secondHistoryUrl = `${api}/api/restaurants/${restaurantId}/inventory/ingredients/${second.id}/movements?limit=20&offset=0`;
   await page.route(url => url.href === secondHistoryUrl, route => route.fulfill({
@@ -381,6 +395,34 @@ test("switching ingredient history does not show prior rows when the new ledger 
   await expect(region.getByRole("alert")).toHaveText("History temporarily unavailable.");
   await expect(region.getByText("No movements on this page.", { exact: true })).toBeVisible();
   await expect(region).not.toContainText("2.000 piece");
+
+  const secondHistoryButton = page.getByRole("button", { name: `History for ${second.name}`, exact: true });
+  await region.getByRole("button", { name: `Close history for ${second.name}`, exact: true }).click();
+  await expect(secondHistoryButton).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByTestId(`ingredient-details-${second.id}`)).toHaveCount(0);
+
+  const editButton = page.getByRole("button", { name: `Edit ${first.name}`, exact: true });
+  await editButton.click();
+  await expect(editButton).toHaveAttribute("aria-expanded", "true");
+  const editDetails = page.getByTestId(`ingredient-details-${first.id}`);
+  await expect(editDetails).toBeVisible();
+  expect(await editDetails.evaluate(element => element.tagName)).toBe("TR");
+  const editForm = editDetails.getByRole("form", { name: `Edit ingredient ${first.name}`, exact: true });
+  await expect(editForm).toBeVisible();
+  expect(await editForm.evaluate(form => form.closest("tr")?.getAttribute("data-testid")))
+    .toBe(`ingredient-details-${first.id}`);
+  await expect(editDetails.getByRole("heading", { name: "Edit ingredient", exact: true })).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("inventory-expanded.png"), fullPage: true });
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.screenshot({ path: testInfo.outputPath("inventory-expanded-mobile.png"), fullPage: true });
+  const documentWidths = await page.evaluate(() => ({
+    page: document.documentElement.scrollWidth,
+    viewport: document.documentElement.clientWidth,
+  }));
+  expect(documentWidths.page).toBeLessThanOrEqual(documentWidths.viewport);
+  await page.getByRole("button", { name: `Close edit for ${first.name}`, exact: true }).click();
+  await expect(editButton).toHaveAttribute("aria-expanded", "false");
+  await expect(editDetails).toHaveCount(0);
 });
 
 test("inventory owner workflow edits, records waste, refreshes stale counts, archives and restores", async ({ page, account }) => {
@@ -388,13 +430,24 @@ test("inventory owner workflow edits, records waste, refreshes stale counts, arc
   const { restaurantId } = await createCatalog(page);
   await page.goto(`/restaurants/${restaurantId}/inventory`);
   const name = `Count workflow ${randomUUID()}`;
+  const listUrl = `${api}/api/restaurants/${restaurantId}/inventory/ingredients`;
 
   await page.getByRole("button", { name: "Add ingredient", exact: true }).click();
   await page.getByLabel("Ingredient name", { exact: true }).fill(name);
   await page.getByLabel("Reorder threshold", { exact: true }).fill("2");
   await page.getByLabel("Opening stock", { exact: true }).fill("5");
+  const creationResponse = page.waitForResponse(response =>
+    response.url() === listUrl
+    && response.request().method() === "POST"
+    && response.status() === 201,
+  );
   await page.getByRole("button", { name: "Save ingredient", exact: true }).click();
-  const row = page.getByRole("row").filter({ hasText: name });
+  await creationResponse;
+  const created = (await (await page.request.get(listUrl)).json()).find(
+    (ingredient: { name: string }) => ingredient.name === name,
+  );
+  expect(created).toBeTruthy();
+  const row = page.getByTestId(`ingredient-row-${created.id}`);
   await expect(row).toContainText("5.000 g");
 
   await page.getByRole("button", { name: `Edit ${name}`, exact: true }).click();
@@ -413,7 +466,6 @@ test("inventory owner workflow edits, records waste, refreshes stale counts, arc
   await page.getByRole("combobox", { name: "Stock action", exact: true }).selectOption("count");
   await page.getByLabel("Counted quantity (g)", { exact: true }).fill("4");
   await page.getByLabel("Reason", { exact: true }).fill("Shelf count");
-  const listUrl = `${api}/api/restaurants/${restaurantId}/inventory/ingredients`;
   const item = (await (await page.request.get(listUrl)).json()).find(
     (ingredient: { name: string }) => ingredient.name === name,
   );
