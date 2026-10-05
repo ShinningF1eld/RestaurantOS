@@ -60,7 +60,7 @@ The finished portfolio project should demonstrate:
 
 ## 2. Verified current state
 
-The repository was rechecked during Milestone 3 on 2026-09-30. Detailed evidence and known
+The repository was rechecked on 2026-10-05. Detailed evidence and known
 limitations are maintained in [`docs/current-state.md`](docs/current-state.md).
 
 - The frontend uses Next.js 16.3.7, React 19.2.8, TypeScript strict mode, and
@@ -70,15 +70,17 @@ limitations are maintained in [`docs/current-state.md`](docs/current-state.md).
   container port `5432` and clearly labeled local-development credentials.
 - The schema contains Restaurant, Menu, MenuItem, Order, OrderItem, User,
   AuthSession, RefreshToken, auth rate counters, Organization, Membership,
-  RestaurantAssignment and AuditEntry across a linear seven-revision Alembic
-  chain at `94d8f2c5b013`. Clean and previous-head upgrades were reproduced on
-  temporary databases, preserving historical orders and accounts.
-- The API exposes restaurant, menu, menu-item, order, and early dashboard
-  analytics operations. Route prefixes are inconsistent and unversioned.
+  RestaurantAssignment, AuditEntry, InventoryIngredient, InventoryBalance and
+  InventoryMovement across a linear nine-revision Alembic chain. Repository head
+  is `c48b7e02f315`; the application database is verified at
+  `b37a6d91e204` while the inventory migration is rehearsed on disposable DBs.
+- The API exposes restaurant, menu, menu-item, order, dashboard analytics,
+  tenancy, audit and restaurant-scoped inventory operations. Route prefixes are
+  inconsistent and unversioned.
 - The frontend provides restaurant and catalog CRUD, order entry/listing/status
-  actions, analytics, login/logout and browser session renewal. Owner staff
-  administration uses the real API; Employee controls reflect kitchen permissions.
-  Inventory still contains mock content.
+  actions, analytics, login/logout, browser session renewal, Owner staff
+  administration and a real inventory screen for ingredients, stock actions
+  and movement history. Employee controls reflect kitchen permissions.
 - Orders reject cross-restaurant and unavailable items, calculate prices on the
   server, enforce status transitions, preserve name/price snapshots, and carry
   basic payment status. Completed orders contribute to analytics.
@@ -88,8 +90,10 @@ limitations are maintained in [`docs/current-state.md`](docs/current-state.md).
 - Business features reside in `app/modules/<feature>` with corresponding domain,
   repo and service layers. Obsolete top-level compatibility folders were removed.
 - Tenant isolation and Owner/Manager/Employee capabilities are verified locally.
-  Inventory, workers/events, payment-provider integration, public registration
-  and deployment infrastructure remain future work.
+  Inventory management steps 1–3 are implemented: one ingredient inventory per
+  restaurant with an audited stock ledger and role-scoped management. Recipe and
+  order-linked stock consumption, workers/events, payment-provider integration,
+  public registration and deployment infrastructure remain future work.
 - Milestone 0 documentation, environment examples, smoke testing, local
   validation, and CI definitions now exist. Local validation and the GitHub
   Actions workflow have passed, so Milestone 0 is complete.
@@ -347,12 +351,20 @@ Use a ledger instead of only mutating a single stock number.
 
 | Entity | Important fields and rules |
 |---|---|
-| Ingredient | restaurant_id, name, unit, reorder threshold, active |
-| Recipe component | menu_item_id, ingredient_id, quantity required, wastage factor if needed |
-| Inventory movement | ingredient_id, quantity delta, movement type, order/reference ID, actor, timestamp |
-| Inventory balance | ingredient_id, current quantity, version; derived/cacheable but transactionally maintained initially |
+| Ingredient | restaurant_id, name, unit, reorder threshold, active/archive state; implemented |
+| Recipe component | menu_item_id, ingredient_id, quantity required, wastage factor if needed; not implemented |
+| Inventory movement | ingredient_id, delta, opening/receipt/waste/count kind, balance snapshot, actor, reason, idempotency key; implemented |
+| Inventory balance | ingredient_id, current quantity, version; transactionally maintained; implemented |
 
 Movement types may include `PURCHASE`, `ORDER_CONSUMPTION`, `ADJUSTMENT`, `WASTE`, `REVERSAL`.
+
+The implemented slice has one logical inventory per restaurant: ingredients
+attach directly to the restaurant, without a separate inventory parent or
+inventory-creation workflow. Base units are `g`, `ml`, and `piece`; the unit is
+fixed after creation because creation records an opening movement even when its
+quantity is zero. `RECEIPT`, `WASTE`, and `COUNT` actions append movements and
+update a versioned balance in one transaction. Order consumption, purchasing,
+and transfers are not connected to this ledger yet.
 
 ### 4.5 Events and outbox
 
@@ -648,6 +660,22 @@ A URL or payload containing `organization_id` or `restaurant_id` is never proof 
 
 Turn order creation into a realistic consistency-sensitive workflow.
 
+### Current implementation status (2026-10-05)
+
+Inventory management steps 1–3 are implemented and locally verified. The
+ingredient catalog, restaurant-scoped API, role checks, balance and movement
+ledger, audit facts, idempotent retries, stale-count rejection, and management
+screen cover opening stock, receipts, waste, physical counts, archive/restore,
+low-stock status, and movement history. The inventory API contract is in
+[`docs/api/inventory.md`](docs/api/inventory.md), and verification is recorded
+in [`docs/current-state.md`](docs/current-state.md#milestone-5-inventory-steps-1-3).
+
+This completes the standalone inventory foundation only. Orders do not read
+recipes or change stock; recipe components, order-linked consumption or
+reservation, cancellation compensation, and order-submission idempotency remain
+open parts of Milestone 5. The inventory migration is tested on disposable
+databases and has not been applied to the existing application database.
+
 ### Scope
 
 - Ingredient, recipe component, inventory movement, and balance models.
@@ -664,7 +692,10 @@ Turn order creation into a realistic consistency-sensitive workflow.
 
 ### Recommended initial inventory policy
 
-For simplicity, consume inventory when an order is accepted and reverse it if an accepted order is cancelled. Document why this was chosen. Do not silently mix reservation and consumption semantics.
+For simplicity, the proposed policy is to consume inventory when an order is
+accepted and reverse it if an accepted order is cancelled. This policy is not
+implemented. Document why it is chosen before connecting inventory to orders;
+do not silently mix reservation and consumption semantics.
 
 ### Required tests
 
@@ -1424,7 +1455,7 @@ After Milestone 0, give Sol only one milestone or vertical slice at a time. A st
 | 2. Application boundaries | Complete | [`docs/current-state.md`](docs/current-state.md#milestone-2-completion-evidence); 56 backend tests and full-app mypy passed |
 | 3. Authentication | Complete locally | [`docs/current-state.md`](docs/current-state.md#milestone-3-completion-evidence); 147 backend and 12 browser tests; CI not yet run for this change |
 | 4. Multi-tenancy and RBAC | Complete locally | [`docs/current-state.md`](docs/current-state.md#milestone-4-completion-evidence); 231 backend and 13 browser tests; live migration and Owner bootstrap verified |
-| 5. Transactional ordering and inventory | Not started/verify | |
+| 5. Transactional ordering and inventory | In progress — inventory steps 1–3 complete; order/recipe integration remains | [`docs/current-state.md`](docs/current-state.md#milestone-5-inventory-steps-1-3); 278 backend tests, 17 Chromium tests, disposable migration checks passed |
 | 6. Test architecture and quality gates | Not verified | |
 | 7. Redis caching and rate limiting | Not started/verify | |
 | 8. Background jobs and events | Not started/verify | |

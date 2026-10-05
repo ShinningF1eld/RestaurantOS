@@ -1,7 +1,9 @@
 # RestaurantOS current state
 
-Last verification: 2026-10-02 for Milestone 4, including PostgreSQL acceptance
-and live cutover. Historical Milestone 3/schema results are dated below.
+Last full backend/browser verification: 2026-10-02 for Milestone 4, including
+PostgreSQL acceptance and live cutover. Inventory verification dated
+2026-10-05 is recorded below. Historical Milestone 3/schema results are dated
+below.
 
 Milestone 4 schema/model expansion was verified separately on 2026-10-01.
 The new migration was tested in disposable databases only; the application
@@ -56,12 +58,20 @@ The current models and tables are:
 | Membership | UUID `id` | Unique user; one organization; OWNER/MANAGER/EMPLOYEE; active/revoked |
 | RestaurantAssignment | `membership_id` + `restaurant_id` | Membership and restaurant must belong to the same organization |
 | AuditEntry | UUID `id` | Organization-scoped safe mutation facts; Owner-only inspection |
+| InventoryIngredient | `id` | Restaurant-scoped name, base unit, reorder threshold and active/archive state |
+| InventoryBalance | `ingredient_id` | Current nonnegative quantity and optimistic stock version |
+| InventoryMovement | `id` | Opening, receipt, waste or count delta, balance snapshot, actor, reason and idempotency key |
 
 Alembic has one linear chain:
 
 ```text
-9007636220c5 -> 694f7189fe51 -> 2d7747d9f5b1 -> 4a1e9a2dc8e4 -> 72bd03a1f901 -> 83c7e1b4a902 -> 94d8f2c5b013 (head; live database verified)
+9007636220c5 -> 694f7189fe51 -> 2d7747d9f5b1 -> 4a1e9a2dc8e4 -> 72bd03a1f901 -> 83c7e1b4a902 -> 94d8f2c5b013 -> b37a6d91e204 -> c48b7e02f315 (repository head)
 ```
+
+The existing application database is currently verified at
+`b37a6d91e204` (`head - 1`). Inventory revision `c48b7e02f315` remains
+unapplied there; new migrations are checked against disposable databases before
+any application-database upgrade.
 
 At Milestone 3, the existing local database was verified at its head and `alembic check` reported
 no model drift. A separately named empty local database was upgraded through all
@@ -73,8 +83,9 @@ timezone fields, database-level status constraints, and broader restaurant/menu
 deletion policies. Milestone 1 preserves ordered-item history and centralizes
 status transitions in the application.
 
-Catalog price hardening adds revision `b37a6d91e204` after the verified live
-Milestone 4 head above. Menu-item create/update inputs and service calls accept
+Catalog price hardening adds revision `b37a6d91e204` after the previously
+verified Milestone 4 head and has been applied to the existing application
+database. Menu-item create/update inputs and service calls accept
 only finite prices from `0` through `99999999.99`, with at most two meaningful
 decimal places (trailing zeros are allowed). Invalid API prices return 422
 instead of being rounded or overflowing the database column. The new database
@@ -86,7 +97,7 @@ without rewriting them; review and correct those values before retrying.
 
 ## Backend endpoint inventory
 
-There are 29 protected business endpoints, four authentication endpoints and
+There are 34 protected business endpoints, four authentication endpoints and
 three utility endpoints. `/api/test-db` requires authentication and returns 404
 in production. Public health/probe responses and API docs contain no business data.
 
@@ -99,6 +110,7 @@ in production. Public health/probe responses and API docs contain no business da
 | Analytics | `GET /api/restaurants/{restaurant_id}/analytics/dashboard` |
 | Tenancy | `GET /api/access`; `POST /api/organizations`; `GET /api/organization`; `GET/POST /api/memberships`; `PUT/DELETE /api/memberships/{membership_id}` |
 | Audit | `GET /api/audit` |
+| Inventory | `GET/POST /api/restaurants/{restaurant_id}/inventory/ingredients`; `PUT /api/restaurants/{restaurant_id}/inventory/ingredients/{ingredient_id}`; `POST/GET /api/restaurants/{restaurant_id}/inventory/ingredients/{ingredient_id}/movements` |
 | Authentication | `POST /auth/login`; `POST /auth/refresh`; `POST /auth/logout`; `GET /auth/me` |
 | Utility | `GET /health`; `GET /api/test`; `GET /api/test-db` |
 
@@ -120,10 +132,10 @@ roadmap's target `/api/v1` convention.
 - `/restaurants/[restaurant_id]/employees`
 
 Restaurant CRUD, menu CRUD, menu-item CRUD, multi-item order entry, paginated
-order listing/status actions, and dashboard metrics are present. The restaurant
-workspace has route-level `loading.tsx`, `error.tsx`, and `not-found.tsx`
-boundaries. Inventory remains mock UI for later milestones. Staff access uses the real
-Owner membership administration API. Controls/navigation reflect capabilities.
+order listing/status actions, dashboard metrics, and ledger-backed ingredient
+inventory are present. The restaurant workspace has route-level `loading.tsx`,
+`error.tsx`, and `not-found.tsx` boundaries. Staff access uses the real Owner
+membership administration API. Controls/navigation reflect capabilities.
 
 The shared restaurant navigation still links to nonexistent `tables` and
 `settings` routes, and the root page shows hardcoded operational figures. These
@@ -245,7 +257,8 @@ intentionally deferred to later milestones.
 
 That historical Milestone 1 workflow was an unauthenticated local-development
 flow. Milestone 3 added authentication; Milestone 4 now enforces tenant isolation
-and RBAC. Inventory, events and provider integration remain future work.
+and RBAC. Milestone 5 implements inventory steps 1–3; recipe/order consumption,
+events and provider integration remain future work.
 
 ## Milestone 2 completion evidence
 
@@ -383,3 +396,31 @@ explicit policy, cross-tenant integration tests cover reads/writes/nested IDs/li
 endpoints, and sensitive mutation audits contain safe facts without secrets.
 Remote CI was not run. See [role/API policies](api/tenancy.md),
 [schema](architecture/tenancy-schema.md) and [cutover runbook](runbooks/tenancy.md).
+
+## Milestone 5 inventory steps 1-3
+
+Milestone 5 steps 1–3 are implemented: inventory includes a restaurant-scoped
+ingredient catalog, current balances with stock versions, and a movement ledger for opening
+stock, receipts, waste and physical counts. Owners and assigned Managers can
+read and manage inventory. The API scopes queries to the caller's organization
+and restaurant assignments, audits successful changes, and makes retries
+idempotent. Counts reject stale stock versions; ingredients with remaining
+stock must be cleared before archiving. The browser page supports ingredient
+creation/editing/archive/restore, low-stock status, receipt/waste/count actions,
+and paginated movement history.
+
+The full backend suite passed on 2026-10-05: 278 tests, including 11 inventory
+unit tests and 12 inventory integration tests. Clean and previous-head
+migration upgrades, downgrade/re-upgrade, and Alembic model drift checks passed
+on disposable databases; the downgrade/re-upgrade preserved completed-order
+snapshots and temporary databases were removed. Frontend ESLint, TypeScript,
+production build, candidate-file secret scan and diff checks passed. All 17
+Chromium tests passed, including owner inventory lifecycle, retry behavior,
+history outage handling and Employee restrictions. Migration
+`c48b7e02f315` has been rehearsed only against disposable databases. The
+existing application database remains at `b37a6d91e204`.
+
+Milestone 5 remains in progress. Inventory is not linked to recipes or orders,
+so recording a sale does not consume ingredient quantities. Supplier and
+purchase-order workflows, cross-restaurant transfers, inventory valuation, and
+a live application-database migration also remain future work.

@@ -5,3 +5,5 @@ from app.db.models.order import Order, OrderItem
 
 
 __all__ = ["Menu", "MenuItem", "Order", "OrderItem", "Restaurant"]
+
+from app.modules.inventory.repo.models import Ingredient, InventoryBalance, InventoryMovement  # noqa: F401

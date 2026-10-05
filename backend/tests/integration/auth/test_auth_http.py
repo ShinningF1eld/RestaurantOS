@@ -149,7 +149,13 @@ def test_all_business_operations_require_authentication():
             if template.startswith(("/auth", "/health", "/api/test")):
                 continue
             path = template
-            for parameter in ("restaurant_id", "menu_id", "menu_item_id", "order_id"):
+            for parameter in (
+                "restaurant_id",
+                "menu_id",
+                "menu_item_id",
+                "order_id",
+                "ingredient_id",
+            ):
                 path = path.replace("{" + parameter + "}", "999999")
             for method in methods:
                 if method.upper() not in {"GET", "POST", "PUT", "DELETE", "PATCH"}:

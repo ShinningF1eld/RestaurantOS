@@ -252,3 +252,245 @@ test("employee kitchen controls reflect live permissions and the API rejects mix
   await page.goto(`/restaurants/${restaurantId}/dashboard`);
   await expect(page).toHaveURL(new URL(`/restaurants/${restaurantId}/orders`, origin).href);
 });
+
+test("inventory retries committed writes with the same idempotency key", async ({ page, account }) => {
+  await signIn(page, account);
+  const { restaurantId } = await createCatalog(page);
+  await page.goto(`/restaurants/${restaurantId}/inventory`);
+  await expect(page.getByRole("heading", { name: "Inventory", exact: true })).toBeVisible();
+
+  const name = `Browser ingredient ${randomUUID()}`;
+  await page.getByRole("button", { name: "Add ingredient", exact: true }).click();
+  await page.getByLabel("Ingredient name", { exact: true }).fill(name);
+  await page.getByLabel("Reorder threshold", { exact: true }).fill("2");
+  await page.getByLabel("Opening stock", { exact: true }).fill("2");
+  const ingredientUrl = `${api}/api/restaurants/${restaurantId}/inventory/ingredients`;
+  const createKeys: string[] = [];
+  let createAttempts = 0;
+  let ingredientId = 0;
+  await page.route(ingredientUrl, async route => {
+    if (route.request().method() === "POST") {
+      createAttempts++;
+      createKeys.push(route.request().postDataJSON().idempotency_key);
+      if (createAttempts === 1) {
+        const committed = await route.fetch();
+        expect(committed.status()).toBe(201);
+        ingredientId = (await committed.json()).id;
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "Simulated lost response after commit." }),
+        });
+        return;
+      }
+    }
+    await route.continue();
+  });
+  await page.getByRole("button", { name: "Save ingredient", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Simulated lost response after commit." }))
+    .toContainText("Simulated lost response after commit.");
+  await page.getByRole("button", { name: "Save ingredient", exact: true }).click();
+  await expect(page.getByRole("row").filter({ hasText: name })).toContainText("2.000 g");
+  expect(createAttempts).toBe(2);
+  expect(new Set(createKeys).size).toBe(1);
+  const listed = await (await page.request.get(ingredientUrl)).json();
+  expect(listed.filter((item: { name: string }) => item.name === name)).toHaveLength(1);
+
+  await page.getByRole("button", { name: `Manage stock for ${name}`, exact: true }).click();
+  await page.getByLabel("Quantity (g)", { exact: true }).fill("0.500");
+  await page.getByLabel("Reason", { exact: true }).fill("Browser receipt retry");
+  const movementUrl = `${ingredientUrl}/${ingredientId}/movements`;
+  const stockKeys: string[] = [];
+  let stockAttempts = 0;
+  let movementId = 0;
+  await page.route(movementUrl, async route => {
+    if (route.request().method() === "POST") {
+      stockAttempts++;
+      stockKeys.push(route.request().postDataJSON().idempotency_key);
+      if (stockAttempts === 1) {
+        const committed = await route.fetch();
+        expect(committed.status()).toBe(201);
+        movementId = (await committed.json()).id;
+        await route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "Simulated lost response after commit." }),
+        });
+        return;
+      }
+    }
+    await route.continue();
+  });
+  await page.getByRole("button", { name: "Record stock", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Simulated lost response after commit." }))
+    .toContainText("Simulated lost response after commit.");
+  await page.getByRole("button", { name: "Record stock", exact: true }).click();
+  await expect(page.getByRole("row").filter({ hasText: name })).toContainText("2.500 g");
+  expect(stockAttempts).toBe(2);
+  expect(new Set(stockKeys).size).toBe(1);
+
+  await page.getByRole("button", { name: `History for ${name}`, exact: true }).click();
+  await expect(page.getByRole("region", { name: "Stock history" })).toContainText("Browser receipt retry");
+  await expect(page.getByRole("region", { name: "Stock history" })).toContainText(account.email);
+  const history = await (await page.request.get(movementUrl)).json();
+  expect(history.filter((movement: { id: number }) => movement.id === movementId)).toHaveLength(1);
+  expect(history).toHaveLength(2);
+});
+
+test("switching ingredient history does not show prior rows when the new ledger fails", async ({ page, account }) => {
+  await signIn(page, account);
+  const { restaurantId } = await createCatalog(page);
+  const ingredientsUrl = `${api}/api/restaurants/${restaurantId}/inventory/ingredients`;
+  const firstResponse = await page.request.post(ingredientsUrl, {
+    headers,
+    data: {
+      name: `History source ${randomUUID()}`,
+      unit: "g",
+      reorder_threshold: "0",
+      opening_quantity: "2",
+      idempotency_key: `history-source-${randomUUID()}`,
+    },
+  });
+  expect(firstResponse.status()).toBe(201);
+  const first = await firstResponse.json();
+  const secondResponse = await page.request.post(ingredientsUrl, {
+    headers,
+    data: {
+      name: `History target ${randomUUID()}`,
+      unit: "piece",
+      reorder_threshold: "0",
+      opening_quantity: "7",
+      idempotency_key: `history-target-${randomUUID()}`,
+    },
+  });
+  expect(secondResponse.status()).toBe(201);
+  const second = await secondResponse.json();
+
+  await page.goto(`/restaurants/${restaurantId}/inventory`);
+  const region = page.getByRole("region", { name: "Stock history" });
+  await page.getByRole("button", { name: `History for ${first.name}`, exact: true }).click();
+  await expect(region).toContainText("2.000 g");
+  const secondHistoryUrl = `${api}/api/restaurants/${restaurantId}/inventory/ingredients/${second.id}/movements?limit=20&offset=0`;
+  await page.route(url => url.href === secondHistoryUrl, route => route.fulfill({
+    status: 503,
+    contentType: "application/json",
+    body: JSON.stringify({ detail: "History temporarily unavailable." }),
+  }));
+  await page.getByRole("button", { name: `History for ${second.name}`, exact: true }).click();
+  await expect(region.getByRole("heading", { name: `Stock history: ${second.name}`, exact: true })).toBeVisible();
+  await expect(region.getByRole("alert")).toHaveText("History temporarily unavailable.");
+  await expect(region.getByText("No movements on this page.", { exact: true })).toBeVisible();
+  await expect(region).not.toContainText("2.000 piece");
+});
+
+test("inventory owner workflow edits, records waste, refreshes stale counts, archives and restores", async ({ page, account }) => {
+  await signIn(page, account);
+  const { restaurantId } = await createCatalog(page);
+  await page.goto(`/restaurants/${restaurantId}/inventory`);
+  const name = `Count workflow ${randomUUID()}`;
+
+  await page.getByRole("button", { name: "Add ingredient", exact: true }).click();
+  await page.getByLabel("Ingredient name", { exact: true }).fill(name);
+  await page.getByLabel("Reorder threshold", { exact: true }).fill("2");
+  await page.getByLabel("Opening stock", { exact: true }).fill("5");
+  await page.getByRole("button", { name: "Save ingredient", exact: true }).click();
+  const row = page.getByRole("row").filter({ hasText: name });
+  await expect(row).toContainText("5.000 g");
+
+  await page.getByRole("button", { name: `Edit ${name}`, exact: true }).click();
+  await page.getByLabel("Reorder threshold", { exact: true }).fill("4");
+  await page.getByRole("button", { name: "Save ingredient", exact: true }).click();
+  await expect(row).toContainText("Healthy");
+
+  await page.getByRole("button", { name: `Manage stock for ${name}`, exact: true }).click();
+  await page.getByRole("combobox", { name: "Stock action", exact: true }).selectOption("waste");
+  await page.getByLabel("Quantity (g)", { exact: true }).fill("1");
+  await page.getByLabel("Reason", { exact: true }).fill("Damaged package");
+  await page.getByRole("button", { name: "Record stock", exact: true }).click();
+  await expect(row).toContainText("4.000 g");
+
+  await page.getByRole("button", { name: `Manage stock for ${name}`, exact: true }).click();
+  await page.getByRole("combobox", { name: "Stock action", exact: true }).selectOption("count");
+  await page.getByLabel("Counted quantity (g)", { exact: true }).fill("4");
+  await page.getByLabel("Reason", { exact: true }).fill("Shelf count");
+  const listUrl = `${api}/api/restaurants/${restaurantId}/inventory/ingredients`;
+  const item = (await (await page.request.get(listUrl)).json()).find(
+    (ingredient: { name: string }) => ingredient.name === name,
+  );
+  expect(item).toBeTruthy();
+  const externalReceipt = await page.request.post(`${listUrl}/${item.id}/movements`, {
+    headers,
+    data: {
+      kind: "receipt",
+      quantity: "2",
+      reason: "Delivery during count",
+      expected_version: null,
+      idempotency_key: `browser-race-${randomUUID()}`,
+    },
+  });
+  expect(externalReceipt.status()).toBe(201);
+  await page.getByRole("button", { name: "Record stock", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Stock changed since this count began" }))
+    .toContainText("Stock changed since this count began");
+  await page.getByRole("button", { name: "Refresh count", exact: true }).click();
+  await expect(page.getByRole("heading", { name: `Manage stock: ${name}`, exact: true })).toBeVisible();
+  await expect(page.getByText("On hand: 6.000 g.")).toBeVisible();
+  await page.getByLabel("Counted quantity (g)", { exact: true }).fill("6");
+  await page.getByRole("button", { name: "Record stock", exact: true }).click();
+  await expect(row).toContainText("6.000 g");
+
+  await page.getByRole("button", { name: `Archive ${name}`, exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Record remaining stock as waste or count it to zero" }))
+    .toContainText("Record remaining stock as waste or count it to zero");
+  await page.getByRole("button", { name: `Manage stock for ${name}`, exact: true }).click();
+  await page.getByRole("combobox", { name: "Stock action", exact: true }).selectOption("waste");
+  await page.getByLabel("Quantity (g)", { exact: true }).fill("6");
+  await page.getByLabel("Reason", { exact: true }).fill("Clear remaining stock");
+  await page.getByRole("button", { name: "Record stock", exact: true }).click();
+  await expect(row).toContainText("0.000 g");
+  await page.getByRole("button", { name: `Archive ${name}`, exact: true }).click();
+  await expect(row).toContainText("Archived");
+  await page.getByRole("button", { name: `Restore ${name}`, exact: true }).click();
+  await expect(row).toContainText("Low stock");
+});
+
+test("employee cannot see or call inventory operations", async ({ page, account }) => {
+  await signIn(page, account);
+  const { restaurantId } = await createCatalog(page);
+  const listUrl = `${api}/api/restaurants/${restaurantId}/inventory/ingredients`;
+  const created = await page.request.post(listUrl, {
+    headers,
+    data: {
+      name: "Restricted ingredient",
+      unit: "g",
+      reorder_threshold: "0",
+      opening_quantity: "0",
+      idempotency_key: "owner-opening",
+    },
+  });
+  expect(created.status()).toBe(201);
+  const ingredientId = (await created.json()).id;
+  const python = process.env.PLAYWRIGHT_PYTHON ?? path.resolve("../backend/.venv", process.platform === "win32" ? "Scripts/python.exe" : "bin/python");
+  execFileSync(python, [path.resolve("tests/seed-auth.py"), "employee", account.id, String(restaurantId)], { stdio: "pipe", timeout: 20_000 });
+
+  await page.goto(`/restaurants/${restaurantId}/inventory`);
+  await expect(page.getByRole("link", { name: "Inventory", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("alert").filter({ hasText: "Inventory is unavailable for your role." }))
+    .toHaveText("Inventory is unavailable for your role.");
+  const denied = await Promise.all([
+    page.request.get(listUrl),
+    page.request.post(listUrl, { headers, data: {
+      name: "Forbidden ingredient", unit: "g", reorder_threshold: "0",
+      opening_quantity: "0", idempotency_key: "employee-create",
+    } }),
+    page.request.put(`${listUrl}/${ingredientId}`, { headers, data: {
+      name: "Restricted ingredient", unit: "g", reorder_threshold: "0", is_active: true,
+    } }),
+    page.request.post(`${listUrl}/${ingredientId}/movements`, { headers, data: {
+      kind: "receipt", quantity: "1", reason: "Forbidden", expected_version: null,
+      idempotency_key: "employee-stock",
+    } }),
+    page.request.get(`${listUrl}/${ingredientId}/movements`),
+  ]);
+  expect(denied.map(response => response.status())).toEqual([403, 403, 403, 403, 403]);
+});

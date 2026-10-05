@@ -13,6 +13,14 @@ owner bootstrap, staff administration and transactional audit facts. Employee
 permissions are the kitchen preparation permissions. Backend features follow
 `app/modules/<feature>/{service.py,domain/,repo/}`, as with auth.
 
+Milestone 5 steps 1–3 are implemented: scoped, ledger-backed ingredient
+inventory supports opening stock, receipts, waste, physical counts, and stock
+history. See the
+[inventory API contract](docs/api/inventory.md) and
+[current-state notes](docs/current-state.md#milestone-5-inventory-steps-1-3).
+The additive inventory migration has not been applied to the existing local
+application database; catalog-price revision `b37a6d91e204` is applied.
+
 See the [role/API contract](docs/api/tenancy.md) and
 [cutover runbook](docs/runbooks/tenancy.md). Local database acceptance and live
 cutover completed on 2026-10-02: restaurant 1 belongs to organization 1, and the

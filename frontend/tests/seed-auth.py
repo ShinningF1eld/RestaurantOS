@@ -39,6 +39,9 @@ with engine.begin() as connection:
             )
             # Delete only this fixture's private tenant, in restrictive-FK order.
             for statement in [
+                "DELETE FROM inventory_movements WHERE ingredient_id IN (SELECT id FROM inventory_ingredients WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org))",
+                "DELETE FROM inventory_balances WHERE ingredient_id IN (SELECT id FROM inventory_ingredients WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org))",
+                "DELETE FROM inventory_ingredients WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org)",
                 "DELETE FROM audit_entries WHERE organization_id=:org",
                 "DELETE FROM restaurant_assignments WHERE organization_id=:org",
                 "DELETE FROM memberships WHERE organization_id=:org",

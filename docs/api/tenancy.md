@@ -16,10 +16,13 @@ migrated development organization has number **1**.
 | Order status changes/cancellation/completion | Domain-valid transitions | Domain-valid transitions in assigned branches | ACCEPTED → PREPARING; PREPARING → READY only |
 | Hard-delete order | Yes | No | No |
 | Financial dashboard | Yes | Assigned branches | No |
+| Inventory ingredients and stock | All own branches | Assigned branches | No |
 | Membership/role/assignment administration | Yes | No | No |
 | Audit inspection | Yes, own organization | No | No |
 
-Named capabilities are defined in `modules/tenancy/domain/policies.py`. The
+Inventory access uses `inventory.read` and `inventory.manage`; see the
+[inventory API contract](inventory.md). Named capabilities are defined in
+`modules/tenancy/domain/policies.py`. The
 Employee role replaces the previously discussed kitchen role. Authorization
 checks the **supplied field set** before any order mutation, including null
 fields. Mixing an allowed status with `payment_status`, `items`, `notes`,

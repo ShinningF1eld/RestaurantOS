@@ -56,7 +56,7 @@ export default async function RestaurantLayout({
             href: `/restaurants/${restaurant_id}/tables`,
         },
         {
-            name: "Inventory", capability: "menu.manage",
+            name: "Inventory", capability: "inventory.read",
             shortName: "Stock",
             href: `/restaurants/${restaurant_id}/inventory`,
         },
