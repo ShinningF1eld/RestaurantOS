@@ -7,6 +7,7 @@
 __pycache__/
 *.py[cod]
 .venv/
+.venv-*/
 venv/
 
 # FastAPI
@@ -37,3 +38,6 @@ Thumbs.db
 *.log
 playwright-report/
 test-results/
+coverage/
+/.m6-browser-*/
+/.m6-lock-check/
