@@ -11,6 +11,7 @@
     "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,mjs,cjs,json,css}\"",
     "typecheck": "next typegen && tsc --noEmit --incremental false",
     "validate": "npm run lint && npm run typecheck && npm run build",
+    "test": "vitest run",
     "test:e2e": "playwright test"
   },
   "dependencies": {
@@ -21,13 +22,19 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "24.19.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "6.1.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.7",
+    "jsdom": "29.1.0",
     "prettier": "3.9.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "5.0.3"
   }
 }
