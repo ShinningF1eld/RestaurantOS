@@ -52,7 +52,7 @@ In PowerShell, set a disposable-database template that ends in `_test`, then run
 the verifier with the backend virtual environment:
 
 ```powershell
-$env:TEST_DATABASE_URL = "postgresql+asyncpg://USER:PASSWORD@127.0.0.1:5433/restaurantos_test"
+$env:TEST_DATABASE_URL = "postgresql+asyncpg://USER:PASSWORD@127.0.0.1:5433/restaurantos_test" # pragma: allowlist secret
 & .\backend\.venv\Scripts\python.exe .\scripts\verify-migrations.py --help
 & .\backend\.venv\Scripts\python.exe .\scripts\verify-migrations.py
 ```
