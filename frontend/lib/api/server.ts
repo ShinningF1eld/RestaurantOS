@@ -35,5 +35,7 @@ export const getMemberships = () => read<Membership[]>("/api/memberships");
 export const getRestaurantMenus = (id: number) => read<Menu[]>(`/restaurants/${id}/menus`);
 export const getMenu = (id: number) => read<Menu>(`/menus/${id}`);
 export const getMenuItems = (id: number) => read<MenuItem[]>(`/menus/${id}/items`);
-export const getRestaurantOrders = (id: number, limit = 25, offset = 0) => read<PaginatedOrders>(`/api/restaurants/${id}/orders?limit=${limit}&offset=${offset}`);
-export const getRestaurantDashboardAnalytics = (id: number) => read<RestaurantDashboardAnalytics>(`/api/restaurants/${id}/analytics/dashboard`);
+export const getRestaurantOrders = (id: number, limit = 25, offset = 0) =>
+  read<PaginatedOrders>(`/api/restaurants/${id}/orders?limit=${limit}&offset=${offset}`);
+export const getRestaurantDashboardAnalytics = (id: number) =>
+  read<RestaurantDashboardAnalytics>(`/api/restaurants/${id}/analytics/dashboard`);

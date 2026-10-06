@@ -1,0 +1,14 @@
+{
+  "observed_date": "2026-10-06",
+  "source": "https://github.com/ShinningF1eld/RestaurantOS/pull/16",
+  "head": "07d2fff",
+  "draft": false,
+  "mergeable_state": "blocked",
+  "merge_button": "disabled",
+  "required_check": "Milestone 6 acceptance",
+  "check_state": "Expected while 20 push/PR matrix checks are in progress",
+  "run_urls": [
+    "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/37494164631",
+    "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/37494159263"
+  ]
+}

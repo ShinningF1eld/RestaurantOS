@@ -1,5 +1,9 @@
 [CmdletBinding()]
 param(
+    [string]$PythonExecutable,
+    [string[]]$Gate,
+    [switch]$ExternalServices,
+    [switch]$NoInstall,
     [switch]$SkipBuild,
     [switch]$SkipDatabase,
     [switch]$SkipBrowser,
@@ -8,111 +12,36 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
-$backendPython = Join-Path $repositoryRoot "backend/.venv/Scripts/python.exe"
-$secretHook = Join-Path $repositoryRoot "backend/.venv/Scripts/detect-secrets-hook.exe"
-
-function Invoke-Checked {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$Label,
-        [Parameter(Mandatory = $true)]
-        [scriptblock]$Command
-    )
-
-    Write-Host "`n==> $Label" -ForegroundColor Cyan
-    & $Command
-    if ($LASTEXITCODE -ne 0) {
-        throw "$Label failed with exit code $LASTEXITCODE"
+$backendPython = if ($PythonExecutable) {
+    if ([IO.Path]::IsPathRooted($PythonExecutable)) {
+        [IO.Path]::GetFullPath($PythonExecutable)
+    } else {
+        [IO.Path]::GetFullPath((Join-Path $repositoryRoot $PythonExecutable))
     }
+} else { Join-Path $repositoryRoot "backend/.venv/Scripts/python.exe" }
+if (-not (Test-Path -LiteralPath $backendPython)) {
+    throw "Create backend/.venv and install the development lock first; see docs/testing/README.md."
 }
 
-if (-not (Test-Path -LiteralPath $backendPython)) {
-    throw "Missing backend/.venv. Follow the root README setup instructions first."
+$allGates = @("baseline", "backend-static", "frontend-static", "backend-unit",
+    "backend-integration", "frontend-tests", "frontend-build", "migrations", "browser", "image")
+$selectedGates = if ($Gate) { @($Gate) } else { @($allGates) }
+if ($SkipBuild) { $selectedGates = @($selectedGates | Where-Object { $_ -notin @("frontend-build", "image") }) }
+if ($SkipDatabase) { $selectedGates = @($selectedGates | Where-Object { $_ -notin @("backend-integration", "migrations", "browser", "image") }) }
+if ($SkipBrowser) { $selectedGates = @($selectedGates | Where-Object { $_ -ne "browser" }) }
+if ($SkipSecrets) { $selectedGates = @($selectedGates | Where-Object { $_ -ne "baseline" }) }
+if ($selectedGates.Count -eq 0) { throw "No validation gates selected." }
+
+$runnerArguments = @((Join-Path $PSScriptRoot "validate.py"))
+if ($Gate -or $SkipBuild -or $SkipDatabase -or $SkipBrowser -or $SkipSecrets) {
+    foreach ($selectedGate in $selectedGates) { $runnerArguments += @("--gate", $selectedGate) }
 }
+if ($ExternalServices) { $runnerArguments += "--external-services" }
+if ($NoInstall) { $runnerArguments += "--no-install" }
 
 Push-Location $repositoryRoot
 try {
-    Invoke-Checked "Docker Compose configuration" { docker compose config --quiet }
-    Invoke-Checked "Python dependency integrity" { & $backendPython -m pip check }
-
-    if (-not $SkipSecrets) {
-        if (-not (Test-Path -LiteralPath $secretHook)) {
-            throw "detect-secrets is not installed. Install backend/requirements-dev.txt."
-        }
-
-        $trackedFiles = @(git ls-files --cached --others --exclude-standard)
-        Invoke-Checked "Tracked and candidate file secret scan" {
-            & $secretHook --baseline .secrets.baseline @trackedFiles
-        }
-    }
-
-    Push-Location (Join-Path $repositoryRoot "backend")
-    try {
-        Invoke-Checked "Backend Ruff" { & $backendPython -m ruff check app tests }
-        Invoke-Checked "Backend mypy" {
-            & $backendPython -m mypy app
-        }
-        if (-not $SkipDatabase) {
-            $backendEnv = Join-Path $repositoryRoot "backend/.env"
-            if (
-                [string]::IsNullOrWhiteSpace($env:DATABASE_URL) -and
-                -not (Test-Path -LiteralPath $backendEnv)
-            ) {
-                throw "Set DATABASE_URL or copy backend/.env.example to backend/.env."
-            }
-            if (
-                [string]::IsNullOrWhiteSpace($env:TEST_DATABASE_URL) -and
-                -not (Test-Path -LiteralPath $backendEnv)
-            ) {
-                throw "Set TEST_DATABASE_URL or copy backend/.env.example to backend/.env."
-            }
-            Invoke-Checked "Alembic upgrade to head" { & $backendPython -m alembic upgrade head }
-            Invoke-Checked "Alembic model drift check" { & $backendPython -m alembic check }
-            Invoke-Checked "Migrate isolated test database" {
-                & $backendPython (Join-Path $repositoryRoot "scripts/migrate-test-db.py")
-            }
-        }
-
-        if ($SkipDatabase) {
-            $previousTestDatabase = $env:TEST_DATABASE_URL
-            try {
-                # Unit fixtures never connect; this satisfies the shared URL guard.
-                $env:TEST_DATABASE_URL = "postgresql+asyncpg://unused:unused@localhost:1/unit_test" # pragma: allowlist secret
-                Invoke-Checked "Backend unit tests (no database)" {
-                    & $backendPython -m pytest tests/unit -p no:cacheprovider
-                }
-            }
-            finally { $env:TEST_DATABASE_URL = $previousTestDatabase }
-        }
-        else {
-            Invoke-Checked "Backend tests (isolated *_test database)" {
-                & $backendPython -m pytest
-            }
-        }
-    }
-    finally {
-        Pop-Location
-    }
-
-    Push-Location (Join-Path $repositoryRoot "frontend")
-    try {
-        Invoke-Checked "Frontend ESLint" { npm run lint }
-        Invoke-Checked "Frontend TypeScript" { npm run typecheck }
-        if (-not $SkipBuild) {
-            Invoke-Checked "Frontend production build" { npm run build }
-        }
-        if (-not $SkipBrowser -and -not $SkipDatabase) {
-            Invoke-Checked "Browser authentication and sale workflow" {
-                & $backendPython (Join-Path $repositoryRoot "scripts/run-browser-tests.py")
-            }
-        }
-    }
-    finally {
-        Pop-Location
-    }
-
-    Write-Host "`nValidation completed successfully." -ForegroundColor Green
+    & $backendPython @runnerArguments
+    if ($LASTEXITCODE -ne 0) { throw "Validation failed with exit code $LASTEXITCODE" }
 }
-finally {
-    Pop-Location
-}
+finally { Pop-Location }

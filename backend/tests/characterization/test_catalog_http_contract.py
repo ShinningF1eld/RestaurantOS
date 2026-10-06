@@ -42,7 +42,9 @@ def test_invalid_price_returns_422_without_changing_item(authenticated_client, p
     menu_id = create_menu(client, restaurant_id)
     item_id = create_menu_item(client, menu_id)
 
-    created = client.post(f"/menus/{menu_id}/items", json={"name": "Bad", "price": price})
+    created = client.post(
+        f"/menus/{menu_id}/items", json={"name": "Bad", "price": price}
+    )
     assert created.status_code == 422
     updated = client.put(
         f"/menu-items/{item_id}", json={"name": "Should not persist", "price": price}
@@ -61,7 +63,10 @@ def test_price_boundaries_round_trip(authenticated_client, price):
     menu_id = create_menu(client, restaurant_id)
     item_id = create_menu_item(client, menu_id, price=price)
     assert client.get(f"/menu-items/{item_id}").json()["price"] == price
-    assert client.put(f"/menu-items/{item_id}", json={"price": price}).json()["price"] == price
+    assert (
+        client.put(f"/menu-items/{item_id}", json={"price": price}).json()["price"]
+        == price
+    )
 
 
 def test_catalog_updates_and_deletes_preserve_status_and_response_shapes(
@@ -129,7 +134,10 @@ def test_menu_item_with_order_history_is_deactivated_and_snapshot_is_retained(
 
         created_order = client.post(
             f"/api/restaurants/{restaurant_id}/orders",
-            json={"idempotency_key": uuid4().hex, "items": [{"menu_item_id": item_id, "quantity": 2}]},
+            json={
+                "idempotency_key": uuid4().hex,
+                "items": [{"menu_item_id": item_id, "quantity": 2}],
+            },
         )
         assert created_order.status_code == 201, created_order.text
         order_id = created_order.json()["order_id"]
@@ -144,7 +152,10 @@ def test_menu_item_with_order_history_is_deactivated_and_snapshot_is_retained(
 
         unavailable = client.post(
             f"/api/restaurants/{restaurant_id}/orders",
-            json={"idempotency_key": uuid4().hex, "items": [{"menu_item_id": item_id, "quantity": 1}]},
+            json={
+                "idempotency_key": uuid4().hex,
+                "items": [{"menu_item_id": item_id, "quantity": 1}],
+            },
         )
         assert unavailable.status_code == 422, unavailable.text
 

@@ -54,7 +54,11 @@ with engine.begin() as connection:
                 "DELETE FROM restaurants WHERE organization_id=:org",
                 "DELETE FROM organizations WHERE id=:org",
             ]:
-                if statement.startswith("DELETE FROM order_submissions") and not connection.scalar(text("SELECT to_regclass('order_submissions')")):
+                if statement.startswith(
+                    "DELETE FROM order_submissions"
+                ) and not connection.scalar(
+                    text("SELECT to_regclass('order_submissions')")
+                ):
                     continue
                 connection.execute(text(statement), {"org": org})
         connection.execute(text("DELETE FROM users WHERE id=:id"), {"id": user_id})
@@ -83,7 +87,7 @@ with engine.begin() as connection:
             ),
             {"member": str(uuid4()), "user": user_id, "org": organization_id},
         )
-    elif sys.argv[1] == "employee":
+    elif sys.argv[1] in {"employee", "manager"}:
         restaurant_id = int(sys.argv[3])
         member = connection.execute(
             text("SELECT id,organization_id FROM memberships WHERE user_id=:id"),
@@ -97,8 +101,8 @@ with engine.begin() as connection:
             == member.organization_id
         )
         connection.execute(
-            text("UPDATE memberships SET role='EMPLOYEE' WHERE user_id=:id"),
-            {"id": user_id},
+            text("UPDATE memberships SET role=:role WHERE user_id=:id"),
+            {"id": user_id, "role": sys.argv[1].upper()},
         )
         connection.execute(
             text(

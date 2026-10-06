@@ -5,10 +5,12 @@ from app.core.config import Settings
 
 
 @pytest.mark.parametrize("field", ["AUTH_JWT_SECRET", "AUTH_RATE_LIMIT_SECRET"])
-def test_auth_secret_is_required(monkeypatch, field):
+def test_auth_secret_is_required(monkeypatch, field, unit_settings_kwargs):
     monkeypatch.delenv(field, raising=False)
+    required = unit_settings_kwargs.copy()
+    required.pop(field.lower())
     with pytest.raises(ValidationError, match=field):
-        Settings(_env_file=None)
+        Settings(_env_file=None, **required)
 
 
 @pytest.mark.parametrize(
@@ -38,14 +40,18 @@ def test_auth_secret_is_required(monkeypatch, field):
         },
     ],
 )
-def test_insecure_or_invalid_auth_configuration_is_rejected(changes):
+def test_insecure_or_invalid_auth_configuration_is_rejected(
+    changes, unit_settings_kwargs
+):
+    settings = {**unit_settings_kwargs, **changes}
     with pytest.raises(ValidationError):
-        Settings(_env_file=None, **changes)
+        Settings(_env_file=None, **settings)
 
 
-def test_production_accepts_secure_exact_origin():
+def test_production_accepts_secure_exact_origin(unit_settings_kwargs):
     settings = Settings(
         _env_file=None,
+        **unit_settings_kwargs,
         environment="production",
         auth_cookie_secure=True,
         auth_trusted_origins=["https://example.test"],

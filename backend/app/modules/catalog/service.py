@@ -207,9 +207,7 @@ class CatalogService:
             await InventoryRepository(self._session, context).lock_restaurant(
                 menu.restaurant_id
             )
-            menu_item = await self._catalog.get_menu_item_by_id(
-                menu_item_id, lock=True
-            )
+            menu_item = await self._catalog.get_menu_item_by_id(menu_item_id, lock=True)
             if menu_item is None:
                 raise NotFoundError("Menu item not found")
             if command.name is not None:
@@ -252,9 +250,7 @@ class CatalogService:
             await InventoryRepository(self._session, context).lock_restaurant(
                 menu.restaurant_id
             )
-            menu_item = await self._catalog.get_menu_item_by_id(
-                menu_item_id, lock=True
-            )
+            menu_item = await self._catalog.get_menu_item_by_id(menu_item_id, lock=True)
             if menu_item is None:
                 raise NotFoundError("Menu item not found")
             if await self._catalog.menu_item_has_order_history(menu_item_id):

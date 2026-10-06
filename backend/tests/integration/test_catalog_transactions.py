@@ -9,7 +9,10 @@ from app.db.database import AsyncSessionLocal
 from app.db.models.menu import Menu
 from app.db.models.menu_items import MenuItem
 from app.modules.catalog.service import (
-    CatalogService, CreateMenu, CreateMenuItem, UpdateMenuItem,
+    CatalogService,
+    CreateMenu,
+    CreateMenuItem,
+    UpdateMenuItem,
 )
 from app.modules.restaurants.service import (
     CreateRestaurant,
@@ -72,7 +75,9 @@ async def test_catalog_commands_commit_atomically_and_rollback_missing_parent(
 
 
 @pytest.mark.asyncio
-async def test_direct_service_rejects_prices_and_rolls_back_other_changes(owner_principal):
+async def test_direct_service_rejects_prices_and_rolls_back_other_changes(
+    owner_principal,
+):
     async with AsyncSessionLocal() as session:
         restaurant = await RestaurantService(session, owner_principal).create(
             CreateRestaurant(name="Price test", address=None, phone=None)
@@ -111,7 +116,9 @@ async def test_database_rejects_invalid_stored_prices(owner_principal, price):
         with pytest.raises(IntegrityError, match="ck_menu_items_price_range"):
             async with session.begin():
                 await session.execute(
-                    text("INSERT INTO menu_items (menu_id, name, price, is_available) "
-                         "VALUES (:menu, 'Invalid', CAST(:price AS numeric), true)"),
+                    text(
+                        "INSERT INTO menu_items (menu_id, name, price, is_available) "
+                        "VALUES (:menu, 'Invalid', CAST(:price AS numeric), true)"
+                    ),
                     {"menu": menu.menu_id, "price": price},
                 )

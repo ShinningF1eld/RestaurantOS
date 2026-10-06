@@ -31,9 +31,9 @@ class RecipeRepository:
             )
         )
         if lock:
-            statement = statement.execution_options(populate_existing=True).with_for_update(
-                of=MenuItem
-            )
+            statement = statement.execution_options(
+                populate_existing=True
+            ).with_for_update(of=MenuItem)
         row = (await self.session.execute(statement)).one_or_none()
         if row is None:
             return None

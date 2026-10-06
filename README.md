@@ -56,7 +56,7 @@ if (-not $restaurantOsTestDatabase) {
 
 py -3.12 -m venv backend/.venv
 backend/.venv/Scripts/python.exe -m pip install --upgrade pip
-backend/.venv/Scripts/python.exe -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+backend/.venv/Scripts/python.exe -m pip install --require-hashes -r backend/requirements-dev.txt
 backend/.venv/Scripts/python.exe scripts/init-auth-env.py
 
 Push-Location backend
@@ -122,7 +122,7 @@ if ! docker exec restaurantos-postgres psql -U restaurantos -d postgres -tAc "SE
 fi
 python3.12 -m venv backend/.venv
 backend/.venv/bin/python -m pip install --upgrade pip
-backend/.venv/bin/python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+backend/.venv/bin/python -m pip install --require-hashes -r backend/requirements-dev.txt
 backend/.venv/bin/python scripts/init-auth-env.py
 (cd backend && .venv/bin/python -m alembic upgrade head)
 (cd backend && .venv/bin/python -m app.modules.auth.cli create-user owner@example.test)
@@ -137,23 +137,29 @@ and the frontend with `cd frontend && npm run dev`.
 
 ## Validation
 
-With PostgreSQL running and dependencies installed, Windows users can run:
+With Python 3.12, Node 24, Docker Desktop and Chromium installed, run from the root:
 
 ```powershell
 ./scripts/validate.ps1
 ```
 
-The script validates Compose, installed Python dependencies, tracked files for
-secrets, Ruff, full-backend mypy, backend regression tests, Alembic state
-and model drift, ESLint, TypeScript, the production frontend build, and the
-real Chromium authentication/sale suite.
-Stop development servers on ports 3000 and 8000 before full validation. Use
-`-SkipBuild`, `-SkipDatabase`, `-SkipBrowser`, or `-SkipSecrets` only for targeted local work;
-CI runs every underlying gate independently.
+The command installs the committed dependency locks and runs secret scanning,
+separate lint/format/type checks, backend unit and PostgreSQL regression suites,
+frontend component/client tests, coverage, clean/legacy migrations, Chromium
+journeys, and both production builds. It creates disposable PostgreSQL/Redis
+services, database names and browser ports, then cleans up on success or failure.
+It does not migrate the application database or reuse developer servers/builds.
 
-Equivalent individual commands are recorded in
-[`docs/current-state.md`](docs/current-state.md) and
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+Linux and macOS use `backend/.venv/bin/python scripts/validate.py` for the same
+gate definitions. `-Gate`, `-NoInstall` and the legacy `-Skip*` switches are
+explicit partial runs and cannot count as full milestone validation. CI executes
+every gate and requires its aggregate `Milestone 6 acceptance` check.
+
+See [the testing strategy](docs/testing/README.md) for commands, layer boundaries,
+the critical-rule map, artifacts, and the explicit Milestone 8 worker/event deferral.
+The dated [Milestone 6 verification](docs/verification-milestone6.md) records
+execution and the [required-check policy](docs/testing/enforcement.md) with actual
+GitHub PR evidence.
 
 ## Shutdown
 

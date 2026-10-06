@@ -7,15 +7,24 @@ import { ApiError } from "@/lib/api/errors";
 import { inventoryApi } from "@/lib/api/inventory";
 import type { Ingredient, Movement } from "@/types/inventory";
 
-const control = "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100";
-const primaryButton = "inline-flex min-h-10 cursor-pointer items-center justify-center rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300";
-const secondaryButton = "inline-flex min-h-9 cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-stone-50 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400";
-const closeButton = "inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-stone-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 disabled:cursor-not-allowed disabled:text-slate-400";
-const rowActionBase = "inline-flex min-h-9 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 py-1.5 text-xs font-semibold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
-const rowActionDefault = "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-stone-50 hover:text-slate-950 focus-visible:outline-slate-500";
-const rowActionSelected = "border-slate-400 bg-slate-100 text-slate-950 ring-1 ring-slate-200 focus-visible:outline-slate-700";
-const rowActionDanger = "border-red-200 bg-white text-red-700 hover:border-red-300 hover:bg-red-50 focus-visible:outline-red-600";
-const rowActionRestore = "border-emerald-200 bg-white text-emerald-800 hover:border-emerald-300 hover:bg-emerald-50 focus-visible:outline-emerald-600";
+const control =
+  "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100";
+const primaryButton =
+  "inline-flex min-h-10 cursor-pointer items-center justify-center rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300";
+const secondaryButton =
+  "inline-flex min-h-9 cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-stone-50 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400";
+const closeButton =
+  "inline-flex min-h-9 cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm font-semibold text-slate-600 transition hover:bg-stone-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 disabled:cursor-not-allowed disabled:text-slate-400";
+const rowActionBase =
+  "inline-flex min-h-9 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-2.5 py-1.5 text-xs font-semibold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+const rowActionDefault =
+  "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-stone-50 hover:text-slate-950 focus-visible:outline-slate-500";
+const rowActionSelected =
+  "border-slate-400 bg-slate-100 text-slate-950 ring-1 ring-slate-200 focus-visible:outline-slate-700";
+const rowActionDanger =
+  "border-red-200 bg-white text-red-700 hover:border-red-300 hover:bg-red-50 focus-visible:outline-red-600";
+const rowActionRestore =
+  "border-emerald-200 bg-white text-emerald-800 hover:border-emerald-300 hover:bg-emerald-50 focus-visible:outline-emerald-600";
 
 type Editor = {
   id?: number;
@@ -135,17 +144,20 @@ export default function InventoryManager({
   const pending = useRef<{ signature: string; key: string } | null>(null);
   const locked = busy || loading;
 
-  const load = useCallback(async (showLoading = true) => {
-    if (showLoading) setLoading(true);
-    try {
-      setItems(await inventoryApi(restaurantId).list(ingredientOffset));
-      setError("");
-    } catch (failure) {
-      setError(errorMessage(failure, "Could not load inventory."));
-    } finally {
-      setLoading(false);
-    }
-  }, [restaurantId, ingredientOffset]);
+  const load = useCallback(
+    async (showLoading = true) => {
+      if (showLoading) setLoading(true);
+      try {
+        setItems(await inventoryApi(restaurantId).list(ingredientOffset));
+        setError("");
+      } catch (failure) {
+        setError(errorMessage(failure, "Could not load inventory."));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [restaurantId, ingredientOffset],
+  );
 
   useEffect(() => {
     const refresh = () => {
@@ -163,7 +175,8 @@ export default function InventoryManager({
 
   useEffect(() => {
     let active = true;
-    void inventoryApi(restaurantId).list(ingredientOffset)
+    void inventoryApi(restaurantId)
+      .list(ingredientOffset)
       .then((rows) => {
         if (active) {
           setItems(rows);
@@ -176,7 +189,9 @@ export default function InventoryManager({
       .finally(() => {
         if (active) setLoading(false);
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [restaurantId, ingredientOffset]);
 
   function keyFor(payload: object) {
@@ -342,11 +357,19 @@ export default function InventoryManager({
 
   return (
     <div className="space-y-6" aria-busy={locked}>
-      {loading && <p className="sr-only" role="status">Refreshing inventory…</p>}
+      {loading && (
+        <p className="sr-only" role="status">
+          Refreshing inventory…
+        </p>
+      )}
       {error && (
         <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">
           {error}{" "}
-          <button className="cursor-pointer underline disabled:cursor-not-allowed" disabled={locked} onClick={() => void load()}>
+          <button
+            className="cursor-pointer underline disabled:cursor-not-allowed"
+            disabled={locked}
+            onClick={() => void load()}
+          >
             Refresh inventory
           </button>
         </div>
@@ -383,21 +406,38 @@ export default function InventoryManager({
       </div>
 
       {editor && !editor.id && (
-        <form className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" onSubmit={saveIngredient}>
+        <form
+          className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+          onSubmit={saveIngredient}
+        >
           <div>
             <h2 className="font-semibold text-slate-950">Create ingredient</h2>
-            <p className="mt-1 text-sm text-slate-600">Set the base unit and starting stock for this restaurant.</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Set the base unit and starting stock for this restaurant.
+            </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">
               Ingredient name
-              <input className={control} required maxLength={255} disabled={locked} value={editor.name}
-                onChange={(event) => setEditor({ ...editor, name: event.target.value })} />
+              <input
+                className={control}
+                required
+                maxLength={255}
+                disabled={locked}
+                value={editor.name}
+                onChange={(event) => setEditor({ ...editor, name: event.target.value })}
+              />
             </label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">
               Base unit
-              <select className={control} disabled={locked} value={editor.unit}
-                onChange={(event) => setEditor({ ...editor, unit: event.target.value as Ingredient["unit"] })}>
+              <select
+                className={control}
+                disabled={locked}
+                value={editor.unit}
+                onChange={(event) =>
+                  setEditor({ ...editor, unit: event.target.value as Ingredient["unit"] })
+                }
+              >
                 <option value="g">Grams (g)</option>
                 <option value="ml">Millilitres (ml)</option>
                 <option value="piece">Pieces</option>
@@ -405,20 +445,47 @@ export default function InventoryManager({
             </label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">
               Reorder threshold
-              <input className={control} type="number" min="0" max="999999999.999" step="0.001"
-                required disabled={locked} value={editor.reorder_threshold}
-                onChange={(event) => setEditor({ ...editor, reorder_threshold: event.target.value })} />
+              <input
+                className={control}
+                type="number"
+                min="0"
+                max="999999999.999"
+                step="0.001"
+                required
+                disabled={locked}
+                value={editor.reorder_threshold}
+                onChange={(event) =>
+                  setEditor({ ...editor, reorder_threshold: event.target.value })
+                }
+              />
             </label>
             <label className="grid gap-1.5 text-sm font-medium text-slate-700">
               Opening stock
-              <input className={control} type="number" min="0" max="999999999.999" step="0.001"
-                required disabled={locked} value={editor.opening_quantity}
-                onChange={(event) => setEditor({ ...editor, opening_quantity: event.target.value })} />
+              <input
+                className={control}
+                type="number"
+                min="0"
+                max="999999999.999"
+                step="0.001"
+                required
+                disabled={locked}
+                value={editor.opening_quantity}
+                onChange={(event) => setEditor({ ...editor, opening_quantity: event.target.value })}
+              />
             </label>
           </div>
           <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-            <button className={primaryButton} disabled={locked}>Save ingredient</button>
-            <button className={secondaryButton} type="button" disabled={locked} onClick={() => setEditor(null)}>Cancel</button>
+            <button className={primaryButton} disabled={locked}>
+              Save ingredient
+            </button>
+            <button
+              className={secondaryButton}
+              type="button"
+              disabled={locked}
+              onClick={() => setEditor(null)}
+            >
+              Cancel
+            </button>
           </div>
         </form>
       )}
@@ -434,7 +501,12 @@ export default function InventoryManager({
               : "Try the previous page to find more ingredients."}
           </p>
           {canManage && ingredientOffset === 0 && !editor && (
-            <button className={`${primaryButton} mt-5`} disabled={locked} onClick={() => setEditor({ ...blank })} type="button">
+            <button
+              className={`${primaryButton} mt-5`}
+              disabled={locked}
+              onClick={() => setEditor({ ...blank })}
+              type="button"
+            >
               Add first ingredient
             </button>
           )}
@@ -461,8 +533,10 @@ export default function InventoryManager({
                 const detailOpen = historyOpen || editOpen || stockOpen;
                 const editDisabled = locked || !!selected || (!!editor && editor.id !== item.id);
                 const stockDisabled = locked || !!editor || (!!selected && selected.id !== item.id);
-                const historyDisabled = locked || (!!editor && (editor.id === undefined || editor.id !== item.id))
-                  || (!!selected && selected.id !== item.id);
+                const historyDisabled =
+                  locked ||
+                  (!!editor && (editor.id === undefined || editor.id !== item.id)) ||
+                  (!!selected && selected.id !== item.id);
                 const archiveDisabled = locked || !!editor || !!selected;
 
                 return (
@@ -476,76 +550,95 @@ export default function InventoryManager({
                         <div className="mt-0.5 text-xs text-slate-500">Base unit: {item.unit}</div>
                       </td>
                       <td className="grid grid-cols-[7.25rem_minmax(0,1fr)] items-baseline gap-2 px-0 py-1.5 text-slate-800 sm:table-cell sm:px-4 sm:py-3.5">
-                        <span className="text-xs font-medium text-slate-500 sm:hidden">On hand</span>
-                        <span className="font-medium tabular-nums">{item.quantity} <span className="text-slate-500">{item.unit}</span></span>
+                        <span className="text-xs font-medium text-slate-500 sm:hidden">
+                          On hand
+                        </span>
+                        <span className="font-medium tabular-nums">
+                          {item.quantity} <span className="text-slate-500">{item.unit}</span>
+                        </span>
                       </td>
                       <td className="grid grid-cols-[7.25rem_minmax(0,1fr)] items-baseline gap-2 px-0 py-1.5 text-slate-700 sm:table-cell sm:px-4 sm:py-3.5">
-                        <span className="text-xs font-medium text-slate-500 sm:hidden">Reorder</span>
-                        <span className="tabular-nums">{item.reorder_threshold} <span className="text-slate-500">{item.unit}</span></span>
+                        <span className="text-xs font-medium text-slate-500 sm:hidden">
+                          Reorder
+                        </span>
+                        <span className="tabular-nums">
+                          {item.reorder_threshold}{" "}
+                          <span className="text-slate-500">{item.unit}</span>
+                        </span>
                       </td>
                       <td className="grid grid-cols-[7.25rem_minmax(0,1fr)] items-center gap-2 px-0 py-1.5 sm:table-cell sm:px-4 sm:py-3.5">
                         <span className="text-xs font-medium text-slate-500 sm:hidden">Status</span>
-                        <StatusBadge tone={!item.is_active ? "neutral" : item.low_stock ? "amber" : "green"}>
+                        <StatusBadge
+                          tone={!item.is_active ? "neutral" : item.low_stock ? "amber" : "green"}
+                        >
                           {!item.is_active ? "Archived" : item.low_stock ? "Low stock" : "Healthy"}
                         </StatusBadge>
                       </td>
                       <td className="block px-0 py-2 sm:table-cell sm:px-4 sm:py-3">
                         <div className="grid gap-2 sm:block">
-                          <span className="text-xs font-medium text-slate-500 sm:hidden">Actions</span>
+                          <span className="text-xs font-medium text-slate-500 sm:hidden">
+                            Actions
+                          </span>
                           <div className="flex flex-wrap gap-1.5">
-                          <RowAction
-                            accessibleName={`History for ${item.name}`}
-                            controls={detailId}
-                            disabled={historyDisabled}
-                            expanded={historyOpen}
-                            icon="history"
-                            onClick={() => openHistory(item)}
-                          >
-                            History
-                          </RowAction>
-                          {canManage && (
-                            <>
-                              <RowAction
-                                accessibleName={`Edit ${item.name}`}
-                                controls={detailId}
-                                disabled={editDisabled}
-                                expanded={editOpen}
-                                icon="edit"
-                                onClick={() => openEditor(item)}
-                              >
-                                Edit
-                              </RowAction>
-                              {item.is_active && (
+                            <RowAction
+                              accessibleName={`History for ${item.name}`}
+                              controls={detailId}
+                              disabled={historyDisabled}
+                              expanded={historyOpen}
+                              icon="history"
+                              onClick={() => openHistory(item)}
+                            >
+                              History
+                            </RowAction>
+                            {canManage && (
+                              <>
                                 <RowAction
-                                  accessibleName={`Manage stock for ${item.name}`}
+                                  accessibleName={`Edit ${item.name}`}
                                   controls={detailId}
-                                  disabled={stockDisabled}
-                                  expanded={stockOpen}
-                                  icon="stock"
-                                  onClick={() => openStock(item)}
+                                  disabled={editDisabled}
+                                  expanded={editOpen}
+                                  icon="edit"
+                                  onClick={() => openEditor(item)}
                                 >
-                                  Stock
+                                  Edit
                                 </RowAction>
-                              )}
-                              <RowAction
-                                accessibleName={`${item.is_active ? "Archive" : "Restore"} ${item.name}`}
-                                disabled={archiveDisabled}
-                                icon={item.is_active ? "archive" : "restore"}
-                                onClick={() => void run(async () => {
-                                  await inventoryApi(restaurantId).update(item.id, {
-                                    name: item.name,
-                                    unit: item.unit,
-                                    reorder_threshold: item.reorder_threshold,
-                                    is_active: !item.is_active,
-                                  });
-                                  setMessage(item.is_active ? "Ingredient archived." : "Ingredient restored.");
-                                })}
-                                tone={item.is_active ? "danger" : "restore"}
-                              >
-                                {item.is_active ? "Archive" : "Restore"}
-                              </RowAction>
-                            </>
-                          )}
+                                {item.is_active && (
+                                  <RowAction
+                                    accessibleName={`Manage stock for ${item.name}`}
+                                    controls={detailId}
+                                    disabled={stockDisabled}
+                                    expanded={stockOpen}
+                                    icon="stock"
+                                    onClick={() => openStock(item)}
+                                  >
+                                    Stock
+                                  </RowAction>
+                                )}
+                                <RowAction
+                                  accessibleName={`${item.is_active ? "Archive" : "Restore"} ${item.name}`}
+                                  disabled={archiveDisabled}
+                                  icon={item.is_active ? "archive" : "restore"}
+                                  onClick={() =>
+                                    void run(async () => {
+                                      await inventoryApi(restaurantId).update(item.id, {
+                                        name: item.name,
+                                        unit: item.unit,
+                                        reorder_threshold: item.reorder_threshold,
+                                        is_active: !item.is_active,
+                                      });
+                                      setMessage(
+                                        item.is_active
+                                          ? "Ingredient archived."
+                                          : "Ingredient restored.",
+                                      );
+                                    })
+                                  }
+                                  tone={item.is_active ? "danger" : "restore"}
+                                >
+                                  {item.is_active ? "Archive" : "Restore"}
+                                </RowAction>
+                              </>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -566,8 +659,12 @@ export default function InventoryManager({
                               >
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                   <div>
-                                    <h2 className="font-semibold text-slate-950">Edit ingredient</h2>
-                                    <p className="mt-1 text-sm text-slate-600">Update the name or reorder threshold. Base unit is fixed.</p>
+                                    <h2 className="font-semibold text-slate-950">
+                                      Edit ingredient
+                                    </h2>
+                                    <p className="mt-1 text-sm text-slate-600">
+                                      Update the name or reorder threshold. Base unit is fixed.
+                                    </p>
                                   </div>
                                   <button
                                     aria-label={`Close edit for ${item.name}`}
@@ -583,13 +680,30 @@ export default function InventoryManager({
                                 <div className="grid gap-4 sm:grid-cols-2">
                                   <label className="grid gap-1.5 text-sm font-medium text-slate-700">
                                     Ingredient name
-                                    <input className={control} required maxLength={255} disabled={locked} value={editor.name}
-                                      onChange={(event) => setEditor({ ...editor, name: event.target.value })} />
+                                    <input
+                                      className={control}
+                                      required
+                                      maxLength={255}
+                                      disabled={locked}
+                                      value={editor.name}
+                                      onChange={(event) =>
+                                        setEditor({ ...editor, name: event.target.value })
+                                      }
+                                    />
                                   </label>
                                   <label className="grid gap-1.5 text-sm font-medium text-slate-700">
                                     Base unit
-                                    <select className={control} disabled value={editor.unit}
-                                      onChange={(event) => setEditor({ ...editor, unit: event.target.value as Ingredient["unit"] })}>
+                                    <select
+                                      className={control}
+                                      disabled
+                                      value={editor.unit}
+                                      onChange={(event) =>
+                                        setEditor({
+                                          ...editor,
+                                          unit: event.target.value as Ingredient["unit"],
+                                        })
+                                      }
+                                    >
                                       <option value="g">Grams (g)</option>
                                       <option value="ml">Millilitres (ml)</option>
                                       <option value="piece">Pieces</option>
@@ -597,14 +711,36 @@ export default function InventoryManager({
                                   </label>
                                   <label className="grid gap-1.5 text-sm font-medium text-slate-700">
                                     Reorder threshold
-                                    <input className={control} type="number" min="0" max="999999999.999" step="0.001"
-                                      required disabled={locked} value={editor.reorder_threshold}
-                                      onChange={(event) => setEditor({ ...editor, reorder_threshold: event.target.value })} />
+                                    <input
+                                      className={control}
+                                      type="number"
+                                      min="0"
+                                      max="999999999.999"
+                                      step="0.001"
+                                      required
+                                      disabled={locked}
+                                      value={editor.reorder_threshold}
+                                      onChange={(event) =>
+                                        setEditor({
+                                          ...editor,
+                                          reorder_threshold: event.target.value,
+                                        })
+                                      }
+                                    />
                                   </label>
                                 </div>
                                 <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-                                  <button className={primaryButton} disabled={locked}>Save ingredient</button>
-                                  <button className={secondaryButton} type="button" disabled={locked} onClick={() => setEditor(null)}>Cancel</button>
+                                  <button className={primaryButton} disabled={locked}>
+                                    Save ingredient
+                                  </button>
+                                  <button
+                                    className={secondaryButton}
+                                    type="button"
+                                    disabled={locked}
+                                    onClick={() => setEditor(null)}
+                                  >
+                                    Cancel
+                                  </button>
                                 </div>
                               </form>
                             )}
@@ -617,10 +753,15 @@ export default function InventoryManager({
                               >
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                   <div>
-                                    <h2 className="font-semibold text-slate-950">Manage stock: {selected.name}</h2>
+                                    <h2 className="font-semibold text-slate-950">
+                                      Manage stock: {selected.name}
+                                    </h2>
                                     <p className="mt-1 text-sm text-slate-600">
-                                      On hand: <span className="font-semibold tabular-nums">{selected.quantity} {selected.unit}</span>.
-                                      {" "}A physical count records the total quantity you counted.
+                                      On hand:{" "}
+                                      <span className="font-semibold tabular-nums">
+                                        {selected.quantity} {selected.unit}
+                                      </span>
+                                      . A physical count records the total quantity you counted.
                                     </p>
                                   </div>
                                   <button
@@ -637,35 +778,75 @@ export default function InventoryManager({
                                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                                   <label className="grid gap-1.5 text-sm font-medium text-slate-700">
                                     Stock action
-                                    <select className={control} disabled={locked} value={kind}
-                                      onChange={(event) => setKind(event.target.value)}>
+                                    <select
+                                      className={control}
+                                      disabled={locked}
+                                      value={kind}
+                                      onChange={(event) => setKind(event.target.value)}
+                                    >
                                       <option value="receipt">Receive stock</option>
                                       <option value="waste">Record waste</option>
                                       <option value="count">Physical count</option>
                                     </select>
                                   </label>
                                   <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                                    {kind === "count" ? "Counted quantity" : "Quantity"} ({selected.unit})
-                                    <input className={control} type="number" min={kind === "count" ? "0" : "0.001"}
-                                      max="999999999.999" step="0.001" required disabled={locked}
-                                      value={amount} onChange={(event) => setAmount(event.target.value)} />
+                                    {kind === "count" ? "Counted quantity" : "Quantity"} (
+                                    {selected.unit})
+                                    <input
+                                      className={control}
+                                      type="number"
+                                      min={kind === "count" ? "0" : "0.001"}
+                                      max="999999999.999"
+                                      step="0.001"
+                                      required
+                                      disabled={locked}
+                                      value={amount}
+                                      onChange={(event) => setAmount(event.target.value)}
+                                    />
                                   </label>
                                   <label className="grid gap-1.5 text-sm font-medium text-slate-700">
                                     Reason
-                                    <input className={control} required maxLength={500} disabled={locked} value={reason}
-                                      onChange={(event) => setReason(event.target.value)} />
+                                    <input
+                                      className={control}
+                                      required
+                                      maxLength={500}
+                                      disabled={locked}
+                                      value={reason}
+                                      onChange={(event) => setReason(event.target.value)}
+                                    />
                                   </label>
                                 </div>
                                 <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-                                  <button className={primaryButton} disabled={locked}>Record stock</button>
-                                  <button className={secondaryButton} type="button" disabled={locked} onClick={() => openStock(selected)}>Cancel</button>
-                                  <button className={secondaryButton} type="button" disabled={locked} onClick={() => void run(async () => {
-                                    const fresh = await inventoryApi(restaurantId).list(ingredientOffset);
-                                    setItems(fresh);
-                                    setSelected(fresh.find((entry) => entry.id === selected.id) ?? null);
-                                    setAmount("");
-                                    setMessage("Stock refreshed. Count again before submitting.");
-                                  })}>
+                                  <button className={primaryButton} disabled={locked}>
+                                    Record stock
+                                  </button>
+                                  <button
+                                    className={secondaryButton}
+                                    type="button"
+                                    disabled={locked}
+                                    onClick={() => openStock(selected)}
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    className={secondaryButton}
+                                    type="button"
+                                    disabled={locked}
+                                    onClick={() =>
+                                      void run(async () => {
+                                        const fresh =
+                                          await inventoryApi(restaurantId).list(ingredientOffset);
+                                        setItems(fresh);
+                                        setSelected(
+                                          fresh.find((entry) => entry.id === selected.id) ?? null,
+                                        );
+                                        setAmount("");
+                                        setMessage(
+                                          "Stock refreshed. Count again before submitting.",
+                                        );
+                                      })
+                                    }
+                                  >
                                     Refresh count
                                   </button>
                                 </div>
@@ -673,11 +854,18 @@ export default function InventoryManager({
                             )}
 
                             {historyOpen && historyItem && (
-                              <section aria-label="Stock history" className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                              <section
+                                aria-label="Stock history"
+                                className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
+                              >
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                   <div>
-                                    <h2 className="font-semibold text-slate-950">Stock history: {historyItem.name}</h2>
-                                    <p className="mt-1 text-sm text-slate-600">Newest stock movements first.</p>
+                                    <h2 className="font-semibold text-slate-950">
+                                      Stock history: {historyItem.name}
+                                    </h2>
+                                    <p className="mt-1 text-sm text-slate-600">
+                                      Newest stock movements first.
+                                    </p>
                                   </div>
                                   <button
                                     aria-label={`Close history for ${item.name}`}
@@ -690,33 +878,68 @@ export default function InventoryManager({
                                     Close
                                   </button>
                                 </div>
-                                {historyError && <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{historyError}</p>}
-                                {history.length === 0 ? <p className="rounded-md bg-stone-50 px-3 py-4 text-sm text-slate-600">No movements on this page.</p> : (
+                                {historyError && (
+                                  <p
+                                    role="alert"
+                                    className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800"
+                                  >
+                                    {historyError}
+                                  </p>
+                                )}
+                                {history.length === 0 ? (
+                                  <p className="rounded-md bg-stone-50 px-3 py-4 text-sm text-slate-600">
+                                    No movements on this page.
+                                  </p>
+                                ) : (
                                   <ul className="max-h-[28rem] space-y-2 overflow-y-auto">
                                     {history.map((row) => (
-                                      <li key={row.id} className="rounded-lg border border-slate-200 bg-white p-3 sm:p-4">
+                                      <li
+                                        key={row.id}
+                                        className="rounded-lg border border-slate-200 bg-white p-3 sm:p-4"
+                                      >
                                         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                                          <span className="font-semibold capitalize text-slate-950">{row.kind}</span>
-                                          <time className="text-xs text-slate-500" dateTime={row.occurred_at}>
+                                          <span className="font-semibold capitalize text-slate-950">
+                                            {row.kind}
+                                          </span>
+                                          <time
+                                            className="text-xs text-slate-500"
+                                            dateTime={row.occurred_at}
+                                          >
                                             {new Date(row.occurred_at).toLocaleString()}
                                           </time>
                                         </div>
                                         <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
                                           <div>
-                                            <dt className="text-xs font-medium text-slate-500">Change</dt>
-                                            <dd className="mt-0.5 tabular-nums text-slate-800">{row.quantity_delta} {historyItem.unit}</dd>
+                                            <dt className="text-xs font-medium text-slate-500">
+                                              Change
+                                            </dt>
+                                            <dd className="mt-0.5 tabular-nums text-slate-800">
+                                              {row.quantity_delta} {historyItem.unit}
+                                            </dd>
                                           </div>
                                           <div>
-                                            <dt className="text-xs font-medium text-slate-500">Balance</dt>
-                                            <dd className="mt-0.5 tabular-nums text-slate-800">{row.balance_after} {historyItem.unit}</dd>
+                                            <dt className="text-xs font-medium text-slate-500">
+                                              Balance
+                                            </dt>
+                                            <dd className="mt-0.5 tabular-nums text-slate-800">
+                                              {row.balance_after} {historyItem.unit}
+                                            </dd>
                                           </div>
                                           <div className="col-span-2 sm:col-span-1">
-                                            <dt className="text-xs font-medium text-slate-500">Recorded by</dt>
-                                            <dd className="mt-0.5 break-words text-slate-800">{row.actor_name ?? "Former user"}</dd>
+                                            <dt className="text-xs font-medium text-slate-500">
+                                              Recorded by
+                                            </dt>
+                                            <dd className="mt-0.5 break-words text-slate-800">
+                                              {row.actor_name ?? "Former user"}
+                                            </dd>
                                           </div>
                                           <div className="col-span-2 sm:col-span-1">
-                                            <dt className="text-xs font-medium text-slate-500">Reason</dt>
-                                            <dd className="mt-0.5 break-words text-slate-800">{row.reason}</dd>
+                                            <dt className="text-xs font-medium text-slate-500">
+                                              Reason
+                                            </dt>
+                                            <dd className="mt-0.5 break-words text-slate-800">
+                                              {row.reason}
+                                            </dd>
                                           </div>
                                         </dl>
                                       </li>
@@ -724,14 +947,24 @@ export default function InventoryManager({
                                   </ul>
                                 )}
                                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
-                                  <span className="text-sm text-slate-600">Page {offset / 20 + 1}</span>
+                                  <span className="text-sm text-slate-600">
+                                    Page {offset / 20 + 1}
+                                  </span>
                                   <div className="flex gap-2">
-                                    <button className={secondaryButton} disabled={locked || offset === 0}
-                                      onClick={() => void showHistory(historyItem, Math.max(0, offset - 20))}>
+                                    <button
+                                      className={secondaryButton}
+                                      disabled={locked || offset === 0}
+                                      onClick={() =>
+                                        void showHistory(historyItem, Math.max(0, offset - 20))
+                                      }
+                                    >
                                       Previous history
                                     </button>
-                                    <button className={secondaryButton} disabled={locked || history.length < 20}
-                                      onClick={() => void showHistory(historyItem, offset + 20)}>
+                                    <button
+                                      className={secondaryButton}
+                                      disabled={locked || history.length < 20}
+                                      onClick={() => void showHistory(historyItem, offset + 20)}
+                                    >
                                       Next history
                                     </button>
                                   </div>
@@ -753,12 +986,18 @@ export default function InventoryManager({
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
         <span className="text-sm text-slate-600">Page {ingredientOffset / 100 + 1}</span>
         <div className="flex gap-2">
-          <button className={secondaryButton} disabled={locked || !!selected || !!editor || ingredientOffset === 0}
-            onClick={() => changeIngredientPage(Math.max(0, ingredientOffset - 100))}>
+          <button
+            className={secondaryButton}
+            disabled={locked || !!selected || !!editor || ingredientOffset === 0}
+            onClick={() => changeIngredientPage(Math.max(0, ingredientOffset - 100))}
+          >
             Previous ingredients
           </button>
-          <button className={secondaryButton} disabled={locked || !!selected || !!editor || items.length < 100}
-            onClick={() => changeIngredientPage(ingredientOffset + 100)}>
+          <button
+            className={secondaryButton}
+            disabled={locked || !!selected || !!editor || items.length < 100}
+            onClick={() => changeIngredientPage(ingredientOffset + 100)}
+          >
             Next ingredients
           </button>
         </div>

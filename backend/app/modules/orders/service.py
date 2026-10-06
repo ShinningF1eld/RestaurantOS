@@ -288,9 +288,7 @@ class OrderService:
             order = await self._get_order_or_error(order_id, lock=True)
             context.require("order.delete")
             if await self._orders.has_order_history(order_id):
-                raise ConflictError(
-                    "Orders with inventory history cannot be deleted"
-                )
+                raise ConflictError("Orders with inventory history cannot be deleted")
             record(
                 self._session,
                 context,
@@ -313,9 +311,7 @@ class OrderService:
     ) -> None:
         await self._stock_rows(restaurant_id, order_items, lock_balances=False)
 
-    async def _consume_order_stock(
-        self, order: Order, context: AccessContext
-    ) -> None:
+    async def _consume_order_stock(self, order: Order, context: AccessContext) -> None:
         rows = await self._stock_rows(
             order.restaurant_id, order.items, lock_balances=True
         )

@@ -51,7 +51,10 @@ def test_refresh_has_256_bits_and_only_sha256_digest():
     assert digest == token_digest(tokens[0])
 
 
-def test_access_round_trip_preserves_only_identity():
+def test_access_round_trip_preserves_only_identity(monkeypatch, unit_settings):
+    import app.modules.auth.security as security
+
+    monkeypatch.setattr(security, "get_settings", lambda: unit_settings)
     user, family = uuid4(), uuid4()
     assert decode_access(encode_access(user, family)) == (user, family)
 

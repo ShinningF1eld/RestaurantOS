@@ -1,0 +1,13 @@
+{
+  "observed_date": "2026-10-06",
+  "implementation_revision": "25fc289",
+  "command": "./scripts/validate.ps1 -PythonExecutable ./backend/.venv-m6-dev/Scripts/python.exe",
+  "environment": "Windows, Python 3.12.13, Node 24.14.1, npm 11.11.0, PostgreSQL 16, Redis 7, Docker Desktop Linux engine",
+  "exit_code": 0,
+  "result": "PASS: full validation",
+  "gates_passed": ["baseline", "backend-static", "frontend-static", "backend-unit", "backend-integration", "frontend-tests", "frontend-build", "migrations", "browser", "image"],
+  "tests": {"backend_unit": 133, "backend_service": 183, "frontend_client": 10, "frontend_component": 12, "chromium": 24},
+  "cleanup": "Owned Compose project restaurantos-m6-95eecbb0412d removed, including its containers and network; disposable databases, image smoke container/network and browser workspace removed",
+  "retained_local_log": "test-results/m6-full-validation.log",
+  "notes": "Execution started before the issue 13 commit; the committed implementation is the same validated source. The later temporary enforcement probe was absent during this run."
+}

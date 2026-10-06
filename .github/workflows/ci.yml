@@ -3,29 +3,29 @@ name: CI
 on:
   push:
   pull_request:
+  merge_group:
 
 permissions:
   contents: read
 
 jobs:
-  repository-baseline:
-    name: Repository baseline
+  quality:
+    name: M6 / ${{ matrix.gate }}
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install secret scanner
-        run: python -m pip install detect-secrets==1.5.0
-      - name: Check Docker Compose configuration
-        run: docker compose config --quiet
-      - name: Scan tracked files for secrets
-        run: git ls-files -z | xargs -0 detect-secrets-hook --baseline .secrets.baseline
-
-  backend:
-    name: Backend — Python 3.12 and clean PostgreSQL
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        gate:
+          - baseline
+          - backend-static
+          - frontend-static
+          - backend-unit
+          - backend-integration
+          - frontend-tests
+          - frontend-build
+          - migrations
+          - browser
+          - image
     services:
       postgres:
         image: postgres:16
@@ -37,90 +37,18 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U restaurantos -d restaurantos_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    defaults:
-      run:
-        working-directory: backend
-    env:
-      DATABASE_URL: postgresql+asyncpg://restaurantos:restaurantos@localhost:5432/restaurantos_test # pragma: allowlist secret
-      TEST_DATABASE_URL: postgresql+asyncpg://restaurantos:restaurantos@localhost:5432/restaurantos_test # pragma: allowlist secret
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: |
-            backend/requirements.txt
-            backend/requirements-dev.txt
-      - name: Install dependencies
-        run: python -m pip install -r requirements.txt -r requirements-dev.txt
-      - name: Check dependency integrity
-        run: python -m pip check
-      - name: Generate isolated test signing secrets
-        run: |
-          python - <<'PY'
-          import os, secrets
-          with open(os.environ["GITHUB_ENV"], "a") as target:
-              for key in ("AUTH_JWT_SECRET", "AUTH_RATE_LIMIT_SECRET"):
-                  target.write(f"{key}={secrets.token_urlsafe(48)}\n")
-          PY
-      - name: Lint backend
-        run: python -m ruff check app tests
-      - name: Type-check backend
-        run: python -m mypy app
-      - name: Upgrade a clean database to Alembic head
-        run: python -m alembic upgrade head
-      - name: Run PostgreSQL-backed backend tests
-        run: python -m pytest
-      - name: Verify Alembic metadata matches models
-        run: python -m alembic check
-
-  frontend:
-    name: Frontend — Node 24
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    env:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-      - name: Install dependencies from lockfile
-        run: npm ci
-      - name: Lint frontend
-        run: npm run lint
-      - name: Type-check frontend
-        run: npm run typecheck
-      - name: Build frontend
-        run: npm run build
-
-  browser:
-    name: Browser — real authentication and sale workflow
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: restaurantos
-          POSTGRES_PASSWORD: restaurantos # pragma: allowlist secret
-          POSTGRES_DB: restaurantos_browser_test
+          --health-interval 2s --health-timeout 3s --health-retries 30
+      redis:
+        image: redis:7-alpine
         ports:
-          - 5432:5432
+          - 6379:6379
         options: >-
-          --health-cmd "pg_isready -U restaurantos -d restaurantos_browser_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+          --health-cmd "redis-cli ping"
+          --health-interval 2s --health-timeout 3s --health-retries 30
     env:
-      TEST_DATABASE_URL: postgresql+asyncpg://restaurantos:restaurantos@localhost:5432/restaurantos_browser_test # pragma: allowlist secret
+      TEST_DATABASE_URL: postgresql+asyncpg://restaurantos:restaurantos@127.0.0.1:5432/restaurantos_test # pragma: allowlist secret
+      TEST_REDIS_HOST: 127.0.0.1
+      TEST_REDIS_PORT: "6379"
       NEXT_PUBLIC_API_URL: http://localhost:8000
       API_URL: http://localhost:8000
     steps:
@@ -128,28 +56,42 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Install backend and browser dependencies
+      - name: Install committed locks
         run: |
-          python -m pip install -r backend/requirements.txt
+          python -m pip install --require-hashes -r backend/requirements-dev.txt
           npm ci --prefix frontend
-          cd frontend
-          npx playwright install --with-deps chromium
-      - name: Generate migration configuration
-        run: |
-          python - <<'PY'
-          import os, secrets
-          with open(os.environ["GITHUB_ENV"], "a") as target:
-              for key in ("AUTH_JWT_SECRET", "AUTH_RATE_LIMIT_SECRET"):
-                  target.write(f"{key}={secrets.token_urlsafe(48)}\n")
-          PY
-      - name: Migrate isolated browser database
-        run: python scripts/migrate-test-db.py
-      - name: Build frontend
-        run: npm run build --prefix frontend
-      - name: Run browser tests with isolated API
-        run: python scripts/run-browser-tests.py
+      - name: Install Chromium
+        if: matrix.gate == 'browser'
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Run shared gate
+        run: python scripts/validate.py --gate ${{ matrix.gate }} --external-services --no-install
+      - name: Retain coverage and safe failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m6-${{ matrix.gate }}
+          path: |
+            backend/coverage/**
+            frontend/coverage/**
+            test-results/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+  acceptance:
+    name: Milestone 6 acceptance
+    needs: quality
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every quality gate
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+        run: test "$QUALITY_RESULT" = success

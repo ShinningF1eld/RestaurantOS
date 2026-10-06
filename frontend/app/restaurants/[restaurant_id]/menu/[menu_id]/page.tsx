@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 
 import { getAccess, getMenuItems } from "@/lib/api/server";
-import { getMenu} from "@/lib/api/server";
+import { getMenu } from "@/lib/api/server";
 
 import MenuItemList from "@/components/menu/MenuItemList";
 import PageHeader from "@/components/ui/PageHeader";
@@ -10,58 +10,64 @@ import StatCard from "@/components/ui/StatCard";
 import MenuActions from "@/components/menu/MenuActions";
 
 interface MenuItemsPageProps {
-    params: Promise<{
-        restaurant_id: string;
-        menu_id: string;
-    }>;
+  params: Promise<{
+    restaurant_id: string;
+    menu_id: string;
+  }>;
 }
 
-export default async function MenuItemsPage({
-    params,
-}: MenuItemsPageProps) {
-    const { restaurant_id, menu_id } = await params;
+export default async function MenuItemsPage({ params }: MenuItemsPageProps) {
+  const { restaurant_id, menu_id } = await params;
 
-    const restaurantId = Number(restaurant_id);
-    const menuId = Number(menu_id);
+  const restaurantId = Number(restaurant_id);
+  const menuId = Number(menu_id);
 
-    const [menu, menuItems, access] = await Promise.all([
-        getMenu(menuId),
-        getMenuItems(menuId),
-        getAccess(),
-    ]);
-    if (menu.restaurant_id !== restaurantId) notFound();
-    const canManage = access.capabilities.includes("menu.manage");
-    const availableItems = menuItems.filter((item) => item.is_available && !item.out_of_stock);
+  const [menu, menuItems, access] = await Promise.all([
+    getMenu(menuId),
+    getMenuItems(menuId),
+    getAccess(),
+  ]);
+  if (menu.restaurant_id !== restaurantId) notFound();
+  const canManage = access.capabilities.includes("menu.manage");
+  const availableItems = menuItems.filter((item) => item.is_available && !item.out_of_stock);
 
-    return (
-        <div className="space-y-8">
-            <PageHeader
-                eyebrow="Menu detail"
-                title={menu.name}
-                description={menu.description || "Manage item availability, pricing, and descriptions for this menu."}
-                actions={<>{canManage && <MenuActions menu={menu} restaurantId={restaurantId} />}<Link href={`/restaurants/${restaurantId}/menu`} className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-stone-50">Back to menus</Link></>}
-            />
+  return (
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Menu detail"
+        title={menu.name}
+        description={
+          menu.description || "Manage item availability, pricing, and descriptions for this menu."
+        }
+        actions={
+          <>
+            {canManage && <MenuActions menu={menu} restaurantId={restaurantId} />}
+            <Link
+              href={`/restaurants/${restaurantId}/menu`}
+              className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-stone-50"
+            >
+              Back to menus
+            </Link>
+          </>
+        }
+      />
 
-            <div className="grid gap-4 md:grid-cols-3">
-                <StatCard
-                    label="Items"
-                    value={menuItems.length}
-                    detail={menuItems.length === 1 ? "Menu item" : "Menu items"}
-                    tone="blue"
-                />
-                <StatCard
-                    label="Available"
-                    value={availableItems.length}
-                    detail="Ready for ordering"
-                    tone="green"
-                />
-            </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard
+          label="Items"
+          value={menuItems.length}
+          detail={menuItems.length === 1 ? "Menu item" : "Menu items"}
+          tone="blue"
+        />
+        <StatCard
+          label="Available"
+          value={availableItems.length}
+          detail="Ready for ordering"
+          tone="green"
+        />
+      </div>
 
-            <MenuItemList
-                menuId={menuId}
-                menuItems={menuItems}
-                canManage={canManage}
-            />
-        </div>
-    );
+      <MenuItemList menuId={menuId} menuItems={menuItems} canManage={canManage} />
+    </div>
+  );
 }

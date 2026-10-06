@@ -4,17 +4,23 @@ from pydantic import ValidationError
 from app.core.config import Settings
 
 
-def test_settings_requires_database_url(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_settings_requires_database_url(
+    monkeypatch: pytest.MonkeyPatch, unit_settings_kwargs
+) -> None:
     monkeypatch.delenv("DATABASE_URL", raising=False)
 
     with pytest.raises(ValidationError, match="DATABASE_URL"):
-        Settings(_env_file=None)
+        Settings(
+            _env_file=None,
+            auth_jwt_secret=unit_settings_kwargs["auth_jwt_secret"],
+            auth_rate_limit_secret=unit_settings_kwargs["auth_rate_limit_secret"],
+        )
 
 
-def test_settings_normalizes_typed_environment_values() -> None:
+def test_settings_normalizes_typed_environment_values(unit_settings_kwargs) -> None:
     settings = Settings(
         _env_file=None,
-        database_url="postgresql+asyncpg://user:pass@localhost:5432/restaurantos",  # pragma: allowlist secret
+        **unit_settings_kwargs,
         environment="TEST",
         log_level="debug",
         database_echo=True,
@@ -25,9 +31,13 @@ def test_settings_normalizes_typed_environment_values() -> None:
     assert settings.database_echo is True
 
 
-def test_settings_rejects_non_async_postgresql_database_url() -> None:
+def test_settings_rejects_non_async_postgresql_database_url(
+    unit_settings_kwargs,
+) -> None:
     with pytest.raises(ValidationError, match=r"postgresql\+asyncpg"):
         Settings(
             _env_file=None,
             database_url="sqlite:///restaurantos.db",
+            auth_jwt_secret=unit_settings_kwargs["auth_jwt_secret"],
+            auth_rate_limit_secret=unit_settings_kwargs["auth_rate_limit_secret"],
         )
