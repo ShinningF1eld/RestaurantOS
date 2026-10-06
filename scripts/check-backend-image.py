@@ -246,10 +246,15 @@ def public_tables(database: TestDatabase) -> tuple[str, ...]:
     return tuple(row[0] for row in rows)
 
 
-def production_environment(database: TestDatabase) -> dict[str, str]:
+def production_environment(
+    database: TestDatabase, *, postgres_host: str | None = None
+) -> dict[str, str]:
     runtime = database.environment(base={})
     runtime.pop("TEST_DATABASE_URL", None)
-    runtime_url: URL = make_url(database.async_url).set(host="host.docker.internal")
+    runtime_url: URL = make_url(database.async_url).set(
+        host=postgres_host or "host.docker.internal",
+        **({"port": 5432} if postgres_host else {}),
+    )
     runtime.update(
         {
             "DATABASE_URL": runtime_url.render_as_string(hide_password=False),
@@ -263,7 +268,12 @@ def production_environment(database: TestDatabase) -> dict[str, str]:
 
 
 def create_container(
-    *, image: str, name: str, network: str, environment: Mapping[str, str]
+    *,
+    image: str,
+    name: str,
+    network: str,
+    environment: Mapping[str, str],
+    use_host_gateway: bool,
 ) -> str:
     arguments = [
         "run",
@@ -274,8 +284,6 @@ def create_container(
         network,
         "--publish",
         f"127.0.0.1::{CONTAINER_PORT}",
-        "--add-host",
-        "host.docker.internal:host-gateway",
         "--read-only",
         "--tmpfs",
         "/tmp:rw,noexec,nosuid,size=16m",
@@ -284,6 +292,8 @@ def create_container(
         "--memory=512m",
         "--pids-limit=64",
     ]
+    if use_host_gateway:
+        arguments.extend(["--add-host", "host.docker.internal:host-gateway"])
     for key, value in sorted(environment.items()):
         arguments.extend(["--env", f"{key}={value}"])
     arguments.append(image)
@@ -385,7 +395,11 @@ def verify_container_database_connection(
     )
 
 
-def remove_resources(container_name: str | None, network_name: str | None) -> None:
+def remove_resources(
+    container_name: str | None,
+    network_name: str | None,
+    postgres_container: str | None = None,
+) -> None:
     if container_name:
         existing_container = run_docker(
             ["ps", "-aq", "--filter", f"name=^/{container_name}$"],
@@ -405,6 +419,18 @@ def remove_resources(container_name: str | None, network_name: str | None) -> No
             description="smoke network lookup",
         ).stdout.strip()
         if existing_network:
+            if postgres_container:
+                run_docker(
+                    [
+                        "network",
+                        "disconnect",
+                        "--force",
+                        existing_network,
+                        postgres_container,
+                    ],
+                    description="PostgreSQL smoke network detach",
+                    check=False,
+                )
             run_docker(
                 ["network", "rm", existing_network],
                 description="smoke network cleanup",
@@ -445,18 +471,49 @@ def inject_failure(
         )
 
 
-def run_smoke(image: str, timeout: float, fail_after: str | None) -> None:
+def validate_postgres_container(container: str) -> str:
+    details = run_docker(
+        [
+            "inspect",
+            "--format",
+            '{{.Id}}|{{.State.Running}}|{{index .Config.Labels "com.docker.compose.service"}}|{{index .Config.Labels "com.docker.compose.project"}}',
+            container,
+        ],
+        description="PostgreSQL service inspection",
+    ).stdout.strip()
+    try:
+        container_id, running, service, project = details.split("|", maxsplit=3)
+    except ValueError as exc:
+        raise ImageCheckError("PostgreSQL container details were incomplete") from exc
+    if (
+        running != "true"
+        or service != "postgres"
+        or not project.startswith("restaurantos-m6-")
+    ):
+        raise ImageCheckError(
+            "--postgres-container must identify a running postgres service in a restaurantos-m6-* Compose project"
+        )
+    return container_id
+
+
+def run_smoke(
+    image: str,
+    timeout: float,
+    fail_after: str | None,
+    postgres_container: str | None = None,
+) -> None:
     with disposable_database(prefix="restaurantos_m6_image") as database:
         before = public_tables(database)
         if before:
             raise ImageCheckError(
                 "New image smoke database is not empty before startup"
             )
-        environment = production_environment(database)
         suffix = uuid4().hex
         container_name = f"restaurantos-image-{suffix}"
         network_name = f"restaurantos-image-net-{suffix}"
+        postgres_alias = f"m6-postgres-{suffix[:12]}"
         network_created = False
+        postgres_connected = False
         container_attempted = False
         try:
             run_docker(
@@ -464,6 +521,23 @@ def run_smoke(image: str, timeout: float, fail_after: str | None) -> None:
                 description="smoke network creation",
             )
             network_created = True
+            if postgres_container:
+                run_docker(
+                    [
+                        "network",
+                        "connect",
+                        "--alias",
+                        postgres_alias,
+                        network_name,
+                        postgres_container,
+                    ],
+                    description="PostgreSQL smoke network attachment",
+                )
+                postgres_connected = True
+            environment = production_environment(
+                database,
+                postgres_host=postgres_alias if postgres_container else None,
+            )
             print(
                 f"Starting smoke container {container_name} on disposable network {network_name}",
                 flush=True,
@@ -474,6 +548,7 @@ def run_smoke(image: str, timeout: float, fail_after: str | None) -> None:
                 name=container_name,
                 network=network_name,
                 environment=environment,
+                use_host_gateway=postgres_container is None,
             )
             port = published_port(container_id)
             wait_for_health(container_id, port, timeout, sensitive_values(environment))
@@ -494,6 +569,7 @@ def run_smoke(image: str, timeout: float, fail_after: str | None) -> None:
             remove_resources(
                 container_name if container_attempted else None,
                 network_name if network_created else None,
+                postgres_container if postgres_connected else None,
             )
 
 
@@ -511,6 +587,10 @@ def parse_args() -> argparse.Namespace:
         help="Seconds to wait for the production health endpoint (default: 60)",
     )
     parser.add_argument(
+        "--postgres-container",
+        help="Running Docker Compose postgres container ID for direct isolated-network access",
+    )
+    parser.add_argument(
         "--inject-failure-after",
         choices=("healthy",),
         help="Intentionally fail after the smoke checks to exercise resource cleanup",
@@ -526,9 +606,19 @@ def main() -> int:
     try:
         read_test_url()
         run_docker(["info"], description="daemon check")
+        postgres_container = (
+            validate_postgres_container(args.postgres_container)
+            if args.postgres_container
+            else None
+        )
         build_image(args.image)
         inspect_image(args.image)
-        run_smoke(args.image, args.timeout, args.inject_failure_after)
+        run_smoke(
+            args.image,
+            args.timeout,
+            args.inject_failure_after,
+            postgres_container,
+        )
     except ImageCheckError as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
         return 1

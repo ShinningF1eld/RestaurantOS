@@ -29,15 +29,23 @@ network are removed in a `finally` cleanup path; the database helper drops its
 allocated database on success and failure.
 
 Set `TEST_DATABASE_URL` to a dedicated PostgreSQL database name ending in
-`_test`. Local Docker Desktop runs can use a loopback-published PostgreSQL port.
-The image connects through `host.docker.internal`; on Linux the runner adds a
-`host-gateway` mapping for that name.
+`_test`. When PostgreSQL runs in a local `restaurantos-m6-*` Compose project,
+pass its container ID with `--postgres-container`. The checker attaches that service temporarily to
+its private smoke network, uses a unique alias on port 5432, then disconnects it
+before removing the network. The PostgreSQL service stays running. The shared
+validation command supplies this ID for its local Compose services. For an
+externally published service such as CI, omit the option; the image connects
+through `host.docker.internal`, with a `host-gateway` mapping on Linux.
 
 ```powershell
 $env:TEST_DATABASE_URL = "postgresql+asyncpg://USER:PASSWORD@127.0.0.1:5432/restaurantos_test" # pragma: allowlist secret
 & .\backend\.venv\Scripts\python.exe .\scripts\check-backend-image.py --help
 & .\backend\.venv\Scripts\python.exe .\scripts\check-backend-image.py
 ```
+
+For a running local `restaurantos-m6-*` Compose PostgreSQL service, obtain its
+ID with `docker compose --project-name <project> -f docker-compose.test.yml ps -q postgres`
+and pass it as `--postgres-container <ID>`.
 
 Pass `--image restaurantos-backend:m6` to select a tag; the default is the same.
 The command builds and tests locally and does not push to a registry. To exercise
