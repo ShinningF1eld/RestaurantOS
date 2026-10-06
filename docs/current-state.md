@@ -1,5 +1,11 @@
 # RestaurantOS current state
 
+Milestone 6 verification is dated 2026-10-06 in
+[the acceptance review](verification-milestone6.md). The complete local command
+passed, and all three roadmap exit criteria were verified with full GitHub CI and
+missing/pending/failing/passing enforcement proof. Historical
+results below retain their original dates.
+
 Milestone 5 verification is dated 2026-10-05 and recorded below. Milestone 4
 PostgreSQL acceptance and live cutover were verified on 2026-10-02. Historical
 Milestone 3/schema results are dated below.
@@ -18,12 +24,41 @@ roadmap features are complete.
 - Database: PostgreSQL 16 in Docker Compose, host port `5433` to container port
   `5432`, with the named volume `postgres_data`.
 - Supported baseline: Python 3.12 in documentation and CI; Node.js 24 in CI.
-- Audit host: Python 3.13.15, Node.js 24.14.1, npm 11.11.0.
+- Earlier audit host: Python 3.13.15, Node.js 24.14.1, npm 11.11.0.
+- Milestone 6 validation: isolated Python 3.12.13 environment, Node.js 24.14.1,
+  npm 11.11.0; the older developer virtual environment was not replaced.
 - The only repository instruction file is `frontend/AGENTS.md`.
 
-Docker Compose currently manages only PostgreSQL. The API and frontend run as
-host processes. Compose credentials are predictable local-development defaults
-and are not suitable for shared or deployed environments.
+Developer Docker Compose manages PostgreSQL. The independent
+`docker-compose.test.yml` adds disposable PostgreSQL/Redis for validation. The API
+and frontend run as host processes. Compose credentials are predictable local
+development defaults and are not suitable for shared or deployed environments.
+
+## Milestone 6 quality gates — 2026-10-06
+
+`./scripts/validate.ps1` is the full Windows command; Linux/macOS use
+`backend/.venv/bin/python scripts/validate.py`. Python 3.12 and Node 24 are the
+supported baseline. Dependency locks are installed without rewriting them.
+The command runs ten shared local/CI gates, allocates independent services and
+databases, and cleans owned resources on success or failure. Partial selectors
+are explicitly labelled and do not claim milestone acceptance.
+
+The local full run passed 133 unit, 183 service, 10 client, 12 component and
+24 Chromium tests, static checks, migrations, Redis infrastructure checks and
+both production builds. [Testing strategy](testing/README.md) links the critical
+business/isolation regression map and labelled coverage reports.
+
+The active `main` ruleset requires the GitHub Actions `Milestone 6 acceptance`
+aggregate with an up-to-date branch and no bypass actors. Missing/pending/failing
+checks disabled ordinary merge on the disposable proof PR; restored passing
+checks enabled merge, after which the probe PR was closed without merging.
+Evidence is recorded in the [acceptance review](verification-milestone6.md).
+
+Worker/event delivery, retry, duplicate and failure-recovery tests remain deferred
+to Milestone 8 under the approved plan. No worker coverage is claimed. Redis
+application caching/rate limiting remains Milestone 7; M6 verifies infrastructure.
+The application database was not migrated by validation. Earlier milestone
+cutover results below are historical, not evidence of an M6 application cutover.
 
 ## Configuration
 

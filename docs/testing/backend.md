@@ -24,7 +24,7 @@ python scripts/validate.py --gate backend-integration --no-install
 
 That gate starts an isolated PostgreSQL/Redis Compose project, creates a unique
 disposable PostgreSQL database from the test template, applies Alembic head,
-runs the complete backend suite, checks model drift, and drops the database and
+runs all non-unit backend suites, checks model drift, and drops the database and
 services on exit. `--external-services` is reserved for CI and requires an
 explicit `TEST_DATABASE_URL`. Never point the suite at the application database.
 

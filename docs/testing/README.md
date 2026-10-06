@@ -62,6 +62,8 @@ Local Windows uses junctions for isolated frontend dependencies; Linux uses syml
 - [Migration baseline and preservation](migrations.md)
 - [Coverage feedback and exclusions](coverage.md)
 - [Backend image build and smoke checks](image.md)
+- [Required-check policy and administrator governance](enforcement.md)
+- [Dated Milestone 6 acceptance review](../verification-milestone6.md)
 
 Prefer filling a demonstrated critical-behavior gap over duplicating existing
 tests or raising counts. Worker/event coverage is deferred to Milestone 8 under
@@ -82,5 +84,6 @@ retaining artifacts for seven days. Authentication traces remain disabled becaus
 they can embed passwords/cookies; screenshots and structured summaries provide
 failure evidence without persisting those credentials.
 
-Final execution results and enforcement evidence belong in the dated
-Milestone 6 verification record; historical counts are not current acceptance.
+Final execution results and enforcement evidence are recorded in the dated
+[Milestone 6 verification](../verification-milestone6.md); historical counts are
+not current acceptance.

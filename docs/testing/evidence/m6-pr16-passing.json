@@ -1,0 +1,18 @@
+{
+  "observed_date": "2026-10-06",
+  "source": "https://github.com/ShinningF1eld/RestaurantOS/pull/16",
+  "head": "17ae92f",
+  "draft": false,
+  "mergeable": true,
+  "mergeable_state": "clean",
+  "merge_button": "enabled",
+  "required_check": "Milestone 6 acceptance",
+  "required_check_conclusion": "success",
+  "run_urls": [
+    "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/37494781592",
+    "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/37494775160"
+  ],
+  "quality_results": "All ten gates and aggregate passed for both pull_request and push",
+  "merged": false,
+  "probe_removed": true
+}
