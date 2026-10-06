@@ -92,9 +92,7 @@ class RecipeAvailabilityService:
         components: dict[
             int,
             list[tuple[Decimal, int | None, int | None, bool | None, Decimal | None]],
-        ] = {
-            item_id: [] for item_id in item_ids
-        }
+        ] = {item_id: [] for item_id in item_ids}
         for (
             item_id,
             inventory_tracking,
@@ -134,7 +132,13 @@ class RecipeAvailabilityService:
             recipe = components[item.menu_item_id]
             portions: list[int] = []
             has_unavailable_component = not recipe
-            for required, ingredient_id, ingredient_restaurant_id, active, balance in recipe:
+            for (
+                required,
+                ingredient_id,
+                ingredient_restaurant_id,
+                active,
+                balance,
+            ) in recipe:
                 if (
                     ingredient_id is None
                     or ingredient_restaurant_id != restaurant_ids[item.menu_item_id]
@@ -191,9 +195,7 @@ class RecipesService:
             ],
         )
 
-    async def replace(
-        self, menu_item_id: int, command: ReplaceRecipe
-    ) -> RecipeView:
+    async def replace(self, menu_item_id: int, command: ReplaceRecipe) -> RecipeView:
         async with self.session.begin():
             context = await self.access.current(lock=True)
             repository = RecipeRepository(self.session, context)
@@ -227,7 +229,9 @@ class RecipesService:
             ingredients = await repository.ingredients_for_restaurant(
                 restaurant_id, ingredient_ids
             )
-            ingredients_by_id = {ingredient.id: ingredient for ingredient in ingredients}
+            ingredients_by_id = {
+                ingredient.id: ingredient for ingredient in ingredients
+            }
             if len(ingredients_by_id) != len(ingredient_ids):
                 raise NotFoundError("Ingredient not found")
             if any(not ingredient.is_active for ingredient in ingredients):
@@ -261,9 +265,7 @@ class RecipesService:
                 components=[
                     RecipeComponentView(
                         ingredient_id=component.ingredient_id,
-                        ingredient_name=ingredients_by_id[
-                            component.ingredient_id
-                        ].name,
+                        ingredient_name=ingredients_by_id[component.ingredient_id].name,
                         unit=ingredients_by_id[component.ingredient_id].unit,
                         quantity=component.quantity,
                     )

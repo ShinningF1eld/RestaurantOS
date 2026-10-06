@@ -1,83 +1,62 @@
 import { apiFetch } from "./client";
-import type {
-    Order,
-    OrderCreate,
-    PaginatedOrders,
-    OrderUpdate,
-} from "@/types/order";
-
-
-
+import type { Order, OrderCreate, PaginatedOrders, OrderUpdate } from "@/types/order";
 
 export async function getRestaurantOrders(
-    restaurantId: number,
-    limit = 25,
-    offset = 0
+  restaurantId: number,
+  limit = 25,
+  offset = 0,
 ): Promise<PaginatedOrders> {
-    const response = await apiFetch(
-        `/api/restaurants/${restaurantId}/orders?limit=${limit}&offset=${offset}`,
-        {
-            cache: "no-store",
-        }
-    );
+  const response = await apiFetch(
+    `/api/restaurants/${restaurantId}/orders?limit=${limit}&offset=${offset}`,
+    {
+      cache: "no-store",
+    },
+  );
 
-    if (!response.ok) {
-        throw new Error("Failed to fetch orders");
-    }
+  if (!response.ok) {
+    throw new Error("Failed to fetch orders");
+  }
 
-    return response.json();
+  return response.json();
 }
 
 export async function createOrder(restaurantId: number, data: OrderCreate): Promise<Order> {
-    const response = await apiFetch(`/api/restaurants/${restaurantId}/orders`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        throw new Error(body?.detail || "Could not create order");
-    }
-    return response.json();
+  const response = await apiFetch(`/api/restaurants/${restaurantId}/orders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.detail || "Could not create order");
+  }
+  return response.json();
 }
 
+export async function updateOrder(orderId: number, data: OrderUpdate): Promise<Order> {
+  const response = await apiFetch(`/api/orders/${orderId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
 
-export async function updateOrder(
-    orderId: number,
-    data: OrderUpdate
-): Promise<Order> {
-    const response = await apiFetch(
-        `/api/orders/${orderId}`,
-        {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(data),
-        }
-    );
+  if (!response.ok) {
+    throw new Error("Failed to update order");
+  }
 
-    if (!response.ok) {
-        throw new Error("Failed to update order");
-    }
-
-    return response.json();
+  return response.json();
 }
 
-
-export async function completeOrder(
-    orderId: number
-): Promise<Order> {
-    return updateOrder(orderId, {
-        status: "COMPLETED",
-    });
+export async function completeOrder(orderId: number): Promise<Order> {
+  return updateOrder(orderId, {
+    status: "COMPLETED",
+  });
 }
 
-
-export async function cancelOrder(
-    orderId: number
-): Promise<Order> {
-    return updateOrder(orderId, {
-        status: "CANCELLED",
-    });
+export async function cancelOrder(orderId: number): Promise<Order> {
+  return updateOrder(orderId, {
+    status: "CANCELLED",
+  });
 }

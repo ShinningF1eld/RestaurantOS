@@ -27,10 +27,10 @@ from test_order_inventory import (
 )
 
 
-def ingredient_state(client: TestClient, restaurant_id: int, ingredient_id: int) -> tuple[Decimal, int]:
-    response = client.get(
-        f"/api/restaurants/{restaurant_id}/inventory/ingredients"
-    )
+def ingredient_state(
+    client: TestClient, restaurant_id: int, ingredient_id: int
+) -> tuple[Decimal, int]:
+    response = client.get(f"/api/restaurants/{restaurant_id}/inventory/ingredients")
     assert response.status_code == 200, response.text
     row = next(value for value in response.json() if value["id"] == ingredient_id)
     return Decimal(row["quantity"]), row["version"]
@@ -167,10 +167,13 @@ def test_database_constraint_failures_during_acceptance_roll_back_all_rows(
     assert movement_rows(order_id) == []
     assert client.get("/api/audit?limit=100").json() == before_audit
     with engine.connect() as db:
-        assert db.scalar(
-            text("SELECT inventory_processed FROM orders WHERE order_id=:id"),
-            {"id": order_id},
-        ) is False
+        assert (
+            db.scalar(
+                text("SELECT inventory_processed FROM orders WHERE order_id=:id"),
+                {"id": order_id},
+            )
+            is False
+        )
 
 
 def test_duplicate_consumption_for_one_order_violates_database_unique_constraint(
@@ -212,8 +215,12 @@ def test_recipe_audit_failure_restores_previous_tracking_components_and_audit(
     client = authenticated_client
     restaurant = create_restaurant(client, "Recipe audit rollback")
     item = create_menu_item(client, restaurant)
-    first = create_ingredient(client, restaurant, name="Original ingredient", quantity="5")
-    second = create_ingredient(client, restaurant, name="Replacement ingredient", quantity="5")
+    first = create_ingredient(
+        client, restaurant, name="Original ingredient", quantity="5"
+    )
+    second = create_ingredient(
+        client, restaurant, name="Replacement ingredient", quantity="5"
+    )
     original_recipe = set_recipe(
         client,
         item,
@@ -251,10 +258,15 @@ def test_deactivated_draft_item_cannot_be_submitted_without_stock_changes(
     client = authenticated_client
     restaurant = create_restaurant(client, "Unavailable draft")
     item = create_menu_item(client, restaurant)
-    ingredient = create_ingredient(client, restaurant, name="Unavailable dish stock", quantity="10")
-    assert set_recipe(
-        client, item, [{"ingredient_id": ingredient["id"], "quantity": "2"}]
-    ).status_code == 200
+    ingredient = create_ingredient(
+        client, restaurant, name="Unavailable dish stock", quantity="10"
+    )
+    assert (
+        set_recipe(
+            client, item, [{"ingredient_id": ingredient["id"], "quantity": "2"}]
+        ).status_code
+        == 200
+    )
     created = create_order(client, restaurant, item)
     assert created.status_code == 201, created.text
     order_id = created.json()["order_id"]
@@ -274,10 +286,15 @@ def test_draft_item_replacement_checks_aggregated_portions_atomically(
     client = authenticated_client
     restaurant = create_restaurant(client, "Draft aggregate")
     item = create_menu_item(client, restaurant)
-    ingredient = create_ingredient(client, restaurant, name="Aggregate draft stock", quantity="10")
-    assert set_recipe(
-        client, item, [{"ingredient_id": ingredient["id"], "quantity": "2"}]
-    ).status_code == 200
+    ingredient = create_ingredient(
+        client, restaurant, name="Aggregate draft stock", quantity="10"
+    )
+    assert (
+        set_recipe(
+            client, item, [{"ingredient_id": ingredient["id"], "quantity": "2"}]
+        ).status_code
+        == 200
+    )
     created = create_order(client, restaurant, item)
     assert created.status_code == 201, created.text
     order_id = created.json()["order_id"]

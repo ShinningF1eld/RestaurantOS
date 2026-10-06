@@ -1,7 +1,18 @@
-import { test, expect, signIn, catalog, ingredient, api, writeHeaders } from "./milestone5-fixtures";
+import {
+  test,
+  expect,
+  signIn,
+  catalog,
+  ingredient,
+  api,
+  writeHeaders,
+} from "./milestone5-fixtures";
 import path from "node:path";
 
-test("recipe editor saves multiple fixed-unit ingredients without duplicates and updates stock labels", async ({ page, account }) => {
+test("recipe editor saves multiple fixed-unit ingredients without duplicates and updates stock labels", async ({
+  page,
+  account,
+}) => {
   await signIn(page, account);
   const { restaurantId, menuId, menuItemId } = await catalog(page);
   await ingredient(page, restaurantId, "Chicken", "150");
@@ -18,7 +29,9 @@ test("recipe editor saves multiple fixed-unit ingredients without duplicates and
   await dialog.getByRole("button", { name: "Add recipe ingredient", exact: true }).click();
   await expect(dialog.getByLabel("Ingredient 2", { exact: true }).locator("option")).toHaveCount(1);
   await dialog.getByLabel("Recipe quantity 2", { exact: true }).fill("100");
-  await expect(dialog.getByRole("button", { name: "Add recipe ingredient", exact: true })).toBeDisabled();
+  await expect(
+    dialog.getByRole("button", { name: "Add recipe ingredient", exact: true }),
+  ).toBeDisabled();
   if (process.env.M5_ARTIFACT_DIR) {
     await page.screenshot({ path: path.join(process.env.M5_ARTIFACT_DIR, "recipe-desktop.png") });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -38,13 +51,16 @@ test("recipe editor saves multiple fixed-unit ingredients without duplicates and
   await dialog.getByRole("button", { name: "Save recipe", exact: true }).click();
   await expect(dialog).toBeHidden();
   await expect(page.getByText("Out of stock", { exact: true })).toBeHidden();
-  page.once("dialog", dialog => dialog.accept());
+  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Delete Chicken rice", exact: true }).click();
   await expect(page.getByRole("heading", { name: "No menu items yet", exact: true })).toBeVisible();
   expect((await page.request.get(`${api}/menu-items/${menuItemId}/recipe`)).status()).toBe(404);
 });
 
-test("recipe editor keeps tracking disabled until a valid recipe is saved", async ({ page, account }) => {
+test("recipe editor keeps tracking disabled until a valid recipe is saved", async ({
+  page,
+  account,
+}) => {
   await signIn(page, account);
   const { restaurantId, menuId, menuItemId } = await catalog(page);
   await page.goto(`/restaurants/${restaurantId}/menu/${menuId}`);
@@ -54,7 +70,12 @@ test("recipe editor keeps tracking disabled until a valid recipe is saved", asyn
   await dialog.getByLabel("Track ingredient stock").check();
   await dialog.getByRole("button", { name: "Save recipe", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText("Add at least one ingredient");
-  expect((await (await page.request.get(`${api}/menu-items/${menuItemId}`)).json()).inventory_tracking).toBe(false);
-  const invalid = await page.request.put(`${api}/menu-items/${menuItemId}/recipe`, { headers: writeHeaders, data: { inventory_tracking: true, components: [] } });
+  expect(
+    (await (await page.request.get(`${api}/menu-items/${menuItemId}`)).json()).inventory_tracking,
+  ).toBe(false);
+  const invalid = await page.request.put(`${api}/menu-items/${menuItemId}/recipe`, {
+    headers: writeHeaders,
+    data: { inventory_tracking: true, components: [] },
+  });
   expect(invalid.status()).toBe(422);
 });

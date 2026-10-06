@@ -27,16 +27,25 @@ export default function RenewSession({ next }: { next: string }) {
         }
       } catch (failure) {
         if (cancelled) return;
-        if (failure instanceof ApiError && failure.status === 401) window.location.replace(loginPath(target));
+        if (failure instanceof ApiError && failure.status === 401)
+          window.location.replace(loginPath(target));
         else setError("We could not reach your session. Please try signing in again.");
       }
     }
     void renew();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [next]);
 
-  return <div className="space-y-4">
-    <p role={error ? "alert" : "status"}>{error || "Restoring your session…"}</p>
-    {error && <Link href={loginPath(next)} className="inline-block font-semibold underline">Go to sign in</Link>}
-  </div>;
+  return (
+    <div className="space-y-4">
+      <p role={error ? "alert" : "status"}>{error || "Restoring your session…"}</p>
+      {error && (
+        <Link href={loginPath(next)} className="inline-block font-semibold underline">
+          Go to sign in
+        </Link>
+      )}
+    </div>
+  );
 }

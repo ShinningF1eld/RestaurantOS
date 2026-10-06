@@ -15,12 +15,8 @@ def create_restaurant(client: TestClient, name: str) -> int:
     return response.json()["id"]
 
 
-def create_menu_item(
-    client: TestClient, restaurant_id: int, name: str = "Dish"
-) -> int:
-    menu = client.post(
-        f"/restaurants/{restaurant_id}/menus", json={"name": "Main"}
-    )
+def create_menu_item(client: TestClient, restaurant_id: int, name: str = "Dish") -> int:
+    menu = client.post(f"/restaurants/{restaurant_id}/menus", json={"name": "Main"})
     assert menu.status_code == 200, menu.text
     item = client.post(
         f"/menus/{menu.json()['menu_id']}/items",

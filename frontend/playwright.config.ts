@@ -18,10 +18,12 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  webServer: process.env.PLAYWRIGHT_EXTERNAL_SERVER ? undefined : {
-    command: `npm run start -- --hostname localhost --port ${webPort}`,
-    url: `http://localhost:${webPort}/login`,
-    reuseExistingServer: false,
-    timeout: 120_000,
-  },
+  webServer: process.env.PLAYWRIGHT_EXTERNAL_SERVER
+    ? undefined
+    : {
+        command: `npm run start -- --hostname localhost --port ${webPort}`,
+        url: `http://localhost:${webPort}/login`,
+        reuseExistingServer: false,
+        timeout: 120_000,
+      },
 });

@@ -7,4 +7,8 @@ from app.modules.recipes.repo.models import RecipeComponent
 
 __all__ = ["Menu", "MenuItem", "Order", "OrderItem", "RecipeComponent", "Restaurant"]
 
-from app.modules.inventory.repo.models import Ingredient, InventoryBalance, InventoryMovement  # noqa: F401
+from app.modules.inventory.repo.models import (
+    Ingredient as Ingredient,
+    InventoryBalance as InventoryBalance,
+    InventoryMovement as InventoryMovement,
+)

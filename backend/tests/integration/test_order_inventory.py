@@ -22,9 +22,7 @@ def create_restaurant(client: TestClient, name: str = "Order inventory") -> int:
 def create_menu_item(
     client: TestClient, restaurant_id: int, name: str = "Tracked dish"
 ) -> int:
-    menu = client.post(
-        f"/restaurants/{restaurant_id}/menus", json={"name": "Main"}
-    )
+    menu = client.post(f"/restaurants/{restaurant_id}/menus", json={"name": "Main"})
     assert menu.status_code == 200, menu.text
     item = client.post(
         f"/menus/{menu.json()['menu_id']}/items",
@@ -93,9 +91,7 @@ def update_order(client: TestClient, order_id: int, status: str):
 
 
 def balance(client: TestClient, restaurant_id: int, ingredient_id: int) -> Decimal:
-    response = client.get(
-        f"/api/restaurants/{restaurant_id}/inventory/ingredients"
-    )
+    response = client.get(f"/api/restaurants/{restaurant_id}/inventory/ingredients")
     assert response.status_code == 200, response.text
     item = next(row for row in response.json() if row["id"] == ingredient_id)
     return Decimal(item["quantity"])
@@ -199,7 +195,9 @@ def overlap_after_restaurant_lock(monkeypatch, first_request, second_request):
             await original(self, restaurant_id)
             first_locked.set()
             if not release_first.wait(timeout=15):
-                raise TimeoutError("Concurrent request did not reach the restaurant lock")
+                raise TimeoutError(
+                    "Concurrent request did not reach the restaurant lock"
+                )
             return
         if ordinal == 2:
             second_entered.set()
@@ -356,7 +354,9 @@ def test_unconsumed_order_delete_keeps_its_idempotency_snapshot(tracked_setup):
     assert replay.json() == original
     assert client.get(f"/api/orders/{order_id}").status_code == 404
     with engine.connect() as db:
-        orders = db.scalar(text("SELECT count(*) FROM orders WHERE order_id=:id"), {"id": order_id})
+        orders = db.scalar(
+            text("SELECT count(*) FROM orders WHERE order_id=:id"), {"id": order_id}
+        )
         submissions = db.scalar(
             text("SELECT count(*) FROM order_submissions WHERE idempotency_key=:key"),
             {"key": key},
@@ -371,14 +371,17 @@ def test_insufficient_later_ingredient_rolls_back_prior_consumption_and_order_up
     client, restaurant, item = tracked_setup
     first = create_ingredient(client, restaurant, name="A flour", quantity="20")
     second = create_ingredient(client, restaurant, name="B eggs", quantity="10")
-    assert set_recipe(
-        client,
-        item,
-        [
-            {"ingredient_id": first["id"], "quantity": "2"},
-            {"ingredient_id": second["id"], "quantity": "2"},
-        ],
-    ).status_code == 200
+    assert (
+        set_recipe(
+            client,
+            item,
+            [
+                {"ingredient_id": first["id"], "quantity": "2"},
+                {"ingredient_id": second["id"], "quantity": "2"},
+            ],
+        ).status_code
+        == 200
+    )
     created = create_order(client, restaurant, item, 2)
     assert created.status_code == 201, created.text
     order_id = created.json()["order_id"]
@@ -424,10 +427,15 @@ def test_insufficient_later_ingredient_rolls_back_prior_consumption_and_order_up
 
 def test_create_and_submit_check_stock_without_deducting_or_reserving(tracked_setup):
     client, restaurant, item = tracked_setup
-    ingredient = create_ingredient(client, restaurant, name="Stock check rice", quantity="10")
-    assert set_recipe(
-        client, item, [{"ingredient_id": ingredient["id"], "quantity": "2"}]
-    ).status_code == 200
+    ingredient = create_ingredient(
+        client, restaurant, name="Stock check rice", quantity="10"
+    )
+    assert (
+        set_recipe(
+            client, item, [{"ingredient_id": ingredient["id"], "quantity": "2"}]
+        ).status_code
+        == 200
+    )
 
     too_large = create_order(client, restaurant, item, 6, key="too-large-order")
     assert too_large.status_code == 409, too_large.text
@@ -469,10 +477,15 @@ def test_acceptance_flush_failures_roll_back_balance_movement_order_and_audit(
     from app.modules.orders.repo.models import Order
 
     client, restaurant, item = tracked_setup
-    ingredient = create_ingredient(client, restaurant, name=f"Fail {failure_point}", quantity="10")
-    assert set_recipe(
-        client, item, [{"ingredient_id": ingredient["id"], "quantity": "3"}]
-    ).status_code == 200
+    ingredient = create_ingredient(
+        client, restaurant, name=f"Fail {failure_point}", quantity="10"
+    )
+    assert (
+        set_recipe(
+            client, item, [{"ingredient_id": ingredient["id"], "quantity": "3"}]
+        ).status_code
+        == 200
+    )
     created = create_order(client, restaurant, item, 2)
     assert created.status_code == 201, created.text
     order_id = created.json()["order_id"]
@@ -525,7 +538,9 @@ def test_acceptance_flush_failures_roll_back_balance_movement_order_and_audit(
 
 def test_new_untracked_order_is_marked_processed_without_stock_movement(tracked_setup):
     client, restaurant, item = tracked_setup
-    ingredient = create_ingredient(client, restaurant, name="Untracked stock", quantity="4")
+    ingredient = create_ingredient(
+        client, restaurant, name="Untracked stock", quantity="4"
+    )
     # The default is untracked, matching rows from before recipes existed.
     assert client.get(f"/menu-items/{item}").json()["inventory_tracking"] is False
     created = create_order(client, restaurant, item)
@@ -545,14 +560,19 @@ def test_new_untracked_order_is_marked_processed_without_stock_movement(tracked_
 
 def test_already_accepted_legacy_order_is_not_consumed_again(tracked_setup):
     client, restaurant, item = tracked_setup
-    ingredient = create_ingredient(client, restaurant, name="Legacy rice", quantity="10")
+    ingredient = create_ingredient(
+        client, restaurant, name="Legacy rice", quantity="10"
+    )
     # This order was created and accepted before its menu item had a recipe.
     created = create_order(client, restaurant, item)
     assert created.status_code == 201, created.text
     order_id = created.json()["order_id"]
-    assert set_recipe(
-        client, item, [{"ingredient_id": ingredient["id"], "quantity": "4"}]
-    ).status_code == 200
+    assert (
+        set_recipe(
+            client, item, [{"ingredient_id": ingredient["id"], "quantity": "4"}]
+        ).status_code
+        == 200
+    )
     with engine.begin() as db:
         db.execute(
             text(
@@ -579,9 +599,12 @@ def test_cancellation_never_returns_stock_after_recipe_edit_and_history_is_retai
 ):
     client, restaurant, item = tracked_setup
     ingredient = create_ingredient(client, restaurant, name="Rice", quantity="10")
-    assert set_recipe(
-        client, item, [{"ingredient_id": ingredient["id"], "quantity": "2"}]
-    ).status_code == 200
+    assert (
+        set_recipe(
+            client, item, [{"ingredient_id": ingredient["id"], "quantity": "2"}]
+        ).status_code
+        == 200
+    )
     created = create_order(client, restaurant, item, 2)
     assert created.status_code == 201, created.text
     order_id = created.json()["order_id"]
@@ -606,9 +629,10 @@ def test_cancellation_never_returns_stock_after_recipe_edit_and_history_is_retai
     assert deleted.status_code == 409, deleted.text
     removed_menu_item = client.delete(f"/menu-items/{item}")
     assert removed_menu_item.status_code == 200, removed_menu_item.text
-    assert client.get(f"/api/orders/{order_id}").json()["items"][0][
-        "menu_item_name"
-    ] == "Tracked dish"
+    assert (
+        client.get(f"/api/orders/{order_id}").json()["items"][0]["menu_item_name"]
+        == "Tracked dish"
+    )
     assert len(movement_rows(order_id)) == 1
 
 
@@ -619,10 +643,15 @@ def test_employee_cannot_create_accept_or_cancel_but_assigned_manager_can(
     employees = add_role_clients(auth_user, restaurant, ("MANAGER", "EMPLOYEE"))
     manager, employee = [entry[0] for entry in employees]
     try:
-        ingredient = create_ingredient(owner, restaurant, name="Permission rice", quantity="10")
-        assert set_recipe(
-            owner, item, [{"ingredient_id": ingredient["id"], "quantity": "1"}]
-        ).status_code == 200
+        ingredient = create_ingredient(
+            owner, restaurant, name="Permission rice", quantity="10"
+        )
+        assert (
+            set_recipe(
+                owner, item, [{"ingredient_id": ingredient["id"], "quantity": "1"}]
+            ).status_code
+            == 200
+        )
         denied_create = create_order(employee, restaurant, item, key="employee-create")
         assert denied_create.status_code == 403, denied_create.text
         manager_created = create_order(manager, restaurant, item, key="manager-create")
@@ -649,11 +678,19 @@ def test_two_distinct_managers_accepting_competing_orders_cannot_overdraw(
     users = add_role_clients(auth_user, restaurant, ("MANAGER", "MANAGER"))
     manager_a, manager_b = [entry[0] for entry in users]
     try:
-        ingredient = create_ingredient(owner, restaurant, name="Limited rice", quantity="10")
-        assert set_recipe(
-            owner, item, [{"ingredient_id": ingredient["id"], "quantity": "7"}]
-        ).status_code == 200
-        orders = [create_order(owner, restaurant, item), create_order(owner, restaurant, item)]
+        ingredient = create_ingredient(
+            owner, restaurant, name="Limited rice", quantity="10"
+        )
+        assert (
+            set_recipe(
+                owner, item, [{"ingredient_id": ingredient["id"], "quantity": "7"}]
+            ).status_code
+            == 200
+        )
+        orders = [
+            create_order(owner, restaurant, item),
+            create_order(owner, restaurant, item),
+        ]
         assert all(response.status_code == 201 for response in orders)
         order_ids = [response.json()["order_id"] for response in orders]
         for order_id in order_ids:
@@ -707,10 +744,15 @@ def test_manual_receipt_waste_and_count_serialize_with_acceptance(
     client, restaurant, item = tracked_setup
     managers = add_role_clients(auth_user, restaurant, ("MANAGER",))
     manager = managers[0][0]
-    ingredient = create_ingredient(client, restaurant, name=f"Concurrent {kind}", quantity=opening)
-    assert set_recipe(
-        client, item, [{"ingredient_id": ingredient["id"], "quantity": "5"}]
-    ).status_code == 200
+    ingredient = create_ingredient(
+        client, restaurant, name=f"Concurrent {kind}", quantity=opening
+    )
+    assert (
+        set_recipe(
+            client, item, [{"ingredient_id": ingredient["id"], "quantity": "5"}]
+        ).status_code
+        == 200
+    )
     created = create_order(client, restaurant, item)
     assert created.status_code == 201, created.text
     order_id = created.json()["order_id"]
@@ -748,7 +790,9 @@ def test_recipe_edit_and_acceptance_use_one_consistent_recipe_snapshot(
     managers = add_role_clients(auth_user, restaurant, ("MANAGER",))
     manager = managers[0][0]
     try:
-        flour = create_ingredient(owner, restaurant, name="Snapshot flour", quantity="12")
+        flour = create_ingredient(
+            owner, restaurant, name="Snapshot flour", quantity="12"
+        )
         salt = create_ingredient(owner, restaurant, name="Snapshot salt", quantity="12")
         original_components = [
             {"ingredient_id": flour["id"], "quantity": "2"},
@@ -786,12 +830,14 @@ def test_recipe_edit_and_acceptance_use_one_consistent_recipe_snapshot(
             {flour["id"]: Decimal("-4"), salt["id"]: Decimal("-6")},
             {flour["id"]: Decimal("-8"), salt["id"]: Decimal("-2")},
         )
-        assert balance(owner, restaurant, flour["id"]) == Decimal("12") + consumed[
-            flour["id"]
-        ]
-        assert balance(owner, restaurant, salt["id"]) == Decimal("12") + consumed[
-            salt["id"]
-        ]
+        assert (
+            balance(owner, restaurant, flour["id"])
+            == Decimal("12") + consumed[flour["id"]]
+        )
+        assert (
+            balance(owner, restaurant, salt["id"])
+            == Decimal("12") + consumed[salt["id"]]
+        )
     finally:
         for client, _ in managers:
             client.close()

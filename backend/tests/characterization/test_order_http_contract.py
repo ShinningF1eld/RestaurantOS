@@ -45,7 +45,10 @@ def create_order(
 ) -> dict:
     response = client.post(
         f"/api/restaurants/{restaurant_id}/orders",
-        json={"idempotency_key": uuid4().hex, "items": [{"menu_item_id": menu_item_id, "quantity": quantity}]},
+        json={
+            "idempotency_key": uuid4().hex,
+            "items": [{"menu_item_id": menu_item_id, "quantity": quantity}],
+        },
     )
     assert response.status_code == 201, response.text
     return response.json()
@@ -64,9 +67,9 @@ def test_order_creation_requires_an_explicit_idempotency_key(
             json={"items": [{"menu_item_id": menu_item_id, "quantity": 1}]},
         )
         assert response.status_code == 422, response.text
-        assert client.get(f"/api/restaurants/{restaurant_id}/orders").json()[
-            "total"
-        ] == 0
+        assert (
+            client.get(f"/api/restaurants/{restaurant_id}/orders").json()["total"] == 0
+        )
 
 
 def test_draft_item_replacement_recalculates_totals_and_snapshots_item_name(

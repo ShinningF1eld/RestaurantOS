@@ -69,9 +69,9 @@ class CatalogRepository:
             .where(MenuItem.menu_item_id == menu_item_id, restaurant_scope(self._scope))
         )
         if lock:
-            statement = statement.execution_options(populate_existing=True).with_for_update(
-                of=MenuItem
-            )
+            statement = statement.execution_options(
+                populate_existing=True
+            ).with_for_update(of=MenuItem)
         result = await self._session.execute(statement)
         return result.scalar_one_or_none()
 

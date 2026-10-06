@@ -96,9 +96,9 @@ def test_lifecycle_retries_ledger_and_deletion(stock):
     with engine.connect() as db:
         assert (
             db.scalar(
-            text(
-                "SELECT count(*) FROM audit_entries WHERE action LIKE 'inventory.%'"
-            )
+                text(
+                    "SELECT count(*) FROM audit_entries WHERE action LIKE 'inventory.%'"
+                )
             )
             == 7
         )
@@ -292,7 +292,9 @@ def overlap_inventory_requests_after_lock(monkeypatch, first_request, second_req
             await original(self, restaurant_id)
             first_locked.set()
             if not release_first.wait(timeout=10):
-                raise TimeoutError("Concurrent request did not reach the inventory lock")
+                raise TimeoutError(
+                    "Concurrent request did not reach the inventory lock"
+                )
             return
         if ordinal == 2:
             second_entered.set()
@@ -305,7 +307,9 @@ def overlap_inventory_requests_after_lock(monkeypatch, first_request, second_req
             assert first_locked.wait(timeout=10)
             second = pool.submit(second_request)
             assert second_entered.wait(timeout=10)
-            assert not second.done(), "second write completed while first held the restaurant lock"
+            assert not second.done(), (
+                "second write completed while first held the restaurant lock"
+            )
         finally:
             release_first.set()
         return first.result(timeout=20), second.result(timeout=20)
@@ -346,7 +350,9 @@ def test_two_managers_cannot_overdraw_and_count_cannot_overwrite_receipt(
     assert sum(Decimal(row["quantity_delta"]) for row in history) == 5
 
 
-def test_concurrent_identical_keys_create_and_record_stock_once(stock, inventory_roles, monkeypatch):
+def test_concurrent_identical_keys_create_and_record_stock_once(
+    stock, inventory_roles, monkeypatch
+):
     client, restaurant, base, item, _ = stock
     managers = inventory_roles[:2]
     create_payload = {

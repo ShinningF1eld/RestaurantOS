@@ -60,7 +60,10 @@ def test_login_cookie_security_and_public_summary(auth_user):
 
 def test_unknown_wrong_disabled_login_are_indistinguishable(auth_user):
     with TestClient(app) as client:
-        bad = {**auth_user, "password": "Wrong password long enough"}  # pragma: allowlist secret
+        bad = {
+            **auth_user,
+            "password": "Wrong password long enough",  # pragma: allowlist secret
+        }
         wrong = login(client, bad)
         unknown = login(client, {**bad, "email": "unknown@example.test"})
         with engine.begin() as connection:

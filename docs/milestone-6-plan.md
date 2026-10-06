@@ -1,13 +1,34 @@
 # Milestone 6: test architecture and quality gates
 
-Status: Published; all nine issues created and verified.
+Status: Approved for implementation; all nine issues created and verified.
 Source: `RestaurantOS_Master_Roadmap.md`, Milestone 6, lines 730–778.  
 Updated: 2026-10-05 (Asia/Bangkok).  
 Source revision: `a0012eeaa58a873a7c075780725d4dfc76e9dabd`; working tree was clean before this plan.  
 Target repository: `ShinningF1eld/RestaurantOS`, resolved from origin.  
 Publication approval: User approved all nine issues on 2026-10-05: "I approve this 9 issues, publish it to github".
 
-## Repository evidence
+## Implementation approval and ownership
+
+Implementation approved on 2026-10-06 (Asia/Bangkok) in the implementation chat.
+The user approved the proposed directory ownership and staging, requested
+GPT-6 Luna subagents with extra-high reasoning, and authorized a commit per
+completed issue with all resulting commits pushed to `milestone6`.
+
+Execution stages: dependency/format baseline (#10); backend tests (#6), frontend
+tests (#7), and migrations (#9); browser journeys (#8), coverage (#11), and image
+build (#12); local/CI integration (#13); enforcement and roadmap review (#14).
+The lead owns shared CI, root validation, README, final documentation, Git commits,
+and pushes. Subagents own disjoint implementation paths and return verification
+evidence. Shared package/config/lock files are edited sequentially. Each suite
+gets a separate document under `docs/testing/`; the lead assembles its index.
+
+The current branch is `milestone6`. Shared-checkout lanes may be used where file
+ownership is disjoint; worktrees are optional. Verification uses disposable
+databases and resources and never migrates the application database. Workers and
+events remain explicitly deferred to Milestone 8; Redis is infrastructure only.
+The final review compares executable evidence with all Milestone 6 exit criteria.
+
+## Initial implementation inspection
 
 - `backend/tests` already contains unit, characterization, PostgreSQL integration, authentication, tenancy, inventory, transaction, and concurrency tests. Extend missing behavior rather than recreate existing suites.
 - `backend/tests/conftest.py` requires a test database URL even for unit collection; unit fixtures override database cleanup. Improve isolation without weakening integration safeguards.

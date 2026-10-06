@@ -87,9 +87,7 @@ class OrderRepository:
         )
         return result.scalars().all()
 
-    async def submission(
-        self, restaurant_id: int, key: str
-    ) -> OrderSubmission | None:
+    async def submission(self, restaurant_id: int, key: str) -> OrderSubmission | None:
         result = await self._session.execute(
             select(OrderSubmission)
             .join(Restaurant, OrderSubmission.restaurant_id == Restaurant.id)

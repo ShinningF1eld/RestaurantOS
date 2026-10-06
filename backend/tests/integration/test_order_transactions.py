@@ -25,7 +25,7 @@ def test_failed_status_and_item_update_rolls_back_all_order_changes(
                 "idempotency_key": uuid4().hex,
                 "items": [
                     {"menu_item_id": menu_item.json()["menu_item_id"], "quantity": 1}
-                ]
+                ],
             },
         )
         assert created.status_code == 201, created.text

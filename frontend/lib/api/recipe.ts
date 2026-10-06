@@ -6,8 +6,10 @@ export async function getRecipe(menuItemId: number): Promise<Recipe> {
 }
 
 export async function updateRecipe(menuItemId: number, data: RecipeUpdate): Promise<Recipe> {
-  return (await apiFetch(`/menu-items/${menuItemId}/recipe`, {
-    method: "PUT",
-    body: JSON.stringify(data),
-  })).json();
+  return (
+    await apiFetch(`/menu-items/${menuItemId}/recipe`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    })
+  ).json();
 }
