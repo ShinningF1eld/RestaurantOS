@@ -201,7 +201,7 @@ def main():
                         str(api_port),
                         "--no-proxy-headers",
                     ],
-                    cwd=BACKEND,
+                    cwd=frontend.parent,
                     env=env,
                     stdout=log,
                     stderr=log,

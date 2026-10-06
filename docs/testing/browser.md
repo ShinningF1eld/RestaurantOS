@@ -24,6 +24,8 @@ CI host, then run `python scripts/run-browser-tests.py` using the backend test
 environment. The supplied database is only a template. The runner allocates and
 migrates a random database, copies frontend source without `.env` files, uses
 random API/web ports, and sets the same API address at build time and runtime.
+The API starts from the temporary workspace with the backend on `PYTHONPATH`,
+so application settings cannot fall back to the developer's backend `.env`.
 The original `.next` output and developer servers are untouched.
 
 The source copy shares installed dependency files through a junction on Windows
