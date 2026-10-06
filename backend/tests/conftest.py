@@ -1,39 +1,107 @@
 import os
 import secrets
+from pathlib import Path
 
 import pytest
-from dotenv import load_dotenv
-from sqlalchemy import text
 from sqlalchemy import create_engine
+from sqlalchemy import text
 from sqlalchemy.engine import make_url
 
-load_dotenv()
-TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
-if not TEST_DATABASE_URL:
-    raise RuntimeError(
-        "TEST_DATABASE_URL is not set; tests refuse to truncate DATABASE_URL"
+
+engine = None
+unit_only = False
+
+
+def validate_test_database_url(value: str) -> str:
+    """Refuse any integration target that is not a PostgreSQL ``*_test`` DB."""
+    try:
+        url = make_url(value)
+    except Exception:
+        raise RuntimeError("TEST_DATABASE_URL is not a valid database URL") from None
+    if url.drivername != "postgresql+asyncpg":
+        raise RuntimeError("TEST_DATABASE_URL must use postgresql+asyncpg")
+    if not (url.database or "").endswith("_test"):
+        raise RuntimeError("TEST_DATABASE_URL database name must end with '_test'")
+    return value
+
+
+def _unit_only_invocation(config: pytest.Config) -> bool:
+    """Recognize a test-path-only invocation before importing test modules."""
+    unit_root = Path(__file__).resolve().parent / "unit"
+    selected_paths = []
+    for argument in config.args:
+        path_argument = argument.split("::", 1)[0]
+        if path_argument.startswith("-"):
+            continue
+        candidate = Path(path_argument)
+        if not candidate.is_absolute():
+            candidate = Path.cwd() / candidate
+        selected_paths.append(candidate.resolve())
+    return bool(selected_paths) and all(
+        path == unit_root or unit_root in path.parents for path in selected_paths
     )
 
-database_name = make_url(TEST_DATABASE_URL).database or ""
-if not database_name.endswith("_test"):
-    raise RuntimeError("TEST_DATABASE_URL database name must end with '_test'")
 
-# Application modules are imported only after pytest loads this conftest. Point
-# the application at the same isolated database used by the cleanup fixture.
-os.environ["DATABASE_URL"] = TEST_DATABASE_URL
-os.environ["ENVIRONMENT"] = "test"
-os.environ["AUTH_JWT_SECRET"] = secrets.token_urlsafe(48)
-os.environ["AUTH_RATE_LIMIT_SECRET"] = secrets.token_urlsafe(48)
-os.environ["AUTH_TRUSTED_ORIGINS"] = '["http://localhost:3000"]'
-os.environ["AUTH_COOKIE_SECURE"] = "false"
+def pytest_configure(config: pytest.Config) -> None:
+    """Require service configuration only when collecting service-backed tests."""
+    global engine, unit_only
+    unit_only = _unit_only_invocation(config)
+    if unit_only:
+        for key in tuple(os.environ):
+            if key.startswith(
+                (
+                    "DATABASE",
+                    "TEST_DATABASE",
+                    "TEST_POSTGRES",
+                    "TEST_REDIS",
+                    "AUTH_",
+                    "REDIS",
+                )
+            ) or key in {"ENVIRONMENT", "LOG_LEVEL"}:
+                os.environ.pop(key, None)
 
-sync_url = TEST_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql+psycopg://")
-engine = create_engine(sync_url)
+        import app.core.config as application_config
+
+        def reject_ambient_settings() -> None:
+            raise AssertionError(
+                "unit tests must construct Settings with _env_file=None"
+            )
+
+        application_config.get_settings = reject_ambient_settings
+        return
+
+    test_database_url = os.getenv("TEST_DATABASE_URL")
+    if not test_database_url:
+        raise RuntimeError(
+            "TEST_DATABASE_URL is not set; tests refuse to truncate DATABASE_URL"
+        )
+    validate_test_database_url(test_database_url)
+
+    # Test modules are imported after pytest_configure. Point the application at
+    # the validated disposable database and generate process-local test secrets.
+    os.environ["DATABASE_URL"] = test_database_url
+    os.environ["ENVIRONMENT"] = "test"
+    os.environ["AUTH_JWT_SECRET"] = secrets.token_urlsafe(48)
+    os.environ["AUTH_RATE_LIMIT_SECRET"] = secrets.token_urlsafe(48)
+    os.environ["AUTH_TRUSTED_ORIGINS"] = '["http://localhost:3000"]'
+    os.environ["AUTH_COOKIE_SECURE"] = "false"
+
+    sync_url = make_url(test_database_url).set(drivername="postgresql+psycopg")
+    engine = create_engine(sync_url)
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """Release the synchronous fixture pool when the integration run ends."""
+    if engine is not None:
+        engine.dispose()
 
 
 @pytest.fixture(autouse=True)
 def clean_database() -> None:
     """Tests use the PostgreSQL schema prepared by Alembic, not SQLite."""
+    if engine is None:
+        yield
+        return
 
     def truncate() -> None:
         with engine.begin() as connection:
@@ -52,12 +120,25 @@ def clean_database() -> None:
 
 
 @pytest.fixture
+def unit_isolation_state() -> tuple[bool, object]:
+    return unit_only, engine
+
+
+@pytest.fixture
+def test_database_url_validator():
+    return validate_test_database_url
+
+
+@pytest.fixture
 def auth_user() -> dict[str, str]:
     """Provision a real account; HTTP tests never bypass the auth dependency."""
     import asyncio
     from uuid import uuid4
 
     from app.modules.auth.security import hash_password
+
+    if engine is None:
+        raise RuntimeError("auth_user requires the PostgreSQL integration layer")
 
     account = {
         "id": str(uuid4()),

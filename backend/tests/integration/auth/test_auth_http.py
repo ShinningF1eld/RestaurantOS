@@ -2,7 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from hashlib import sha256
-from threading import Barrier
+from threading import Barrier, Lock
 
 import jwt
 import pytest
@@ -14,6 +14,23 @@ from app.main import app
 from conftest import engine
 
 HEADERS = {"Origin": "http://localhost:3000", "X-CSRF-Protection": "1"}
+
+
+def synchronize_calls(function, barrier: Barrier, call_count: int):
+    """Coordinate only the requested overlapping calls, then pass through."""
+    count = 0
+    count_lock = Lock()
+
+    async def synchronized(*args, **kwargs):
+        nonlocal count
+        with count_lock:
+            wait = count < call_count
+            count += 1
+        if wait:
+            barrier.wait(timeout=15)
+        return await function(*args, **kwargs)
+
+    return synchronized
 
 
 def login(client, user):
@@ -206,12 +223,18 @@ def test_replay_commits_revocation_and_rejects_successor(authenticated_client):
     assert refresh(successor).status_code == 401
 
 
-def test_same_token_concurrent_rotation_revokes_family(authenticated_client):
+def test_same_token_concurrent_rotation_revokes_family(
+    authenticated_client, monkeypatch
+):
+    from app.modules.auth import service
+
     token = authenticated_client.cookies.get("ros_refresh")
     barrier = Barrier(2)
+    monkeypatch.setattr(
+        service, "lock_family", synchronize_calls(service.lock_family, barrier, 2)
+    )
 
     def rotate():
-        barrier.wait(timeout=10)
         return refresh(token)
 
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -332,9 +355,17 @@ def test_login_limits_include_unknown_accounts_and_spoofed_forwarded_ip():
         assert int(limited.headers["retry-after"]) > 0
 
 
-def test_concurrent_login_account_counter_never_exceeds_limit(auth_user):
+def test_concurrent_login_account_counter_never_exceeds_limit(auth_user, monkeypatch):
+    from app.modules.auth import service
+
     limit = get_settings().auth_login_email_limit
     barrier = Barrier(limit + 3)
+    entered_user_lookup = Barrier(limit)
+    monkeypatch.setattr(
+        service,
+        "find_by_email",
+        synchronize_calls(service.find_by_email, entered_user_lookup, limit),
+    )
 
     def attempt(_):
         with TestClient(app) as client:
@@ -428,18 +459,21 @@ def test_logout_storage_failure_never_claims_revocation(
     assert authenticated_client.get("/auth/me").status_code == 200
 
 
-def test_rotation_and_logout_serialize(authenticated_client):
+def test_rotation_and_logout_serialize(authenticated_client, monkeypatch):
+    from app.modules.auth import service
+
     old = authenticated_client.cookies.get("ros_refresh")
     barrier = Barrier(2)
+    monkeypatch.setattr(
+        service, "lock_family", synchronize_calls(service.lock_family, barrier, 2)
+    )
 
     def rotate():
-        barrier.wait(timeout=10)
         return refresh(old)
 
     def logout_family():
         with TestClient(app) as client:
             client.cookies.set("ros_refresh", old, path="/auth")
-            barrier.wait(timeout=10)
             return client.post("/auth/logout", headers=HEADERS)
 
     with ThreadPoolExecutor(max_workers=2) as pool:
@@ -457,23 +491,43 @@ def test_rotation_and_logout_serialize(authenticated_client):
 
 @pytest.mark.parametrize("operation", ["login", "refresh"])
 def test_concurrent_disable_prevents_usable_credentials(
-    authenticated_client, auth_user, operation
+    authenticated_client, auth_user, operation, monkeypatch
 ):
     import asyncio
+    from app.modules.auth import cli, service
     from app.modules.auth.cli import disable_user
 
     token = authenticated_client.cookies.get("ros_refresh")
     barrier = Barrier(2)
 
+    if operation == "refresh":
+        monkeypatch.setattr(
+            service, "lock_family", synchronize_calls(service.lock_family, barrier, 1)
+        )
+        monkeypatch.setattr(
+            cli,
+            "find_by_email",
+            synchronize_calls(cli.find_by_email, barrier, 1),
+        )
+    else:
+        monkeypatch.setattr(
+            service,
+            "find_by_email",
+            synchronize_calls(service.find_by_email, barrier, 1),
+        )
+        monkeypatch.setattr(
+            cli,
+            "find_by_email",
+            synchronize_calls(cli.find_by_email, barrier, 1),
+        )
+
     def issue():
-        barrier.wait(timeout=10)
         if operation == "refresh":
             return refresh(token)
         with TestClient(app) as client:
             return login(client, auth_user)
 
     def disable():
-        barrier.wait(timeout=10)
         return asyncio.run(disable_user(auth_user["email"]))
 
     with ThreadPoolExecutor(max_workers=2) as pool:
