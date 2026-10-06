@@ -1,0 +1,51 @@
+# Secrets and local configuration.
+.env
+.env.*
+**/.env
+**/.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local Python environments, caches, and test output.
+.venv
+.venv/
+.venv-*/
+**/.venv
+**/.venv/
+**/.venv-*/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+**/.pytest_cache/
+.mypy_cache/
+**/.mypy_cache/
+.ruff_cache/
+**/.ruff_cache/
+.uv-cache/
+**/.uv-cache/
+.coverage
+coverage.xml
+htmlcov/
+test-results/
+playwright-report/
+
+# Tests and development-only dependency locks.
+tests/
+**/tests/
+requirements.in
+requirements-dev.in
+requirements-dev.txt
+
+# Repository and generated artifacts.
+.git/
+.gitignore
+dist/
+build/
+*.log
+*.sqlite
+*.sqlite3
+*.db
