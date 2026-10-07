@@ -1,6 +1,6 @@
 # Milestone 7: Redis caching and rate limiting
 
-Status: Approved, revision 6 (cache tuning recorded; limiter tuning remains open)
+Status: Approved, revision 7 (cache and login limiter tuning recorded)
 Updated: 2026-10-07  
 Inspection: repository HEAD `a1acf44`; working tree clean before this document.  
 Approval: user accepted the completed plan on 2026-10-07 ("The plan is done then"). Remaining tuning is identified below; implementation and verification have not been performed.
@@ -122,19 +122,19 @@ operation rather than relying only on ping. Preserve existing 429/Retry-After an
 error bodies, cookies, bounded browser renewal and uncertain-refresh retry policy.
 
 Accepted tuning: 100 ms total Redis operation budget, probes every 5 seconds,
-and three consecutive successful probes before recovery. Local login IP limit 10
-per 900 seconds is accepted. Email-only local limit 3 per 900 seconds is withdrawn:
-the user identified targeted denial of service using a known email address.
-Selected replacement: scope the email bucket to normalized email plus source IP,
-with 3 attempts per 60 seconds, alongside the accepted IP-wide limit. This prevents
-an attacker on another IP exhausting the victim's email bucket; shared-IP users
-still share the IP quota. Apply the same keying principle to the normal Redis
-login limiter. The user's follow-up specifies failed-attempt accounting and the
-same behavior for nonexistent accounts. This changes the current pre-verification
-attempt-counting implementation in both Redis and local login modes.
-Without an email-global hard limit, distributed guessing protection is weaker;
-this tradeoff remains open. Refresh family 10 and IP 40 per 60 seconds remain
-proposals. Concurrent local increments must be atomic.
+and three consecutive successful probes before recovery. Login limits count only
+failed authentication outcomes (wrong password, unknown account or disabled
+account), identically for all accounts; successful login does not clear either
+bucket. Normal Redis mode allows 5 failures per 60 seconds for the normalized
+email plus source-IP pair, and 30 failures per 900 seconds for the source IP.
+Local degraded mode applies stricter limits: 3 per 60 seconds for the pair and
+10 per 900 seconds for the IP. The pair keying prevents another IP from exhausting
+the victim's pair bucket; shared-IP users still share the IP-wide quota. Without
+an email-global hard limit, distributed guessing across many IPs has weaker
+protection; this limitation is accepted. This replaces the current
+pre-verification attempt-counting implementation in Redis and local login modes.
+Refresh family 10 and IP 40 per 60 seconds remain proposals. Concurrent local
+increments must be atomic.
 
 The current PostgreSQL policy also has an email-global hard limit (5 per 900
 seconds), so moving it unchanged to Redis retains this concern. Evidence:
@@ -158,9 +158,8 @@ never expose the triggering bucket or account existence. Use a consistent retry
 calculation independent of whether the account exists. A pre-verification throttle
 can reject even correct credentials once the source's failure budget is exhausted.
 
-Proposed default: do not clear any failure bucket on successful login. The user
-permits clearing the local email/IP bucket, but requires preserving the IP-wide
-bucket. Keeping both avoids extra recovery/clear races.
+Accepted: do not clear any failure bucket on successful login, in either normal
+Redis or local degraded mode. Keeping both avoids extra recovery/clear races.
 
 Concurrency needs explicit admission before costly password checks: atomically
 check failure counts and acquire short-lived in-flight capacity for both keys,
@@ -223,9 +222,8 @@ disclosed defaults; material changes to the accepted behavior require review.
 
 1. Cache scope, keys, payload split, 10-second absolute TTL and post-commit
    invalidation are accepted in the issue #19 decision section above.
-2. Confirm login pair thresholds/windows and normal Redis thresholds; review
-   refresh accounting, thresholds and recovery guard. Pair keying and failed-login
-   accounting are selected; distributed guessing remains a documented limitation.
+2. Login thresholds/windows and failed-login accounting are accepted above;
+   review refresh accounting and thresholds and finalize the recovery guard.
 3. Finalize bounded-memory capacity against expected workload before implementation.
 4. Initial cache scope is the two catalog lists above; evaluate optional dashboard
    caching after measurements.
@@ -244,3 +242,4 @@ disclosed defaults; material changes to the accepted behavior require review.
 | 2026-10-07 | Failed-login accounting, normalized email/IP keys for all accounts, generic 429 and observable Redis mode transitions; never clear IP failures on success | User's six explicit requirements; overall design and remaining tuning pending |
 | 2026-10-07 | Approve completed plan and rename to milestone-7-design.md | User: "The plan is done then"; revision 5 records approval and preserves tuning tasks |
 | 2026-10-07 | Accept two catalog list endpoints, scoped v1 keys, static item fields with live tracking/stock, 10-second source-start age, fresh authorization and fail-open post-commit invalidation | User supplied cache decisions and requested saving them; revision 6 records the invalidation matrix and implementation edge cases; limiter tuning and verification remain open |
+| 2026-10-07 | Accept normal Redis login limits (email+IP 5/60s, IP 30/900s), degraded local limits (email+IP 3/60s, IP 10/900s), failed-login-only accounting, and no clearing on successful login; accept distributed-guessing limitation | User supplied accepted login limiter decisions and deferred implementation; revision 7 records settings consistently; refresh limiter tuning and implementation remain open |
