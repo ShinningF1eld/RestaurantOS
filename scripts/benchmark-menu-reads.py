@@ -31,7 +31,7 @@ from test_support.disposable_postgres import TestDatabase, disposable_database
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
-SCRIPT_VERSION = "1.0.0"
+SCRIPT_VERSION = "1.1.0"
 DEFAULT_OUTPUT = ROOT / "artifacts" / "benchmarks"
 SCENARIOS = ("menu-list", "menu-items", "mixed-read", "mixed-write")
 DEFAULT_CONCURRENCY = (1, 10, 25, 50)
@@ -248,7 +248,7 @@ def request_plan(
         if index % 5 == 0:
             return "GET", f"/restaurants/{restaurant_id}/menus", None
         return "GET", f"/menus/{menu_id}/items", None
-    if scenario == "mixed-write" and index % 5 == 0:
+    if scenario == "mixed-write" and index % 10 == 0:
         item_id = item_ids[index % len(item_ids)]
         return (
             "PUT",
@@ -259,7 +259,7 @@ def request_plan(
                 "is_available": True,
             },
         )
-    if scenario == "mixed-write" and index % 5 == 1:
+    if scenario == "mixed-write" and index % 10 == 1:
         return (
             "PUT",
             f"/menus/{menu_id}",
@@ -281,11 +281,14 @@ async def measure_scenario(
     menu_ids: list[int],
     item_ids: list[int],
     restaurant_id: int,
+    inject_request_failure: bool = False,
 ) -> dict[str, Any]:
     async def request(index: int) -> tuple[float, int, bool, str]:
         method, path, payload = request_plan(
             scenario, index, menu_ids, item_ids, restaurant_id
         )
+        if inject_request_failure and index == warmup:
+            method, path, payload = "GET", "/menus/0/items", None
         started = time.perf_counter()
         try:
             response = await client.request(method, path, json=payload)
@@ -320,6 +323,13 @@ async def measure_scenario(
     status_counts: dict[str, int] = {}
     for outcome in outcomes:
         status_counts[outcome[3]] = status_counts.get(outcome[3], 0) + 1
+    if success_count != requests:
+        # A response lost in transport has an unknown SQL count. Never publish
+        # its placeholder zero as a valid baseline measurement.
+        raise RuntimeError(
+            f"Measured workload failed: {requests - success_count}/{requests} "
+            f"requests unsuccessful in {scenario}; statuses={status_counts}"
+        )
     return {
         "scenario": scenario,
         "cache_state": "not_applicable",
@@ -343,7 +353,7 @@ async def measure_scenario(
 
 
 def environment_metadata(
-    database: TestDatabase, args: argparse.Namespace
+    database: TestDatabase, args: argparse.Namespace, settings: Any
 ) -> dict[str, Any]:
     with psycopg.connect(database.sync_url) as connection:
         version_row = connection.execute("SHOW server_version").fetchone()
@@ -410,9 +420,30 @@ def environment_metadata(
             "percentile_method": "nearest-rank",
         },
         "runtime": {
-            "application_environment": "development",
+            "application_environment": settings.environment,
             "database_pool": "SQLAlchemy default pool for the long-lived API process",
-            "auth_access_lifetime_seconds": 600,
+            "auth_access_lifetime_seconds": settings.auth_access_seconds,
+            "effective_settings": {
+                key: getattr(settings, key)
+                for key in (
+                    "environment",
+                    "log_level",
+                    "database_echo",
+                    "auth_cookie_secure",
+                    "auth_trusted_origins",
+                    "auth_access_seconds",
+                    "auth_session_seconds",
+                    "auth_jwt_issuer",
+                    "auth_jwt_audience",
+                    "auth_login_email_limit",
+                    "auth_login_ip_limit",
+                    "auth_login_window_seconds",
+                    "auth_refresh_family_limit",
+                    "auth_refresh_ip_limit",
+                    "auth_refresh_window_seconds",
+                )
+            },
+            "configuration_source": "explicit Settings defaults and benchmark overrides; dotenv and ambient settings ignored",
             "auth_refresh_strategy": "POST /auth/refresh between batches at 80% of access lifetime",
             "python": platform.python_version(),
             "sqlalchemy": __import__("sqlalchemy").__version__,
@@ -457,36 +488,52 @@ def environment_metadata(
     }
 
 
-def run_alembic(env: dict[str, str]) -> None:
-    subprocess.run(
-        [sys.executable, "-m", "alembic", "upgrade", "head"],
-        cwd=BACKEND,
-        env=env,
-        check=True,
+def isolated_settings(database: TestDatabase) -> Any:
+    """Supply every field explicitly so neither dotenv nor ambient env wins."""
+    sys.path.insert(0, str(BACKEND))
+    from app.core.config import Settings
+
+    generated = database.environment(base={})
+    values = {
+        name: field.get_default(call_default_factory=True)
+        for name, field in Settings.model_fields.items()
+        if not field.is_required()
+    }
+    values.update(
+        database_url=database.async_url,
+        auth_jwt_secret=generated["AUTH_JWT_SECRET"],
+        auth_rate_limit_secret=generated["AUTH_RATE_LIMIT_SECRET"],
+        environment="development",
+        log_level="WARNING",
+        database_echo=False,
+        auth_cookie_secure=False,
+        auth_trusted_origins=["http://localhost:3000"],
     )
+    return Settings(_env_file=None, **values)
+
+
+def run_alembic() -> None:
+    from alembic import command
+    from alembic.config import Config
+
+    # Alembic and the application resolve the same frozen settings instance.
+    command.upgrade(Config(str(BACKEND / "alembic.ini")), "head")
 
 
 def run_benchmark(database: TestDatabase, args: argparse.Namespace) -> dict[str, Any]:
-    base_env = dict(os.environ)
-    for key in tuple(base_env):
-        if key.startswith(("DATABASE", "TEST_DATABASE", "AUTH_", "REDIS_")) or key in {
-            "ENVIRONMENT",
-            "LOG_LEVEL",
-        }:
-            base_env.pop(key)
-    env = database.environment(base=base_env)
-    # A persistent API server uses the normal pool; test mode deliberately uses
-    # NullPool to isolate TestClient's independent event loops.
-    env["ENVIRONMENT"] = "development"
-    env["LOG_LEVEL"] = "WARNING"
-    run_alembic(env)
+    settings = isolated_settings(database)
+    import app.core.config as application_config
+
+    # Install before migrations, seed imports or engine construction. This is
+    # confined to the dedicated benchmark process; production code is unchanged.
+    application_config.get_settings = lambda: settings
+    run_alembic()
     seeded = seed_data(database)
     if args.inject_failure_after == "seed":
         raise RuntimeError("Intentional failure injected after deterministic seed")
 
     # Ensure application settings and its global SQLAlchemy engine can only see
     # the allocated database, even when the caller has a developer DATABASE_URL.
-    os.environ.update(env)
     sys.path.insert(0, str(BACKEND))
     from app.db.database import engine
     from app.main import app
@@ -540,7 +587,10 @@ def run_benchmark(database: TestDatabase, args: argparse.Namespace) -> dict[str,
             for repetition in range(args.repetitions):
                 for scenario in args.scenarios:
                     for concurrency in args.concurrency:
-                        if time.perf_counter() - last_auth_refresh >= 480:
+                        if (
+                            time.perf_counter() - last_auth_refresh
+                            >= settings.auth_access_seconds * 0.8
+                        ):
                             refresh = await client.post("/auth/refresh")
                             if refresh.status_code != 200:
                                 raise RuntimeError("Benchmark session refresh failed")
@@ -554,6 +604,8 @@ def run_benchmark(database: TestDatabase, args: argparse.Namespace) -> dict[str,
                             menu_ids=seeded["menu_ids"],
                             item_ids=seeded["menu_item_ids"],
                             restaurant_id=seeded["restaurant_id"],
+                            inject_request_failure=args.inject_failure_after
+                            == "request",
                         )
                         result["repetition"] = repetition + 1
                         results.append(result)
@@ -587,7 +639,7 @@ def run_benchmark(database: TestDatabase, args: argparse.Namespace) -> dict[str,
         "schema_version": 1,
         "benchmark": "restaurantos-menu-read-baseline",
         "cache_mode": "disabled",
-        "metadata": environment_metadata(database, args),
+        "metadata": environment_metadata(database, args, settings),
         "results": results,
     }
 
@@ -631,7 +683,7 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument(
         "--inject-failure-after",
-        choices=("seed", "measurement"),
+        choices=("seed", "measurement", "request"),
         help=argparse.SUPPRESS,
     )
     args = parser.parse_args()

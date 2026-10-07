@@ -18,15 +18,24 @@ $env:TEST_DATABASE_URL = "postgresql+asyncpg://USER:PASSWORD@127.0.0.1:5433/rest
 & .\backend\.venv-m6-dev\Scripts\python.exe .\scripts\benchmark-menu-reads.py
 ```
 
-The script reads no `.env` file and does not use `DATABASE_URL` as a fallback.
+Version 1.1.0 constructs every application setting explicitly with dotenv disabled:
+declared application defaults plus benchmark overrides (development pooling,
+WARNING logging, SQL echo off, localhost trusted origin and nonsecure local
+cookies). Migrations, seed and API use the same settings instance. Caller auth,
+database, environment and logging settings cannot override it; `DATABASE_URL`
+is never a fallback. Only `TEST_DATABASE_URL` selects the guarded connection
+template. Effective nonsecret settings are recorded in the JSON runtime metadata.
 `scripts/test_support/disposable_postgres.py` validates the template, allocates
 a random `restaurantos_benchmark_*_test` database, and drops only that generated
 database in a `finally` block. Alembic, deterministic seed operations, the API,
 and all benchmark requests target the allocated database. The supplied template
 database is never migrated, truncated, seeded, or dropped. Use
-`--inject-failure-after seed` or `--inject-failure-after measurement` to exercise
+`--inject-failure-after seed`, `--inject-failure-after measurement`, or
+`--inject-failure-after request` to exercise
 nonzero failure and cleanup paths; these test-only switches are hidden from the
-normal help output.
+normal help output. The request injection sends a real authenticated request to
+a missing menu during measurement, exercising the non-2xx failure policy even
+with `--warmup 0`.
 
 For a short harness smoke run, reduce the workload explicitly:
 
@@ -59,9 +68,14 @@ disposable run. The workload state is newly seeded on every run.
 | `mixed-read` | 20% menu-list and 80% menu-item list |
 | `mixed-write` | 80% menu-item list, 10% item update, and 10% menu update |
 
-The mixed-write sequence is fixed and can be run after caching is introduced to
-compare read behavior while catalog edits occur. Responses are validated and
-successful non-2xx statuses count as errors. All measured calls use the normal
+The mixed-write sequence has a ten-request cycle: one item PUT, one menu PUT,
+then eight item-list GETs. This is exactly 10%/10%/80% over complete cycles;
+short custom request counts may contain a partial cycle. Warm-up requests advance
+the same sequence, so the measured sequence starts at the configured warm-up
+offset. The sequence is fixed and can be run after caching is introduced to
+compare read behavior while catalog edits occur. HTTP status and query-count
+instrumentation are checked. Any non-2xx response or transport error makes the
+entire benchmark fail with a nonzero exit and no result artifact. All measured calls use the normal
 login cookies, auth middleware, current tenancy checks, catalog service and
 response serialization. Warm-ups use the same endpoint mix and are excluded from
 latency and query totals. Repetitions restart each scenario's deterministic
@@ -89,12 +103,26 @@ results are git-ignored. Each result includes the source commit, script version,
 configuration, Python/library/PostgreSQL versions, host/CPU/memory where
 available, dataset, request mixes, measurement method, timestamps, and per-run
 metrics. Runtime credentials and raw authentication identifiers are not included.
+An artifact is published only when all measured requests succeed, the API stops,
+and disposable database cleanup succeeds. Failed runs publish no JSON, including
+transport failures whose database query count cannot be known. Use an existing
+successful artifact only after matching its version, configuration and workload.
 The `schema_version`, `cache_mode`, `cache_state`, and nullable cache-hit field
 are intended to hold later cached results in the same shape. Cold/warm cache
 states are not applicable before Redis caching exists. For the later comparison,
 record a cache-cleared cold fill separately from warm hits, while retaining the
 same request mix and run configuration; keep the exact command and JSON artifact
 and match dataset, scenario, concurrency, repetitions and request counts.
+
+## Baseline evidence versions
+
+The initial version 1.0.0 artifact
+`menu-read-baseline-20261007T120114Z-75f7ad6d.json` is superseded: its actual
+mixed-write workload was 40% writes/60% reads while its metadata claimed
+20%/80%, and it did not isolate all settings. Do not use it for the future cached
+comparison. Version 1.1.0 corrects the cycle, configuration and failure policy.
+See the [Issue #20 verification](../verification-milestone7-issue20.md) for the
+corrected capture and validation evidence.
 
 ## Dashboard caching evidence
 
