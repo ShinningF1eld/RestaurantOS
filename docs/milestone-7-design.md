@@ -1,6 +1,6 @@
 # Milestone 7: Redis caching and rate limiting
 
-Status: Approved, revision 9 (cache, login limiter, atomic admission, and local fallback/recovery policy recorded)
+Status: Approved, revision 10 (cache, login/refresh limiter, atomic admission, and local fallback/recovery policy recorded)
 Updated: 2026-10-07  
 Inspection: repository HEAD `a1acf44`; working tree clean before this document.  
 Approval: user accepted the completed plan on 2026-10-07 ("The plan is done then"). Remaining tuning is identified below; implementation and verification have not been performed.
@@ -134,8 +134,8 @@ an email-global hard limit, distributed guessing across many IPs has weaker
 protection; this limitation is accepted. When implemented, this policy will
 replace the current PostgreSQL-backed pre-verification attempt-counting
 implementation with failed-login accounting in Redis and local degraded modes.
-Refresh family 10 and IP 40 per 60 seconds remain proposals. Concurrent local
-increments must be atomic.
+Refresh accounting and quotas are accepted below. Concurrent local increments
+must be atomic.
 
 The current PostgreSQL policy also has an email-global hard limit (5 per 900
 seconds), so moving it unchanged to Redis retains this concern. Evidence:
@@ -183,6 +183,30 @@ checks cannot create quota overshoot and that failure finalization, success,
 storage errors, cancellation, ambiguous Redis results and lease expiry preserve
 these guarantees.
 
+### Refresh accounting and quotas
+
+Accepted refresh accounting is separate from login failure accounting. For the
+family bucket, count every client refresh attempt that resolves to a known refresh
+family, whether the attempt succeeds or fails. This includes successful rotation,
+expired tokens tied to a known family, and consumed/replayed tokens. Requests that
+cannot resolve to a known family do not consume a family bucket because there is no
+safe family identity to charge.
+
+For the IP-wide bucket, count every client-originated refresh attempt, including
+valid, expired, replayed, unknown, malformed or missing refresh tokens. Genuine
+server/storage failures do not consume either refresh quota. Preserve the existing
+uncertain-refresh rule: do not blindly retry a refresh after an ambiguous transport
+failure.
+
+Normal Redis mode allows **10 refresh attempts per family per 60 seconds** and
+**100 refresh attempts per source IP per 60 seconds**. Local degraded mode is
+intentionally stricter at **5 per family per 60 seconds** and **50 per source IP
+per 60 seconds**. Family limits protect one session chain across token rotation;
+the larger IP limit allows multiple legitimate sessions behind one restaurant or
+other shared public IP while still bounding endpoint spam. Refresh throttles use
+the same generic 429 body and Retry-After behavior without revealing which bucket
+blocked the request.
+
 Emit structured mode-transition logs, including safe reason category, process
 identity and degraded duration. Avoid logging every skipped Redis request; log
 transitions and aggregated measurements. Probe failures and transition metrics
@@ -214,7 +238,7 @@ also lose counters. Stricter local quotas reduce exposure but do not provide a
 global quota or prevent aggregate quotas growing with process count. These weaker
 outage guarantees are explicitly accepted; no PostgreSQL shadow accounting or
 fallback limiter is proposed. Cross-process mode synchronization is unnecessary
-for this selected policy. Refresh numerical settings remain proposals.
+for this selected policy. Refresh accounting and numerical settings are accepted above.
 
 ## Validation and delivery
 
@@ -244,8 +268,8 @@ disclosed defaults; material changes to the accepted behavior require review.
 
 1. Cache scope, keys, payload split, 10-second absolute TTL and post-commit
    invalidation are accepted in the issue #19 decision section above.
-2. Login thresholds/windows, failed-login accounting and the recovery guard are
-   accepted above; review refresh accounting and thresholds separately.
+2. Login thresholds/windows, failed-login accounting, refresh accounting/quotas,
+   and the recovery guard are accepted above.
 3. Bounded local memory, regular expiry cleanup and generic 429-at-capacity behavior
    are accepted. Finalize only the exact entry-count cap against expected workload
    and backend memory before implementation.
@@ -269,3 +293,4 @@ disclosed defaults; material changes to the accepted behavior require review.
 | 2026-10-07 | Accept normal Redis login limits (email+IP 5/60s, IP 30/900s), degraded local limits (email+IP 3/60s, IP 10/900s), failed-login-only accounting, and no clearing on successful login; accept distributed-guessing limitation | User supplied accepted login limiter decisions and deferred implementation; revision 7 records settings consistently; refresh limiter tuning and implementation remain open |
 | 2026-10-07 | Accept strict atomic pair/IP admission with no extra concurrency allowance, 10-second reservation leases, failure finalization, release on success/storage error/cancellation, local degraded fallback for ambiguous Redis admission, and generic 429/Retry-After overload behavior | User accepted the four proposed issue #19 step-3 defaults; revision 8 records the concurrency policy before implementation |
 | 2026-10-07 | Accept bounded process-local limiter memory, generic 429/Retry-After when capacity prevents tracking a new key, regular cleanup of expired counters/reservations even during prolonged Redis outages, and dual enforcement of still-live local buckets during Redis recovery; defer only the exact entry-count cap to deployment tuning | User accepted issue #19 step-4 policy; revision 9 records local fallback memory and recovery behavior before implementation |
+| 2026-10-07 | Accept refresh accounting by known family plus source IP; count successful and failed known-family attempts, count all client-originated attempts in the IP bucket except genuine server/storage failures; normal Redis quotas 10/family and 100/IP per 60s; degraded local quotas 5/family and 50/IP per 60s | User accepted issue #19 refresh accounting and quotas; revision 10 records the policy before implementation |
