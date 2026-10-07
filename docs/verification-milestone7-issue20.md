@@ -191,3 +191,95 @@ owned disposable resource safety is exercised on success and failure, and the
 same versioned workload/schema plus dashboard evaluation requirements remain
 available. Abrupt termination and full Milestone 7 acceptance remain outside
 this focused verification; this does not claim that the whole milestone passes.
+
+
+## Recorded latency baseline
+
+These tracked tables preserve all 48 result cells from the corrected JSON capture
+at `2026-10-07T13:04:16.107257+00:00`, implementation `aa01cde`, script version 1.1.0.
+Latencies are client-observed milliseconds, rounded to two decimal places;
+P50/P95/P99 use nearest-rank within each cell. Each row contains 1,000 measured
+requests after 50 excluded warm-ups. Every row has 1,000 successful requests,
+zero errors (0% error rate), and cache-hit ratio N/A. These are measured local
+results, not deployment performance targets. The full-precision JSON remains
+the machine-readable comparison source.
+
+### Repetition 1
+
+| Scenario | Concurrency | P50 ms | P95 ms | P99 ms | PostgreSQL statements |
+|---|---:|---:|---:|---:|---:|
+| menu-list | 1 | 15.60 | 19.42 | 22.57 | 6000 |
+| menu-list | 10 | 150.72 | 304.02 | 367.66 | 6000 |
+| menu-list | 25 | 421.57 | 1350.36 | 1945.53 | 6000 |
+| menu-list | 50 | 722.15 | 3008.78 | 4392.76 | 6000 |
+| menu-items | 1 | 18.61 | 22.83 | 26.59 | 7000 |
+| menu-items | 10 | 166.02 | 305.22 | 350.56 | 7000 |
+| menu-items | 25 | 438.65 | 1441.21 | 2330.58 | 7000 |
+| menu-items | 50 | 796.22 | 3243.19 | 5339.96 | 7000 |
+| mixed-read | 1 | 18.66 | 23.94 | 26.95 | 6800 |
+| mixed-read | 10 | 162.66 | 303.37 | 415.13 | 6800 |
+| mixed-read | 25 | 417.18 | 1337.41 | 1959.55 | 6800 |
+| mixed-read | 50 | 792.05 | 3214.82 | 4815.96 | 6800 |
+| mixed-write | 1 | 18.73 | 25.43 | 28.93 | 7511 |
+| mixed-write | 10 | 170.17 | 384.98 | 534.59 | 7500 |
+| mixed-write | 25 | 440.80 | 1450.75 | 2099.95 | 7500 |
+| mixed-write | 50 | 829.50 | 3383.16 | 5623.13 | 7500 |
+
+### Repetition 2
+
+| Scenario | Concurrency | P50 ms | P95 ms | P99 ms | PostgreSQL statements |
+|---|---:|---:|---:|---:|---:|
+| menu-list | 1 | 15.68 | 19.13 | 22.77 | 6000 |
+| menu-list | 10 | 144.85 | 370.47 | 450.19 | 6000 |
+| menu-list | 25 | 322.47 | 990.50 | 1593.20 | 6000 |
+| menu-list | 50 | 616.11 | 2378.71 | 3817.58 | 6000 |
+| menu-items | 1 | 16.36 | 20.63 | 24.99 | 7000 |
+| menu-items | 10 | 157.73 | 335.87 | 486.73 | 7000 |
+| menu-items | 25 | 361.41 | 1250.85 | 1692.34 | 7000 |
+| menu-items | 50 | 675.79 | 2936.87 | 4483.44 | 7000 |
+| mixed-read | 1 | 18.35 | 29.33 | 36.26 | 6800 |
+| mixed-read | 10 | 146.89 | 356.38 | 419.56 | 6800 |
+| mixed-read | 25 | 379.20 | 1257.52 | 1898.50 | 6800 |
+| mixed-read | 50 | 719.37 | 2801.37 | 4516.45 | 6800 |
+| mixed-write | 1 | 17.24 | 22.66 | 25.60 | 7500 |
+| mixed-write | 10 | 153.24 | 350.97 | 479.20 | 7500 |
+| mixed-write | 25 | 394.04 | 1235.83 | 1869.28 | 7500 |
+| mixed-write | 50 | 730.72 | 3224.97 | 4676.63 | 7500 |
+
+### Repetition 3
+
+| Scenario | Concurrency | P50 ms | P95 ms | P99 ms | PostgreSQL statements |
+|---|---:|---:|---:|---:|---:|
+| menu-list | 1 | 14.42 | 17.41 | 21.02 | 6000 |
+| menu-list | 10 | 131.11 | 352.59 | 396.90 | 6000 |
+| menu-list | 25 | 342.64 | 1153.58 | 1565.79 | 6000 |
+| menu-list | 50 | 678.85 | 2805.44 | 4546.14 | 6000 |
+| menu-items | 1 | 17.50 | 21.71 | 26.00 | 7000 |
+| menu-items | 10 | 169.10 | 359.41 | 405.91 | 7000 |
+| menu-items | 25 | 414.44 | 1387.29 | 2040.94 | 7000 |
+| menu-items | 50 | 818.55 | 3307.10 | 5028.69 | 7000 |
+| mixed-read | 1 | 19.06 | 23.03 | 26.19 | 6800 |
+| mixed-read | 10 | 126.86 | 329.75 | 406.33 | 6800 |
+| mixed-read | 25 | 421.55 | 1413.98 | 2102.32 | 6800 |
+| mixed-read | 50 | 683.22 | 2873.78 | 4229.31 | 6800 |
+| mixed-write | 1 | 20.54 | 31.28 | 45.38 | 7500 |
+| mixed-write | 10 | 173.63 | 408.54 | 570.51 | 7500 |
+| mixed-write | 25 | 439.94 | 1522.77 | 2280.15 | 7500 |
+| mixed-write | 50 | 825.54 | 3479.92 | 5074.40 | 7500 |
+
+### Comparing the cached version
+
+Match dataset, hardware/runtime, effective settings, endpoint mix, concurrency,
+warm-up count, measured count and repetitions. Compare warm-cache results against
+the matching scenario/concurrency/repetition rows above; report cold fills as a
+separate workload. Repeat the same mixed-write cycle to measure reads while
+catalog changes occur. Capture actual cache hits and preserve normal authorization
+and live stock reads.
+
+For each matched cell, report baseline and cached P50/P95/P99, latency change
+`100 * (cached_latency / baseline_latency - 1)`, PostgreSQL statements/queries per
+request, errors and cache-hit ratio. Divide statement totals by 1,000 for the
+queries/request values in these tables. Keep all three repetitions visible;
+do not average their percentiles and label that value a pooled percentile. Save
+the cached JSON next to the baseline and add its measured tables to tracked
+documentation. Latency and query reduction are both comparison outcomes.

@@ -133,6 +133,13 @@ latency baseline.
 See the [Issue #20 verification](../verification-milestone7-issue20.md) for the
 corrected capture and validation evidence.
 
+## Recorded comparison evidence
+
+The [recorded latency baseline](../verification-milestone7-issue20.md#recorded-latency-baseline)
+preserves all 48 measured P50/P95/P99 cells and PostgreSQL statement totals in
+tracked documentation, together with the method for comparing cached results.
+Use both latency and query counts when assessing the cached version.
+
 ## Dashboard caching evidence
 
 Use the baseline and post-cache artifacts to decide whether dashboard caching is
