@@ -27,9 +27,10 @@ roadmap features are complete.
 - Earlier audit host: Python 3.13.15, Node.js 24.14.1, npm 11.11.0.
 - Milestone 6 validation: isolated Python 3.12.13 environment, Node.js 24.14.1,
   npm 11.11.0; the older developer virtual environment was not replaced.
-- The only repository instruction file is `frontend/AGENTS.md`.
+- Repository instructions live in root `AGENTS.md` and `frontend/AGENTS.md`.
 
-Developer Docker Compose manages PostgreSQL. The independent
+Developer Docker Compose manages PostgreSQL and optional nonpersistent Redis
+on loopback port 6379. The independent
 `docker-compose.test.yml` adds disposable PostgreSQL/Redis for validation. The API
 and frontend run as host processes. Compose credentials are predictable local
 development defaults and are not suitable for shared or deployed environments.
@@ -65,6 +66,7 @@ cutover results below are historical, not evidence of an M6 application cutover.
 | Component | Variable | Example file |
 |---|---|---|
 | Backend and Alembic | `DATABASE_URL` | `backend/.env.example` |
+| Shared Redis | Secret `REDIS_URL`, `REDIS_OPERATION_BUDGET_MS` (default/maximum 100), `REDIS_MAX_CONNECTIONS` (20), `REDIS_TEST_NAMESPACE` | `backend/.env.example` |
 | Backend runtime | `ENVIRONMENT`, `LOG_LEVEL`, `DATABASE_ECHO` | `backend/.env.example` |
 | Authentication | Required independent `AUTH_JWT_SECRET`, `AUTH_RATE_LIMIT_SECRET`; trusted origins, cookie security, lifetimes and limits | `backend/.env.example` | <!-- pragma: allowlist secret -->
 | Backend tests | `TEST_DATABASE_URL` (database name must end in `_test`) | `backend/.env.example` |
@@ -72,6 +74,16 @@ cutover results below are historical, not evidence of an M6 application cutover.
 
 Both real local environment files are ignored. The example files contain no
 real credentials and remain commit-trackable.
+
+Milestone 7 T3 adds the asynchronous shared Redis adapter through API lifespan,
+lazy connections, one total command deadline and safe failure categories. Startup
+and `/health` remain independent of Redis. Catalog caching, invalidation and
+Redis/local auth limiting remain unimplemented. PostgreSQL sessions and the
+existing limiter are unchanged. See [Redis infrastructure](architecture/redis.md).
+T3 verification on 2026-10-07 passed baseline/static, 169 unit tests, 189
+integration tests, image smoke and 24 browser journeys; owned cleanup passed on
+success and injected failure. See [issue 21 evidence](verification-milestone7-issue21.md).
+This does not establish full Milestone 7 acceptance.
 
 ## Database schema and migrations
 

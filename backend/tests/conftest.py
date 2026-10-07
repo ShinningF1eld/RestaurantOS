@@ -85,6 +85,13 @@ def pytest_configure(config: pytest.Config) -> None:
     os.environ["AUTH_RATE_LIMIT_SECRET"] = secrets.token_urlsafe(48)
     os.environ["AUTH_TRUSTED_ORIGINS"] = '["http://localhost:3000"]'
     os.environ["AUTH_COOKIE_SECURE"] = "false"
+    # Explicit test infrastructure only; never read developer Redis from .env.
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+    from test_support.redis_environment import redis_environment
+
+    os.environ.update(redis_environment(os.environ))
 
     sync_url = make_url(test_database_url).set(drivername="postgresql+psycopg")
     engine = create_engine(sync_url)

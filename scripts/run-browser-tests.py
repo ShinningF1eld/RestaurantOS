@@ -15,6 +15,7 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 from test_support.disposable_postgres import disposable_database
+from test_support.redis_environment import redis_environment
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
@@ -31,6 +32,7 @@ def safe_diagnostics(value, env):
         "AUTH_RATE_LIMIT_SECRET",
         "DATABASE_URL",
         "TEST_DATABASE_URL",
+        "REDIS_URL",
     ):
         secret = env.get(key)
         if secret:
@@ -151,7 +153,7 @@ def main():
     artifacts = ROOT / "test-results" / "browser"
     artifacts.mkdir(parents=True, exist_ok=True)
     with disposable_database(prefix="restaurantos_browser") as database:
-        env = database.environment()
+        env = redis_environment(database.environment())
         env.update(
             {
                 "NEXT_PUBLIC_API_URL": api,

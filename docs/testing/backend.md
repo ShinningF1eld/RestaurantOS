@@ -26,7 +26,7 @@ That gate starts an isolated PostgreSQL/Redis Compose project, creates a unique
 disposable PostgreSQL database from the test template, applies Alembic head,
 runs all non-unit backend suites, checks model drift, and drops the database and
 services on exit. `--external-services` is reserved for CI and requires an
-explicit `TEST_DATABASE_URL`. Never point the suite at the application database.
+explicit `TEST_DATABASE_URL` and `TEST_REDIS_HOST/PORT`. Never point the suite at the application database.
 
 `tests/unit/` contains domain policies, calculations, configuration validation,
 and service orchestration with fakes. `tests/integration/` contains both direct
@@ -36,7 +36,8 @@ contracts and also uses the disposable database because the application and the
 shared cleanup fixture are configured during collection. The two historical
 top-level tests are service-backed: `test_health.py` imports the configured
 application and `test_order_flow_integration.py` exercises a full authenticated
-business journey.
+business journey. `test_redis_infrastructure.py` exercises the shared async
+adapter against disposable Redis, outage liveness, deadline and owned cleanup.
 
 ## Fixture lifecycle and isolation
 
@@ -52,7 +53,8 @@ Every other pytest selection is service-backed. Before importing application
 modules, pytest requires `TEST_DATABASE_URL`, accepts only the
 `postgresql+asyncpg` driver and a database name ending in `_test`, points the app
 to that URL, generates process-local auth test secrets, and creates the fixture
-engine. A missing URL or unsafe target fails before collection can reach the
+engine. Explicit test Redis host/port override ambient application Redis settings
+and generate a unique test namespace. A missing URL or unsafe target fails before collection can reach the
 truncate fixture. The root autouse fixture truncates application tables before
 and after each non-unit test; the unit conftest shadows it with a no-op. The
 sync fixture engine is disposed when pytest exits. HTTP authentication fixtures

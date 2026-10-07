@@ -47,7 +47,7 @@ Run these commands from the repository root in PowerShell:
 Copy-Item backend/.env.example backend/.env
 Copy-Item frontend/.env.example frontend/.env.local
 
-docker compose up -d --wait postgres
+docker compose up -d --wait postgres redis
 
 $restaurantOsTestDatabase = docker exec restaurantos-postgres psql -U restaurantos -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'restaurantos_test'"
 if (-not $restaurantOsTestDatabase) {
@@ -76,6 +76,11 @@ Pop-Location
 The Compose username, password, and database name are all `restaurantos`.
 They are intentionally predictable **local-development defaults** and must not
 be reused for a shared, staging, or production environment.
+
+Local Redis listens only on loopback port 6379 without persistence. Startup and
+`/health` do not require Redis. See [Redis infrastructure](docs/architecture/redis.md)
+for configuration and isolated validation. Catalog caching and Redis auth limiting
+remain future work.
 
 Backend tests use `restaurantos_test` and refuse to run unless
 `TEST_DATABASE_URL` names a database ending in `_test`. Tests truncate that
@@ -116,7 +121,7 @@ Use the same sequence with platform-specific virtual-environment commands:
 ```bash
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env.local
-docker compose up -d --wait postgres
+docker compose up -d --wait postgres redis
 if ! docker exec restaurantos-postgres psql -U restaurantos -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'restaurantos_test'" | grep -q 1; then
   docker exec restaurantos-postgres createdb -U restaurantos restaurantos_test
 fi

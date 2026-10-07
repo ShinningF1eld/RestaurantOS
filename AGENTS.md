@@ -85,8 +85,9 @@
   are an explicit operation; inspect its actual revision and use the appropriate
   runbook/backup procedure before a destructive change. Repository head and a
   recorded local database revision are not interchangeable.
-- Developer `docker-compose.yml` runs only PostgreSQL, host 5433/container 5432,
-  retaining `postgres_data`. API/frontend normally run on the host at 8000/3000.
+- Developer `docker-compose.yml` runs PostgreSQL, host 5433/container 5432,
+  retaining `postgres_data`. Optional Redis uses loopback port 6379 without
+  persistence. API/frontend normally run on the host at 8000/3000.
   Use `localhost` consistently for both so host-only cookies reach SSR. Normal
   shutdown is `docker compose down`; do not delete the developer volume.
 - Copy the tracked env examples to ignored local files and use

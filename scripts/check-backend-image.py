@@ -195,7 +195,7 @@ def inspect_image(image: str) -> None:
     if any(
         any(
             marker in key.upper()
-            for marker in ("DATABASE_URL", "SECRET", "PASSWORD", "TOKEN")
+            for marker in ("DATABASE_URL", "REDIS_URL", "SECRET", "PASSWORD", "TOKEN")
         )
         for key in baked_keys
     ):
@@ -260,6 +260,10 @@ def production_environment(
             "DATABASE_URL": runtime_url.render_as_string(hide_password=False),
             "ENVIRONMENT": "production",
             "DATABASE_ECHO": "false",
+            # Deliberately unavailable inside the container: liveness/startup
+            # must work without Redis and without database migrations.
+            "REDIS_URL": "redis://127.0.0.1:1/0",
+            "REDIS_OPERATION_BUDGET_MS": "100",
             "AUTH_COOKIE_SECURE": "true",
             "AUTH_TRUSTED_ORIGINS": json.dumps(["https://restaurantos.invalid"]),
         }

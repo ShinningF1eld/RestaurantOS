@@ -11,3 +11,4 @@ SQLAlchemy==2.0.52
 uvicorn==0.52.4
 pwdlib[argon2]==0.3.0
 PyJWT==2.10.1
+redis==8.1.0

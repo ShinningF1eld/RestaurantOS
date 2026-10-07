@@ -31,6 +31,11 @@ full acceptance. The legacy `-Skip*` switches also select partial validation.
 External CI services require explicit `TEST_DATABASE_URL` and use
 `--external-services`; the configured database is a template, never a migration target.
 
+Redis service runs require explicit `TEST_REDIS_HOST/PORT`. Local validation
+discovers random loopback ports; external CI supplies its service ports. The
+runner overrides ambient `REDIS_URL`, passes a 100 ms total budget and unique
+test namespace into browser/API processes. Pure unit tests require no services.
+
 ## Shared local and CI gates
 
 | Gate | Evidence |
@@ -39,7 +44,7 @@ External CI services require explicit `TEST_DATABASE_URL` and use
 | backend-static | Ruff lint, separate Ruff format check, mypy |
 | frontend-static | ESLint, separate Prettier format check, TypeScript |
 | backend-unit | Service variables absent; pure policies/calculations/orchestration |
-| backend-integration | Real migrated PostgreSQL, API authentication/tenancy, model drift; Redis infrastructure availability and namespaced write/read/delete |
+| backend-integration | Real migrated PostgreSQL, API authentication/tenancy, model drift; async Redis commands, deadline, outage liveness and owned cleanup on success/failure |
 | frontend-tests | Components and real API transport with isolated browser/network mocks |
 | frontend-build | Production Next.js build in an isolated source copy |
 | migrations | Clean and seeded legacy upgrades, preservation and downgrade guards |

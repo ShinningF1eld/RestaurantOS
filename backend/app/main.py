@@ -1,3 +1,8 @@
+from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
+import logging
+from threading import Lock
+
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -7,6 +12,7 @@ from app.core.config import get_settings
 from app.core.errors import DomainError
 from app.core.logging import configure_json_logging
 from app.db.database import get_db
+from app.redis.adapter import RedisAdapter, RedisFailure
 from app.http.error_handlers import domain_error_handler
 from app.http.request_middleware import RequestIdMiddleware
 from app.http.auth_middleware import AuthBoundaryMiddleware
@@ -36,10 +42,41 @@ from app.modules.restaurants.router import router as restaurant_router
 settings = get_settings()
 configure_json_logging(level=settings.log_level)
 
+
+@asynccontextmanager
+async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+    adapter = RedisAdapter(settings)
+    await adapter.open()
+    # Test clients may nest/overlap lifespans and shut down out of order. Track
+    # active owners rather than restore a possibly already closed predecessor.
+    with application.state.redis_lifecycle_lock:
+        application.state.redis_lifespans.append(adapter)
+        application.state.redis = adapter
+    try:
+        yield
+    finally:
+        try:
+            await adapter.close()
+        except RedisFailure as error:
+            logging.getLogger(__name__).warning(
+                "Redis shutdown failed (%s)", error.kind.value
+            )
+        finally:
+            with application.state.redis_lifecycle_lock:
+                application.state.redis_lifespans.remove(adapter)
+                if application.state.redis_lifespans:
+                    application.state.redis = application.state.redis_lifespans[-1]
+                elif hasattr(application.state, "redis"):
+                    del application.state.redis
+
+
 app = FastAPI(
     title="RestaurantOS API",
     version="0.1.0",
+    lifespan=lifespan,
 )
+app.state.redis_lifespans = []
+app.state.redis_lifecycle_lock = Lock()
 
 app.include_router(auth_router)
 for business_router in (
