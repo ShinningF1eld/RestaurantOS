@@ -31,7 +31,7 @@ from test_support.disposable_postgres import TestDatabase, disposable_database
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
-SCRIPT_VERSION = "1.1.0"
+SCRIPT_VERSION = "1.1.1"
 DEFAULT_OUTPUT = ROOT / "artifacts" / "benchmarks"
 SCENARIOS = ("menu-list", "menu-items", "mixed-read", "mixed-write")
 DEFAULT_CONCURRENCY = (1, 10, 25, 50)
@@ -493,6 +493,20 @@ def isolated_settings(database: TestDatabase) -> Any:
     sys.path.insert(0, str(BACKEND))
     from app.core.config import Settings
 
+    class BenchmarkSettings(Settings):
+        @classmethod
+        def settings_customise_sources(
+            cls,
+            settings_cls: Any,
+            init_settings: Any,
+            env_settings: Any,
+            dotenv_settings: Any,
+            file_secret_settings: Any,
+        ) -> tuple[Any, ...]:
+            # Skip ambient sources entirely, including their JSON parsing. Keep
+            # the application's normal field and model validators unchanged.
+            return (init_settings,)
+
     generated = database.environment(base={})
     values = {
         name: field.get_default(call_default_factory=True)
@@ -509,7 +523,7 @@ def isolated_settings(database: TestDatabase) -> Any:
         auth_cookie_secure=False,
         auth_trusted_origins=["http://localhost:3000"],
     )
-    return Settings(_env_file=None, **values)
+    return BenchmarkSettings(_env_file=None, **values)
 
 
 def run_alembic() -> None:

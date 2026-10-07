@@ -18,7 +18,8 @@ $env:TEST_DATABASE_URL = "postgresql+asyncpg://USER:PASSWORD@127.0.0.1:5433/rest
 & .\backend\.venv-m6-dev\Scripts\python.exe .\scripts\benchmark-menu-reads.py
 ```
 
-Version 1.1.0 constructs every application setting explicitly with dotenv disabled:
+Version 1.1.1 constructs every application setting explicitly with ambient settings
+sources and dotenv disabled, including parsing of malformed inherited JSON:
 declared application defaults plus benchmark overrides (development pooling,
 WARNING logging, SQL echo off, localhost trusted origin and nonsecure local
 cookies). Migrations, seed and API use the same settings instance. Caller auth,
@@ -103,10 +104,12 @@ results are git-ignored. Each result includes the source commit, script version,
 configuration, Python/library/PostgreSQL versions, host/CPU/memory where
 available, dataset, request mixes, measurement method, timestamps, and per-run
 metrics. Runtime credentials and raw authentication identifiers are not included.
-An artifact is published only when all measured requests succeed, the API stops,
-and disposable database cleanup succeeds. Failed runs publish no JSON, including
+A run is accepted as successful only when all measured requests succeed, the API
+stops, and disposable database cleanup succeeds. If cleanup fails after the atomic
+artifact write, that artifact is removed. Failed runs leave no JSON, including
 transport failures whose database query count cannot be known. Use an existing
-successful artifact only after matching its version, configuration and workload.
+successful artifact only after checking version compatibility and matching its
+configuration and workload.
 The `schema_version`, `cache_mode`, `cache_state`, and nullable cache-hit field
 are intended to hold later cached results in the same shape. Cold/warm cache
 states are not applicable before Redis caching exists. For the later comparison,
@@ -121,6 +124,12 @@ The initial version 1.0.0 artifact
 mixed-write workload was 40% writes/60% reads while its metadata claimed
 20%/80%, and it did not isolate all settings. Do not use it for the future cached
 comparison. Version 1.1.0 corrects the cycle, configuration and failure policy.
+The full corrected capture uses version 1.1.0 at `aa01cde`; version 1.1.1 further
+disables ambient settings-source parsing during setup. It preserves the measured
+request path, workload, percentile method and effective settings of that capture.
+The final loader's real smoke verifies identical effective settings, so the full
+1.1.0 capture remains the comparison baseline. The smoke is not a replacement
+latency baseline.
 See the [Issue #20 verification](../verification-milestone7-issue20.md) for the
 corrected capture and validation evidence.
 

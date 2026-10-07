@@ -51,6 +51,8 @@ def test_configuration_ignores_environment_and_dotenv(benchmark, monkeypatch, tm
     monkeypatch.setenv("AUTH_REFRESH_WINDOW_SECONDS", "1")
     monkeypatch.setenv("DATABASE_ECHO", "true")
     monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("AUTH_TRUSTED_ORIGINS", "invalid-json")
+    monkeypatch.setenv("AUTH_TRUSTED_PROXY_IPS", "invalid-json")
     database = TestDatabase(
         "owned_test",
         "postgresql+asyncpg://localhost/owned_test",

@@ -10,6 +10,10 @@ instructions, benchmark implementation and existing disposable database helper.
 Issue #20 was closed as completed when inspected. This review changes no issue
 state or implementation.
 
+Current follow-up outcome: all three findings are fixed. The corrected full
+baseline and final configuration-loader validation are recorded below; the
+original review is retained as history.
+
 ## Verdict
 
 This section records the original review of `7559b33`. The fixes and new
@@ -138,5 +142,52 @@ returned 1, wrote no result JSON, and left zero allocated benchmark databases.
 All runs inherited conflicting `AUTH_ACCESS_SECONDS=7`, `DATABASE_ECHO=true`,
 and `ENVIRONMENT=production` deliberately to exercise configuration isolation.
 
-The corrected default full capture is pending at the time of this intermediate
-update; this paragraph will be replaced with the completed run evidence.
+The corrected default capture completed all **48 cells / 48,000 measured
+requests with zero errors**, using 1,000 measured requests and 50 excluded warm-up
+requests per cell, concurrency 1/10/25/50 and three repetitions. Artifact:
+`artifacts/benchmarks/corrected/menu-read-baseline-20261007T130416Z-c6ac7674.json`.
+The JSON records clean implementation revision
+`aa01cde845ba5b780f6875abdca274fc452ad70c`, script version 1.1.0, and a script
+SHA-256 matching that revision. It was parsed and verified to contain all cells,
+request totals, zero errors, positive actual SQL counts, required runtime metadata,
+and the expected effective settings. Python 3.12.13 / PostgreSQL 16.15.
+
+Average SQL counts per measured request: menu-list 6, menu-items 7, mixed-read
+6.8, mixed-write 7.500916666666667. The small first mixed-write difference from
+7.5 reflects actual first-time mutations; these counts were measured, not assumed.
+Per-cell P50/P95/P99 and status counts are in the artifact. The allocated database
+count after the successful run was zero, and its Compose containers/network were
+removed. The original version 1.0.0 artifact is superseded and must not be used
+for the future cached comparison.
+
+Final setup hardening in version 1.1.1 restricts Pydantic settings sources to
+explicit inputs. Supplying every field alone still allowed Pydantic to parse an
+invalid inherited JSON value before resolving input precedence; the final loader
+ignores those sources entirely while retaining all application validators. The
+settings regression now includes invalid `AUTH_TRUSTED_ORIGINS` and
+`AUTH_TRUSTED_PROXY_IPS`, and all 11 focused tests pass again. A final real smoke
+uses these invalid inputs plus the scalar conflicts, exercises both successful
+HTTP reads/writes and an injected failed request, verifies zero leftover
+databases, and compares effective settings exactly with the full capture. This
+change affects setup only; measured requests, workload and metric calculation
+are unchanged. The clean version 1.1.0 full capture remains valid comparison
+evidence, with its exact implementation revision and script hash preserved.
+
+Broader validation command:
+`backend/.venv-m6-dev/Scripts/python.exe scripts/validate.py --gate baseline
+--gate backend-unit --gate backend-integration --no-install`.
+Passed baseline (Compose config, dependency integrity, candidate secret scan),
+**144 unit tests** including the 11 new regressions, **183 real PostgreSQL
+integration/characterization tests**, clean database upgrades, Alembic drift
+check and Redis infrastructure namespace cleanup. The test Compose project was
+removed. Existing dependency/datetime deprecation warnings remain. Backend-static
+also passed (Ruff/format/mypy); this is partial issue validation, not whole
+Milestone 7 acceptance. The final source loader is additionally checked by the
+focused unit rerun and real smoke described above.
+
+All four Issue #20/T2 acceptance criteria now pass for the corrected capture:
+dataset/mixes are accurately defined, metrics and effective metadata are recorded,
+owned disposable resource safety is exercised on success and failure, and the
+same versioned workload/schema plus dashboard evaluation requirements remain
+available. Abrupt termination and full Milestone 7 acceptance remain outside
+this focused verification; this does not claim that the whole milestone passes.
