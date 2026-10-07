@@ -131,8 +131,9 @@ Local degraded mode applies stricter limits: 3 per 60 seconds for the pair and
 10 per 900 seconds for the IP. The pair keying prevents another IP from exhausting
 the victim's pair bucket; shared-IP users still share the IP-wide quota. Without
 an email-global hard limit, distributed guessing across many IPs has weaker
-protection; this limitation is accepted. This replaces the current
-pre-verification attempt-counting implementation in Redis and local login modes.
+protection; this limitation is accepted. When implemented, this policy will
+replace the current PostgreSQL-backed pre-verification attempt-counting
+implementation with failed-login accounting in Redis and local degraded modes.
 Refresh family 10 and IP 40 per 60 seconds remain proposals. Concurrent local
 increments must be atomic.
 
@@ -192,7 +193,7 @@ also lose counters. Stricter local quotas reduce exposure but do not provide a
 global quota or prevent aggregate quotas growing with process count. These weaker
 outage guarantees are explicitly accepted; no PostgreSQL shadow accounting or
 fallback limiter is proposed. Cross-process mode synchronization is unnecessary
-for this selected policy. Numerical settings and recovery guard remain proposals.
+for this selected policy. Refresh numerical settings and the recovery guard remain proposals.
 
 ## Validation and delivery
 
