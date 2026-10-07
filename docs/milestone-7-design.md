@@ -1,6 +1,6 @@
 # Milestone 7: Redis caching and rate limiting
 
-Status: Approved, revision 10 (cache, login/refresh limiter, atomic admission, and local fallback/recovery policy recorded)
+Status: Approved, revision 11 (issue #19 policy complete; deployment-sized local entry cap recorded)
 Updated: 2026-10-07  
 Inspection: repository HEAD `a1acf44`; working tree clean before this document.  
 Approval: user accepted the completed plan on 2026-10-07 ("The plan is done then"). Remaining tuning is identified below; implementation and verification have not been performed.
@@ -45,8 +45,8 @@ accepted.
 
 Recorded on 2026-10-07 following the user's request to save these decisions.
 This records policy for [issue #19](https://github.com/ShinningF1eld/RestaurantOS/issues/19),
-not implementation or verification evidence. The limiter portion of that issue
-remains open.
+not implementation or runtime verification evidence. Issue #19's design choices
+are complete; implementation and measured deployment sizing remain later work.
 
 | Endpoint | Initial caching | Key |
 |---|---|---|
@@ -214,10 +214,13 @@ must reveal flapping without identifying accounts.
 
 Accepted local fallback policy: local state uses monotonic expiry and a fixed
 maximum number of limiter entries so a Redis outage cannot cause unbounded process
-memory growth. The exact entry-count cap remains deployment tuning until expected
-workload and backend memory are known. At capacity, do not evict active counters or
-silently admit untrackable keys; reject the request with the same generic 429 body
-and Retry-After behavior used by other login throttles.
+memory growth. The exact numeric entry cap is intentionally a **deployment-sizing
+parameter, not an unresolved design decision**. Before production deployment, the
+implementation must choose and document a finite cap from measured per-entry memory,
+available backend RAM, expected legitimate outage traffic and process count. The
+cap must be configurable and must not be left unbounded. At capacity, do not evict
+active counters or silently admit untrackable keys; reject the request with the same
+generic 429 body and Retry-After behavior used by other login throttles.
 
 Expired failure counters and expired 10-second admission reservations must be
 cleaned up regularly, including while Redis remains unhealthy for a prolonged
@@ -271,11 +274,33 @@ disclosed defaults; material changes to the accepted behavior require review.
 2. Login thresholds/windows, failed-login accounting, refresh accounting/quotas,
    and the recovery guard are accepted above.
 3. Bounded local memory, regular expiry cleanup and generic 429-at-capacity behavior
-   are accepted. Finalize only the exact entry-count cap against expected workload
-   and backend memory before implementation.
+   are accepted. The numeric entry cap is explicitly deployment sizing: measure
+   per-entry memory and expected outage traffic, then set and document a finite
+   configurable cap before production deployment. This is not an open design item.
 4. Initial cache scope is the two catalog lists above; evaluate optional dashboard
    caching after measurements.
 5. Atomic two-key admission is accepted with strict quota capacity, a 10-second reservation lease, local degraded handling for ambiguous Redis admission and generic 429/Retry-After behavior.
+
+## Issue #19 design verification examples
+
+The accepted policy covers the issue's requested state/operation cases:
+
+- **Overlap:** if a login pair has four confirmed failures under a 5/60-second
+  Redis quota and three password checks arrive together, strict atomic admission
+  allows only one reservation; the other two receive the generic 429 response.
+- **Outage:** the first Redis limiter failure marks that process degraded and the
+  same request is checked against the stricter local quotas; later degraded requests
+  skip Redis until the bounded recovery probe path runs.
+- **Ambiguous admission/finalization:** an ambiguous Redis admission is not blindly
+  retried; the process degrades and applies local enforcement. Successful login,
+  storage error or cancellation releases its reservation without recording a
+  credential failure, while the 10-second lease bounds orphaned reservations.
+- **Recovery:** after three successful limiter probes, new keys return to Redis but
+  still-live local buckets remain enforced until natural expiry, so recovery does
+  not grant a fresh quota.
+
+The exact local entry-count value is verified later as deployment evidence, not as
+an additional issue #19 architecture choice.
 
 ## Decision history
 
@@ -294,3 +319,4 @@ disclosed defaults; material changes to the accepted behavior require review.
 | 2026-10-07 | Accept strict atomic pair/IP admission with no extra concurrency allowance, 10-second reservation leases, failure finalization, release on success/storage error/cancellation, local degraded fallback for ambiguous Redis admission, and generic 429/Retry-After overload behavior | User accepted the four proposed issue #19 step-3 defaults; revision 8 records the concurrency policy before implementation |
 | 2026-10-07 | Accept bounded process-local limiter memory, generic 429/Retry-After when capacity prevents tracking a new key, regular cleanup of expired counters/reservations even during prolonged Redis outages, and dual enforcement of still-live local buckets during Redis recovery; defer only the exact entry-count cap to deployment tuning | User accepted issue #19 step-4 policy; revision 9 records local fallback memory and recovery behavior before implementation |
 | 2026-10-07 | Accept refresh accounting by known family plus source IP; count successful and failed known-family attempts, count all client-originated attempts in the IP bucket except genuine server/storage failures; normal Redis quotas 10/family and 100/IP per 60s; degraded local quotas 5/family and 50/IP per 60s | User accepted issue #19 refresh accounting and quotas; revision 10 records the policy before implementation |
+| 2026-10-07 | Classify the exact process-local limiter entry count as mandatory deployment sizing rather than an unresolved architecture choice; require a finite configurable value based on measured memory/workload before production and record concrete overlap/outage/ambiguity/recovery examples | User chose to defer the number to deployment while requiring the decision to be explicit; revision 11 completes issue #19 design policy |
