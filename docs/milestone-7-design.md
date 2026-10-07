@@ -1,6 +1,6 @@
 # Milestone 7: Redis caching and rate limiting
 
-Status: Approved, revision 8 (cache, login limiter and atomic admission tuning recorded)
+Status: Approved, revision 9 (cache, login limiter, atomic admission, and local fallback/recovery policy recorded)
 Updated: 2026-10-07  
 Inspection: repository HEAD `a1acf44`; working tree clean before this document.  
 Approval: user accepted the completed plan on 2026-10-07 ("The plan is done then"). Remaining tuning is identified below; implementation and verification have not been performed.
@@ -188,14 +188,23 @@ identity and degraded duration. Avoid logging every skipped Redis request; log
 transitions and aggregated measurements. Probe failures and transition metrics
 must reveal flapping without identifying accounts.
 
-Local state uses monotonic expiry, bounded entries and automatic cleanup. At
-capacity, reject untrackable new keys with a retryable service error rather than
-evicting active counters and silently allowing requests. Existing valid access
-sessions continue; PostgreSQL remains necessary for actual auth/session storage.
+Accepted local fallback policy: local state uses monotonic expiry and a fixed
+maximum number of limiter entries so a Redis outage cannot cause unbounded process
+memory growth. The exact entry-count cap remains deployment tuning until expected
+workload and backend memory are known. At capacity, do not evict active counters or
+silently admit untrackable keys; reject the request with the same generic 429 body
+and Retry-After behavior used by other login throttles.
 
-Proposed recovery guard: keep enforcing existing local buckets alongside Redis
-until those buckets expire; new keys use Redis once recovery is stable. Do not
-clear local counters on a mode change. Flapping must not grant fresh local quotas.
+Expired failure counters and expired 10-second admission reservations must be
+cleaned up regularly, including while Redis remains unhealthy for a prolonged
+period. Cleanup must preserve the local limiter's atomic pair/IP admission rules.
+
+Accepted recovery guard: once Redis recovery is stable, new keys return to Redis,
+while any still-live local buckets continue to be enforced alongside Redis until
+they expire naturally. Do not clear local counters on a mode change. This dual
+enforcement prevents recovery from granting a fresh quota and must remain safe
+under Redis flapping. Existing valid access sessions continue; PostgreSQL remains
+necessary for actual auth/session storage.
 
 ## Accepted degraded guarantees
 
@@ -205,7 +214,7 @@ also lose counters. Stricter local quotas reduce exposure but do not provide a
 global quota or prevent aggregate quotas growing with process count. These weaker
 outage guarantees are explicitly accepted; no PostgreSQL shadow accounting or
 fallback limiter is proposed. Cross-process mode synchronization is unnecessary
-for this selected policy. Refresh numerical settings and the recovery guard remain proposals.
+for this selected policy. Refresh numerical settings remain proposals.
 
 ## Validation and delivery
 
@@ -235,9 +244,11 @@ disclosed defaults; material changes to the accepted behavior require review.
 
 1. Cache scope, keys, payload split, 10-second absolute TTL and post-commit
    invalidation are accepted in the issue #19 decision section above.
-2. Login thresholds/windows and failed-login accounting are accepted above;
-   review refresh accounting and thresholds and finalize the recovery guard.
-3. Finalize bounded-memory capacity against expected workload before implementation.
+2. Login thresholds/windows, failed-login accounting and the recovery guard are
+   accepted above; review refresh accounting and thresholds separately.
+3. Bounded local memory, regular expiry cleanup and generic 429-at-capacity behavior
+   are accepted. Finalize only the exact entry-count cap against expected workload
+   and backend memory before implementation.
 4. Initial cache scope is the two catalog lists above; evaluate optional dashboard
    caching after measurements.
 5. Atomic two-key admission is accepted with strict quota capacity, a 10-second reservation lease, local degraded handling for ambiguous Redis admission and generic 429/Retry-After behavior.
@@ -257,3 +268,4 @@ disclosed defaults; material changes to the accepted behavior require review.
 | 2026-10-07 | Accept two catalog list endpoints, scoped v1 keys, static item fields with live tracking/stock, 10-second source-start age, fresh authorization and fail-open post-commit invalidation | User supplied cache decisions and requested saving them; revision 6 records the invalidation matrix and implementation edge cases; limiter tuning and verification remain open |
 | 2026-10-07 | Accept normal Redis login limits (email+IP 5/60s, IP 30/900s), degraded local limits (email+IP 3/60s, IP 10/900s), failed-login-only accounting, and no clearing on successful login; accept distributed-guessing limitation | User supplied accepted login limiter decisions and deferred implementation; revision 7 records settings consistently; refresh limiter tuning and implementation remain open |
 | 2026-10-07 | Accept strict atomic pair/IP admission with no extra concurrency allowance, 10-second reservation leases, failure finalization, release on success/storage error/cancellation, local degraded fallback for ambiguous Redis admission, and generic 429/Retry-After overload behavior | User accepted the four proposed issue #19 step-3 defaults; revision 8 records the concurrency policy before implementation |
+| 2026-10-07 | Accept bounded process-local limiter memory, generic 429/Retry-After when capacity prevents tracking a new key, regular cleanup of expired counters/reservations even during prolonged Redis outages, and dual enforcement of still-live local buckets during Redis recovery; defer only the exact entry-count cap to deployment tuning | User accepted issue #19 step-4 policy; revision 9 records local fallback memory and recovery behavior before implementation |
