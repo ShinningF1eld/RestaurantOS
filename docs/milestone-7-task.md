@@ -1,7 +1,7 @@
 # Milestone 7 task plan
 
 Status: Published
-Source: docs/milestone-7-design.md, approved revision 5 (2026-10-07); RestaurantOS_Master_Roadmap.md, Milestone 7.
+Source: docs/milestone-7-design.md, approved revision 11 (2026-10-07); RestaurantOS_Master_Roadmap.md, Milestone 7.
 Inspected revision: 6a528f4826796991d8c5cfe2ad9f6cffb480981e; working tree initially clean.
 Updated: 2026-10-07
 Target: ShinningF1eld/RestaurantOS
@@ -37,7 +37,7 @@ Current code reads catalog directly and counts all login attempts in PostgreSQL 
 
 ## Purpose and references
 
-Resolve cache and limiter tuning before implementation. Source: `docs/milestone-7-design.md`, approved revision 5, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1, R5–R9.
+Resolve cache and limiter tuning before implementation. Source: `docs/milestone-7-design.md`, approved revision 11, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1, R5–R9.
 
 ## Scope
 
@@ -65,7 +65,7 @@ Completed in `docs/milestone-7-design.md` revision 11. The design records concre
 
 ## Purpose and references
 
-Capture reproducible uncached menu-read baseline. Source: `docs/milestone-7-design.md`, approved revision 5, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R7.
+Capture reproducible uncached menu-read baseline. Source: `docs/milestone-7-design.md`, approved revision 11, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R7.
 
 ## Scope
 
@@ -92,7 +92,7 @@ Run the baseline script on the supported environment, preserve machine-readable 
 
 ## Purpose and references
 
-Provide bounded Redis adapter and isolated runtime configuration. Source: `docs/milestone-7-design.md`, approved revision 5, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R4–R7, R10.
+Provide bounded Redis adapter and isolated runtime configuration. Source: `docs/milestone-7-design.md`, approved revision 11, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R4–R7, R10.
 
 ## Scope
 
@@ -120,7 +120,7 @@ Run baseline, backend-static, backend-unit, backend-integration and image gates 
 
 ## Purpose and references
 
-Cache authorized menu reads with live stock and absolute age bounds. Source: `docs/milestone-7-design.md`, approved revision 5, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1–R4.
+Cache authorized menu reads with live stock and absolute age bounds. Source: `docs/milestone-7-design.md`, approved revision 11, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1–R4.
 
 ## Scope
 
@@ -148,7 +148,7 @@ Run backend-unit, backend-integration and backend-static; test actual warm hits,
 
 ## Purpose and references
 
-Invalidate committed catalog changes without risking business writes. Source: `docs/milestone-7-design.md`, approved revision 5, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1, R3, R4.
+Invalidate committed catalog changes without risking business writes. Source: `docs/milestone-7-design.md`, approved revision 11, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1, R3, R4.
 
 ## Scope
 
@@ -176,7 +176,7 @@ Run backend-unit, backend-integration and backend-static; deterministically coor
 
 ## Purpose and references
 
-Use atomic Redis admission and failed-login accounting. Source: `docs/milestone-7-design.md`, approved revision 5, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R5, R8, R9.
+Use atomic Redis admission and failed-login accounting. Source: `docs/milestone-7-design.md`, approved revision 11, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R5, R8, R9.
 
 ## Scope
 
@@ -205,7 +205,7 @@ Run backend-unit, backend-integration and backend-static; use real Redis atomic 
 
 ## Purpose and references
 
-Enforce stricter local limits through Redis outages and recovery. Source: `docs/milestone-7-design.md`, approved revision 5, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R5, R6, R10.
+Enforce stricter local limits through Redis outages and recovery. Source: `docs/milestone-7-design.md`, approved revision 11, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R5, R6, R10.
 
 ## Scope
 
@@ -234,7 +234,7 @@ Run backend-unit, backend-integration and backend-static; use deterministic cloc
 
 ## Purpose and references
 
-Verify cache and limiter workflows in full repository gates. Source: `docs/milestone-7-design.md`, approved revision 5, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1–R10.
+Verify cache and limiter workflows in full repository gates. Source: `docs/milestone-7-design.md`, approved revision 11, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1–R10.
 
 ## Scope
 
@@ -262,7 +262,7 @@ Run ./scripts/validate.ps1 and a complete remote PR CI run; record exact command
 
 ## Purpose and references
 
-Publish measured performance and Milestone 7 operational evidence. Source: `docs/milestone-7-design.md`, approved revision 5, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R4–R7, R10; roadmap exit criteria.
+Publish measured performance and Milestone 7 operational evidence. Source: `docs/milestone-7-design.md`, approved revision 11, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R4–R7, R10; roadmap exit criteria.
 
 ## Scope
 
