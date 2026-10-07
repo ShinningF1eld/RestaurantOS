@@ -1,6 +1,6 @@
 # Milestone 7: Redis caching and rate limiting
 
-Status: Approved, revision 7 (cache and login limiter tuning recorded)
+Status: Approved, revision 8 (cache, login limiter and atomic admission tuning recorded)
 Updated: 2026-10-07  
 Inspection: repository HEAD `a1acf44`; working tree clean before this document.  
 Approval: user accepted the completed plan on 2026-10-07 ("The plan is done then"). Remaining tuning is identified below; implementation and verification have not been performed.
@@ -162,14 +162,26 @@ can reject even correct credentials once the source's failure budget is exhauste
 Accepted: do not clear any failure bucket on successful login, in either normal
 Redis or local degraded mode. Keeping both avoids extra recovery/clear races.
 
-Concurrency needs explicit admission before costly password checks: atomically
-check failure counts and acquire short-lived in-flight capacity for both keys,
-then finalize as failure or release on success. Reservations are temporary capacity,
-not successful-login failure counts. Use bounded leases for process loss and
-ambiguous Redis responses; avoid account-dependent acquisition or cleanup paths.
-Exact reservation capacity and generic overload behavior are unresolved. Tests
-must prove overlapping password checks cannot create unlimited quota overshoot,
-and that success, storage failure and cancellation release capacity safely.
+Accepted concurrency policy: before costly password verification, atomically
+check and reserve capacity across both the normalized email-plus-IP pair bucket
+and the IP-wide bucket. Admission is strict: for each bucket, confirmed failures
+plus active reservations must remain within that bucket's configured quota; there
+is no extra concurrency allowance beyond the quota. A reservation has a 10-second
+lease so process loss or failed cleanup cannot hold capacity indefinitely.
+
+On a credential failure, atomically finalize the reservation into the appropriate
+failure counts. On successful login, storage error or cancellation, release the
+reservation without incrementing failure counts; cleanup is best effort and the
+lease bounds orphaned capacity. If the Redis admission operation times out or has
+an otherwise ambiguous result, do not retry it blindly: mark Redis unhealthy for
+that process and enforce the stricter process-local limiter for the same request.
+The local limiter must provide equivalent atomic pair/IP admission within the
+process. Quota exhaustion or inability to acquire admission returns the same
+generic 429 body and Retry-After behavior as other login throttles, without
+revealing which bucket blocked the request. Tests must prove overlapping password
+checks cannot create quota overshoot and that failure finalization, success,
+storage errors, cancellation, ambiguous Redis results and lease expiry preserve
+these guarantees.
 
 Emit structured mode-transition logs, including safe reason category, process
 identity and degraded duration. Avoid logging every skipped Redis request; log
@@ -228,7 +240,7 @@ disclosed defaults; material changes to the accepted behavior require review.
 3. Finalize bounded-memory capacity against expected workload before implementation.
 4. Initial cache scope is the two catalog lists above; evaluate optional dashboard
    caching after measurements.
-5. Specify concurrent admission capacity/lease behavior and response before coding.
+5. Atomic two-key admission is accepted with strict quota capacity, a 10-second reservation lease, local degraded handling for ambiguous Redis admission and generic 429/Retry-After behavior.
 
 ## Decision history
 
@@ -244,3 +256,4 @@ disclosed defaults; material changes to the accepted behavior require review.
 | 2026-10-07 | Approve completed plan and rename to milestone-7-design.md | User: "The plan is done then"; revision 5 records approval and preserves tuning tasks |
 | 2026-10-07 | Accept two catalog list endpoints, scoped v1 keys, static item fields with live tracking/stock, 10-second source-start age, fresh authorization and fail-open post-commit invalidation | User supplied cache decisions and requested saving them; revision 6 records the invalidation matrix and implementation edge cases; limiter tuning and verification remain open |
 | 2026-10-07 | Accept normal Redis login limits (email+IP 5/60s, IP 30/900s), degraded local limits (email+IP 3/60s, IP 10/900s), failed-login-only accounting, and no clearing on successful login; accept distributed-guessing limitation | User supplied accepted login limiter decisions and deferred implementation; revision 7 records settings consistently; refresh limiter tuning and implementation remain open |
+| 2026-10-07 | Accept strict atomic pair/IP admission with no extra concurrency allowance, 10-second reservation leases, failure finalization, release on success/storage error/cancellation, local degraded fallback for ambiguous Redis admission, and generic 429/Retry-After overload behavior | User accepted the four proposed issue #19 step-3 defaults; revision 8 records the concurrency policy before implementation |
