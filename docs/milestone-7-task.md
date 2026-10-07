@@ -104,15 +104,25 @@ Add shared external adapter/lifecycle support, typed configuration, env examples
 
 ## Acceptance criteria
 
-- [ ] Open and close the asynchronous Redis client through API lifecycle; enforce the accepted 100 ms total operation budget including connection/retry behavior, with safe error classification.
-- [ ] Namespace cache/limiter/test keys by environment and schema/use case; protect auth identifiers and redact Redis credentials.
-- [ ] Provide local Redis configuration while retaining postgres_data and normal docker compose down; extend isolated random-port validation to pass Redis settings into API and browser processes.
-- [ ] Keep Redis loss compatible with API startup and PostgreSQL-backed sessions; preserve /health as liveness and runtime startup without migrations.
-- [ ] Install Redis dependency using docs/testing/dependencies.md and update .in and hashed locks together; keep pure unit tests free of network/services/secrets.
+- [x] Open and close the asynchronous Redis client through API lifecycle; enforce the accepted 100 ms total operation budget including connection/retry behavior, with safe error classification.
+- [x] Namespace cache/limiter/test keys by environment and schema/use case; protect auth identifiers and redact Redis credentials.
+- [x] Provide local Redis configuration while retaining postgres_data and normal docker compose down; extend isolated random-port validation to pass Redis settings into API and browser processes.
+- [x] Keep Redis loss compatible with API startup and PostgreSQL-backed sessions; preserve /health as liveness and runtime startup without migrations.
+- [x] Install Redis dependency using docs/testing/dependencies.md and update .in and hashed locks together; keep pure unit tests free of network/services/secrets.
 
 ## Verification
 
 Run baseline, backend-static, backend-unit, backend-integration and image gates as affected; prove owned Redis namespace/resource cleanup on success and failure.
+
+Completed and verified on 2026-10-07; implementation commit `68a79bf` is pushed
+to `milestone7` and [issue #21](https://github.com/ShinningF1eld/RestaurantOS/issues/21)
+is closed as completed. Baseline, backend-static, backend-unit (169 passed),
+backend-integration (189 passed, no Alembic drift), image and browser (24 passed)
+verification passed, including owned Redis cleanup on success and injected failure.
+See [dated T3 evidence](verification-milestone7-issue21.md) for exact commands,
+results, omissions and acceptance mapping. Auth identifier HMAC usage remains
+a future caller responsibility; T3 stores no auth identifiers. Full Milestone 7
+acceptance is not claimed.
 
 <!-- github-plan: docs/milestone-7-design.md | T3 -->
 
