@@ -1,6 +1,6 @@
 # Milestone 7: Redis caching and rate limiting
 
-Status: Approved, revision 5  
+Status: Approved, revision 6 (cache tuning recorded; limiter tuning remains open)
 Updated: 2026-10-07  
 Inspection: repository HEAD `a1acf44`; working tree clean before this document.  
 Approval: user accepted the completed plan on 2026-10-07 ("The plan is done then"). Remaining tuning is identified below; implementation and verification have not been performed.
@@ -22,7 +22,7 @@ Sources: [master roadmap](../RestaurantOS_Master_Roadmap.md#milestone-7--redis-c
 
 | ID | Requirement | Acceptance criteria |
 |---|---|---|
-| R1 | Menu edits may appear with a stale window strictly under 15 seconds | A proposed 10-second absolute TTL, measured from the source read, bounds stale data even if invalidation fails; slow fills cannot reset the age |
+| R1 | Menu edits may appear with a stale window strictly under 15 seconds | An accepted 10-second absolute TTL, measured from source-read start, bounds stale data even if invalidation fails; slow fills cannot reset the age |
 | R2 | Authorization remains fresh | Membership, assignment, resource scope and capability are checked before every cache hit; cross-tenant and revoked-access regressions pass |
 | R3 | Cache catalog data without caching stock availability | Availability is queried live; orders continue validating authoritative prices and stock in PostgreSQL |
 | R4 | Cache failure falls back to PostgreSQL | Redis timeout, restart, corrupt payload and invalidation failure preserve correct reads and committed writes |
@@ -37,7 +37,66 @@ R1's tolerance and R5's Redis/local fallback policy were accepted by the user on
 2026-10-07. The earlier timed rejection/PostgreSQL fallback policy is superseded.
 The user explicitly accepted weaker protection across multiple API processes
 during outages, favoring login availability and avoiding limiter database writes.
-TTL, local quotas and probe/recovery tuning remain proposals.
+Cache scope and TTL are accepted below. Remaining limiter tuning is identified
+in the implementation tuning section; previously accepted limiter settings remain
+accepted.
+
+## Accepted cache decisions (issue #19)
+
+Recorded on 2026-10-07 following the user's request to save these decisions.
+This records policy for [issue #19](https://github.com/ShinningF1eld/RestaurantOS/issues/19),
+not implementation or verification evidence. The limiter portion of that issue
+remains open.
+
+| Endpoint | Initial caching | Key |
+|---|---|---|
+| `GET /restaurants/{restaurant_id}/menus` | Menu list | `restaurantos:{env}:catalog:v1:org:{org_uuid}:restaurant:{restaurant_id}:menus` |
+| `GET /menus/{menu_id}/items` | Item list | `restaurantos:{env}:catalog:v1:org:{org_uuid}:menu:{menu_id}:items` |
+| `GET /menus/{menu_id}` | Not initially cached | None |
+| `GET /menu-items/{menu_item_id}` | Not initially cached | None |
+
+The absolute maximum cache age is **10 seconds from source-read start**.
+Store only the remaining TTL after the source read and serialization; discard
+already expired fills. Hits do not renew expiry. A concurrent old fill, including
+one racing a committed write and invalidation, retains its original deadline.
+Validate payload schema, parent IDs and age before use.
+
+Menu-list data contains `menu_id`, `restaurant_id`, `name` and `description`.
+Item-list data contains `menu_item_id`, parent IDs (`menu_id`, `restaurant_id`),
+`name`, `description`, `price` and `is_available`. Prices retain fixed precision
+without floating-point conversion. Cache typed serialized data, not ORM instances.
+
+Read `inventory_tracking`, `out_of_stock` and `available_portions` live from
+PostgreSQL on every item-list request, including cache hits. If a cached item is
+missing during that read, treat the payload as a miss and reload the scoped list.
+Orders continue validating authoritative PostgreSQL prices and stock.
+
+Before every cache serve, freshly resolve active membership, branch assignments,
+capability, and the requested restaurant/menu's existence and tenant scope.
+Derive `org_uuid` from the verified access context, never from supplied access
+authority. Preserve foreign/unassigned 404 and forbidden-capability 403 behavior;
+cache no authorization decisions.
+
+### Post-commit invalidation matrix
+
+| Successful committed mutation | Keys to invalidate |
+|---|---|
+| Menu create/update | Restaurant menu-list key |
+| Menu delete | Restaurant menu-list key and deleted menu's item-list key |
+| Item create/update/delete/deactivate | Parent menu's item-list key |
+| Recipe/tracking or inventory stock changes | None; their response fields are read live |
+
+Invalidate only after successful PostgreSQL commit. Failed or rolled-back writes
+produce no committed-change invalidation. Both existing `delete_menu_item`
+outcomes (hard deletion and historical-item deactivation) must reach post-commit
+invalidation despite their current early returns.
+
+Redis failure never causes a catalog request to fail solely because of the cache.
+Bound Redis operations; timeout, restart, corrupt payload and fill failure fall
+back to scoped PostgreSQL reads. A failed invalidation leaves the committed write
+successful and is logged safely; the absolute age limit bounds stale cache data.
+This permits brief stale catalog fields after a successful edit, including a fill
+racing invalidation. PostgreSQL failures retain the normal request error behavior.
 
 ## Proposed architecture and interactions
 
@@ -162,12 +221,14 @@ current-state/README evidence. No frontend behavior change is assumed.
 The overall plan is accepted. The following details remain tuning tasks or
 disclosed defaults; material changes to the accepted behavior require review.
 
-1. Accept or revise the proposed 10-second menu TTL.
+1. Cache scope, keys, payload split, 10-second absolute TTL and post-commit
+   invalidation are accepted in the issue #19 decision section above.
 2. Confirm login pair thresholds/windows and normal Redis thresholds; review
    refresh accounting, thresholds and recovery guard. Pair keying and failed-login
    accounting are selected; distributed guessing remains a documented limitation.
 3. Finalize bounded-memory capacity against expected workload before implementation.
-4. Confirm initial scope; evaluate optional dashboard caching after measurements.
+4. Initial cache scope is the two catalog lists above; evaluate optional dashboard
+   caching after measurements.
 5. Specify concurrent admission capacity/lease behavior and response before coding.
 
 ## Decision history
@@ -182,3 +243,4 @@ disclosed defaults; material changes to the accepted behavior require review.
 | 2026-10-07 | Accept 100 ms timeout, 5-second probes, three successful probes and local login IP quota 10; question email-global lockout | User discussion; replacement email policy pending |
 | 2026-10-07 | Failed-login accounting, normalized email/IP keys for all accounts, generic 429 and observable Redis mode transitions; never clear IP failures on success | User's six explicit requirements; overall design and remaining tuning pending |
 | 2026-10-07 | Approve completed plan and rename to milestone-7-design.md | User: "The plan is done then"; revision 5 records approval and preserves tuning tasks |
+| 2026-10-07 | Accept two catalog list endpoints, scoped v1 keys, static item fields with live tracking/stock, 10-second source-start age, fresh authorization and fail-open post-commit invalidation | User supplied cache decisions and requested saving them; revision 6 records the invalidation matrix and implementation edge cases; limiter tuning and verification remain open |
