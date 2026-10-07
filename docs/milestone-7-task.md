@@ -13,7 +13,7 @@ Publication authorization: user requested “Separate into concrete task and cre
 
 | ID | Outcome | Requirements | Depends on | Publication |
 |---|---|---|---|---|
-| T1 | Resolve cache and limiter tuning before implementation | R1, R5–R9 | None | [19](https://github.com/ShinningF1eld/RestaurantOS/issues/19) |
+| T1 | ✅ Resolve cache and limiter tuning before implementation | R1, R5–R9 | None | [#19 — completed](https://github.com/ShinningF1eld/RestaurantOS/issues/19) |
 | T2 | Capture reproducible uncached menu-read baseline | R7 | None | [20](https://github.com/ShinningF1eld/RestaurantOS/issues/20) |
 | T3 | Provide bounded Redis adapter and isolated runtime configuration | R4–R7, R10 | T1 | [21](https://github.com/ShinningF1eld/RestaurantOS/issues/21) |
 | T4 | Cache authorized menu reads with live stock and absolute age bounds | R1–R4 | T1, T2, T3 | [22](https://github.com/ShinningF1eld/RestaurantOS/issues/22) |
@@ -33,7 +33,7 @@ Current code reads catalog directly and counts all login attempts in PostgreSQL 
 
 ## Complete issue bodies
 
-### T1: Resolve cache and limiter tuning before implementation
+### T1: Resolve cache and limiter tuning before implementation — ✅ Completed
 
 ## Purpose and references
 
@@ -49,15 +49,15 @@ None.
 
 ## Acceptance criteria
 
-- [ ] Record the menu endpoint/cache-key and invalidation matrix and accept or revise the proposed 10-second absolute TTL; the stale window remains strictly under 15 seconds.
-- [ ] Finalize normal Redis login thresholds/windows and local email/IP pair 3/60-second policy; preserve accepted local IP 10/900-second quota. Finalize refresh accounting/quotas separately; 10 family and 40 IP per 60 seconds are proposals.
-- [ ] Specify atomic two-key admission capacity, bounded leases, failure finalization, success/storage-error/cancellation release, ambiguous-operation handling, and generic overload/Retry-After behavior before coding.
-- [ ] Set bounded local entry capacity, expiry/cleanup and recovery guard; proposed dual enforcement until existing local buckets expire is explicitly accepted or revised.
-- [ ] Preserve accepted 100 ms total Redis operation budget, 5-second probes, three successful limiter probes, pair-scoped HMAC keys and failed-login accounting. Document distributed guessing and per-process outage limitations; seek review for material changes to accepted behavior.
+- [x] Record the menu endpoint/cache-key and invalidation matrix and accept the 10-second absolute TTL; the stale window remains strictly under 15 seconds.
+- [x] Finalize normal Redis login thresholds/windows and local email/IP policy; finalize refresh accounting/quotas separately. Accepted refresh quotas are 10/family and 100/IP per 60 seconds in Redis mode, 5/family and 50/IP per 60 seconds locally.
+- [x] Specify atomic two-key admission capacity, bounded leases, failure finalization, success/storage-error/cancellation release, ambiguous-operation handling, and generic overload/Retry-After behavior before coding.
+- [x] Require bounded local entry capacity, expiry/cleanup and recovery guard; dual enforcement until existing local buckets expire is accepted. The exact finite entry-count value is mandatory deployment sizing rather than an unresolved design decision.
+- [x] Preserve the accepted 100 ms total Redis operation budget, 5-second probes, three successful limiter probes, pair-scoped HMAC keys and failed-login accounting. Document distributed guessing and per-process outage limitations; seek review for material changes to accepted behavior.
 
 ## Verification
 
-Review each unresolved design item against the recorded decision table; provide concrete state/operation examples for overlap, outage, ambiguous finalization and recovery.
+Completed in `docs/milestone-7-design.md` revision 11. The design records concrete overlap, outage, ambiguous-operation and recovery examples, and explicitly assigns the numeric local entry cap to mandatory deployment sizing. GitHub issue #19 is closed as completed.
 
 <!-- github-plan: docs/milestone-7-design.md | T1 -->
 
@@ -288,7 +288,7 @@ Re-run documented benchmark commands, review evidence against all R1–R10 and r
 
 ## Publication record
 
-- T1: created [#19](https://github.com/ShinningF1eld/RestaurantOS/issues/19) on 2026-10-07.
+- T1: created [#19](https://github.com/ShinningF1eld/RestaurantOS/issues/19) on 2026-10-07; completed and closed on 2026-10-07.
 - T2: created [#20](https://github.com/ShinningF1eld/RestaurantOS/issues/20) on 2026-10-07.
 - T3: created [#21](https://github.com/ShinningF1eld/RestaurantOS/issues/21) on 2026-10-07.
 - T4: created [#22](https://github.com/ShinningF1eld/RestaurantOS/issues/22) on 2026-10-07.
