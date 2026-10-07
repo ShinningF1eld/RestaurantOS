@@ -60,6 +60,7 @@ Local Windows uses junctions for isolated frontend dependencies; Linux uses syml
 - [Frontend component/client tests](frontend.md)
 - [Browser journey matrix](browser.md)
 - [Migration baseline and preservation](migrations.md)
+- [Milestone 7 menu-read benchmark](menu-read-benchmark.md)
 - [Coverage feedback and exclusions](coverage.md)
 - [Backend image build and smoke checks](image.md)
 - [Required-check policy and administrator governance](enforcement.md)

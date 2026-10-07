@@ -41,3 +41,4 @@ test-results/
 coverage/
 /.m6-browser-*/
 /.m6-lock-check/
+/artifacts/benchmarks/

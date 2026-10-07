@@ -77,14 +77,14 @@ None.
 
 ## Acceptance criteria
 
-- [ ] Define dataset sizes, organization/branch memberships, recipe/stock mix, endpoint mix, concurrency and cold/warm/mixed-write scenarios; record hardware, runtime versions and source revision.
-- [ ] Record P50/P95/P99 latency, PostgreSQL query counts, error rate and baseline cache hit ratio as not applicable; state measurement method and repetitions.
-- [ ] Seed and clean only owned disposable PostgreSQL resources; never mutate/migrate the application database or retain credentials in artifacts.
-- [ ] Make the same workload reusable for post-cache comparison and define the evidence needed to evaluate optional dashboard caching.
+- [x] Define dataset sizes, organization/branch memberships, recipe/stock mix, endpoint mix, concurrency and cold/warm/mixed-write scenarios; record hardware, runtime versions and source revision. Cold/warm cache states are N/A for the uncached run and specified for the post-cache comparison. See [benchmark procedure](testing/menu-read-benchmark.md).
+- [x] Record P50/P95/P99 latency, PostgreSQL query counts, error rate and baseline cache hit ratio as not applicable; state measurement method and repetitions. The full run contains 1,000 measured requests per cell and three repetitions.
+- [x] Seed and clean only owned disposable PostgreSQL resources; never mutate/migrate the application database or retain credentials in artifacts. Success and injected post-measurement failure both cleaned the allocated database.
+- [x] Make the same workload reusable for post-cache comparison and define the evidence needed to evaluate optional dashboard caching.
 
 ## Verification
 
-Run the baseline script on the supported environment, preserve machine-readable results and exact reproduction commands, and exercise cleanup after a failed run.
+Completed 2026-10-07 on Python 3.12.13 and PostgreSQL 16.15 with a temporary `docker-compose.test.yml` PostgreSQL service and an independently allocated `restaurantos_benchmark_*_test` database. Command: set `TEST_DATABASE_URL` to the test service's loopback `restaurantos_test` template, then run `backend/.venv-m6-dev/Scripts/python.exe scripts/benchmark-menu-reads.py` (default: 1,000 requests, 50 warm-ups, three repetitions, concurrency 1/10/25/50). The run completed 48 cells / 48,000 measured requests with zero errors. JSON: `artifacts/benchmarks/menu-read-baseline-20261007T120114Z-75f7ad6d.json` (git-ignored). Query totals averaged six per menu-list, seven per item-list, 6.8 per mixed-read request, and eight per mixed-write request. The injected `--inject-failure-after measurement` run returned nonzero, left zero allocated benchmark databases and wrote no result artifact. See [reproduction and metric details](testing/menu-read-benchmark.md).
 
 <!-- github-plan: docs/milestone-7-design.md | T2 -->
 
