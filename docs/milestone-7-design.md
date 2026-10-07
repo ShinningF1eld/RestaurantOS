@@ -1,6 +1,6 @@
 # Milestone 7: Redis caching and rate limiting
 
-Status: Approved, revision 11 (issue #19 policy complete; deployment-sized local entry cap recorded)
+Status: Approved, revision 12 (catalog Redis outage circuit policy recorded)
 Updated: 2026-10-07  
 Inspection: repository HEAD `a1acf44`; working tree clean before this document.  
 Approval: user accepted the completed plan on 2026-10-07 ("The plan is done then"). Remaining tuning is identified below; implementation and verification have not been performed.
@@ -25,7 +25,7 @@ Sources: [master roadmap](../RestaurantOS_Master_Roadmap.md#milestone-7--redis-c
 | R1 | Menu edits may appear with a stale window strictly under 15 seconds | An accepted 10-second absolute TTL, measured from source-read start, bounds stale data even if invalidation fails; slow fills cannot reset the age |
 | R2 | Authorization remains fresh | Membership, assignment, resource scope and capability are checked before every cache hit; cross-tenant and revoked-access regressions pass |
 | R3 | Cache catalog data without caching stock availability | Availability is queried live; orders continue validating authoritative prices and stock in PostgreSQL |
-| R4 | Cache failure falls back to PostgreSQL | Redis timeout, restart, corrupt payload and invalidation failure preserve correct reads and committed writes |
+| R4 | Cache failure falls back to PostgreSQL | Redis transport/connection failure opens a per-process catalog cache circuit so the triggering request falls back to PostgreSQL and later catalog reads bypass Redis until bounded recovery; corrupt payload/schema mismatch remains a cache miss and invalidation failure preserves committed writes |
 | R5 | Authentication uses shared Redis normally and stricter process-local limits during outages | First Redis failure activates local enforcement immediately; subsequent requests skip Redis until a bounded recovery probe; no PostgreSQL limiter writes or rejection waiting period |
 | R6 | Backend transitions have explicit degraded guarantees | Tests prove local atomicity, stricter quotas, bounded memory, single-flight probes, recovery stability, ambiguous increments and transition behavior; separate process quotas and counter loss on restart are documented accepted limitations |
 | R7 | Demonstrate performance and correctness | Reproducible workloads report P50/P95/P99, query count, hit ratio, error rate, dataset, hardware and environment; full relevant repository gates pass |
@@ -77,6 +77,35 @@ Derive `org_uuid` from the verified access context, never from supplied access
 authority. Preserve foreign/unassigned 404 and forbidden-capability 403 behavior;
 cache no authorization decisions.
 
+### Catalog Redis outage and recovery
+
+Catalog caching uses a per-process cache circuit separate from the authentication
+limiter's degraded/recovery state; do not control both use cases with one global
+`redis_healthy` flag. A successful catalog operation does not prove the limiter's
+atomic operation is healthy, and limiter recovery still exercises the real limiter
+operation.
+
+A Redis transport failure, connection failure or operation timeout opens the
+catalog cache circuit. The request that discovers the failure may wait up to the
+accepted **100 ms total Redis operation budget**, then falls back to the normal
+scoped PostgreSQL read. While the circuit is open, later catalog reads bypass
+Redis entirely and go directly to PostgreSQL, so each request does not repeatedly
+pay the failure-detection timeout.
+
+After a bounded cooldown, allow only one catalog recovery attempt per process while
+other requests continue using PostgreSQL without waiting for it. The recovery
+attempt must exercise a real cache operation rather than only `PING`. One
+successful real cache operation is enough to close the catalog circuit; if Redis
+remains unstable, a later transport failure reopens it and correctness continues
+through PostgreSQL.
+
+Cache payload corruption, schema/version mismatch, invalid parent identifiers or
+an expired payload are cache-entry failures, not Redis transport-health failures.
+Treat them as cache misses (and safely discard/delete the bad entry when useful)
+without opening the circuit. Failed invalidation likewise keeps the committed
+business write successful and does not by itself mark Redis unavailable; the
+absolute TTL continues to bound stale catalog data.
+
 ### Post-commit invalidation matrix
 
 | Successful committed mutation | Keys to invalidate |
@@ -106,11 +135,14 @@ catalog payloads rather than ORM objects; preserve public URLs and response shap
 Keys include environment, organization, restaurant/menu identity and payload schema
 version. Authentication identifiers retain existing HMAC protection.
 
-Read flow: current authorization, cache lookup, database fill on miss, live stock
-availability, existing response. Bound payload age from the source-read start;
-discard expired/slow fills. Menu/item mutations invalidate affected keys after
-commit. Failed invalidation is logged and bounded by TTL. Concurrent stale fills
-must remain within the same age bound, not receive a fresh full TTL.
+Read flow: current authorization, then either cache lookup or direct PostgreSQL
+when the per-process catalog circuit is open, followed by database fill on miss,
+live stock availability and the existing response. Bound payload age from the
+source-read start; discard expired/slow fills. Menu/item mutations invalidate
+affected keys after commit. Failed invalidation is logged and bounded by TTL.
+Concurrent stale fills must remain within the same age bound, not receive a fresh
+full TTL. Catalog and authentication share the low-level Redis adapter but own
+separate health/degradation state and recovery rules.
 
 Accepted auth flow: shared Redis -> stricter process-local limiter -> controlled
 recovery -> shared Redis. First failure marks Redis unhealthy in that process and
@@ -251,9 +283,11 @@ No performance result or passing test is claimed by this design.
 
 Add regressions for authorization on hits, stock changes, write rollback,
 post-commit invalidation failure, concurrent fills, absolute age bounds, Redis loss,
-limiter transitions, independent process quotas, recovery flapping, memory capacity
-and process restart. Test actual Redis outage/restart as well as deterministic
-local timing; verify requests avoid Redis during the open circuit.
+catalog circuit opening/bypass/single-flight recovery, limiter transitions,
+independent process quotas, recovery flapping, memory capacity and process restart.
+Test actual Redis outage/restart as well as deterministic local timing; verify
+catalog requests avoid Redis while the catalog circuit is open and auth requests
+avoid Redis while the limiter is degraded.
 Run backend-unit, backend-integration, backend-static, browser and the full
 acceptance gate set for milestone completion. Dependency changes update source and
 hashed locks together. If coordination needs a schema change, use a new migration
@@ -269,8 +303,9 @@ current-state/README evidence. No frontend behavior change is assumed.
 The overall plan is accepted. The following details remain tuning tasks or
 disclosed defaults; material changes to the accepted behavior require review.
 
-1. Cache scope, keys, payload split, 10-second absolute TTL and post-commit
-   invalidation are accepted in the issue #19 decision section above.
+1. Cache scope, keys, payload split, 10-second absolute TTL, post-commit
+   invalidation, and the separate per-process catalog Redis outage/recovery circuit
+   are accepted in the cache decision section above.
 2. Login thresholds/windows, failed-login accounting, refresh accounting/quotas,
    and the recovery guard are accepted above.
 3. Bounded local memory, regular expiry cleanup and generic 429-at-capacity behavior
@@ -320,3 +355,4 @@ an additional issue #19 architecture choice.
 | 2026-10-07 | Accept bounded process-local limiter memory, generic 429/Retry-After when capacity prevents tracking a new key, regular cleanup of expired counters/reservations even during prolonged Redis outages, and dual enforcement of still-live local buckets during Redis recovery; defer only the exact entry-count cap to deployment tuning | User accepted issue #19 step-4 policy; revision 9 records local fallback memory and recovery behavior before implementation |
 | 2026-10-07 | Accept refresh accounting by known family plus source IP; count successful and failed known-family attempts, count all client-originated attempts in the IP bucket except genuine server/storage failures; normal Redis quotas 10/family and 100/IP per 60s; degraded local quotas 5/family and 50/IP per 60s | User accepted issue #19 refresh accounting and quotas; revision 10 records the policy before implementation |
 | 2026-10-07 | Classify the exact process-local limiter entry count as mandatory deployment sizing rather than an unresolved architecture choice; require a finite configurable value based on measured memory/workload before production and record concrete overlap/outage/ambiguity/recovery examples | User chose to defer the number to deployment while requiring the decision to be explicit; revision 11 completes issue #19 design policy |
+| 2026-10-07 | Add a separate per-process catalog cache circuit: transport/connection timeout opens the circuit; triggering request falls back to PostgreSQL; later catalog reads bypass Redis; one bounded single-flight real cache recovery attempt may close it after success; corrupt/schema-invalid cache entries remain cache misses rather than Redis-health failures; auth and catalog do not share one global health flag | User explicitly chose to add catalog Redis-failure handling before continuing with issue #21; revision 12 records the policy while retaining the accepted 100 ms total Redis operation budget |
