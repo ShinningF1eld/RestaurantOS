@@ -8,7 +8,8 @@
   `docs/adr/`, architecture in `docs/architecture/`, endpoint contracts in
   `docs/api/`, and operational procedures in `docs/runbooks/`.
 - `RestaurantOS_Master_Roadmap.md` defines milestone scope and exit criteria;
-  `docs/milestone-*-plan.md` supplies issue acceptance criteria and dependencies.
+  `docs/milestone*/milestone-*-task.md` supplies issue acceptance criteria and
+  dependencies.
   Plans include historical inspections and approvals: check current code and
   dated verification before treating them as current behavior or authorization.
   Report documentation/code disagreements; do not silently broaden permissions

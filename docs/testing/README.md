@@ -69,7 +69,7 @@ Local Windows uses junctions for isolated frontend dependencies; Linux uses syml
 - [Coverage feedback and exclusions](coverage.md)
 - [Backend image build and smoke checks](image.md)
 - [Required-check policy and administrator governance](enforcement.md)
-- [Dated Milestone 6 acceptance review](../verification-milestone6.md)
+- [Dated Milestone 6 acceptance review](../milestone6/milestone-6-verification.md)
 
 Prefer filling a demonstrated critical-behavior gap over duplicating existing
 tests or raising counts. Worker/event coverage is deferred to Milestone 8 under
@@ -91,5 +91,5 @@ they can embed passwords/cookies; screenshots and structured summaries provide
 failure evidence without persisting those credentials.
 
 Final execution results and enforcement evidence are recorded in the dated
-[Milestone 6 verification](../verification-milestone6.md); historical counts are
+[Milestone 6 verification](../milestone6/milestone-6-verification.md); historical counts are
 not current acceptance.

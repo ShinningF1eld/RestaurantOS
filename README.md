@@ -165,7 +165,7 @@ every gate and requires its aggregate `Milestone 6 acceptance` check.
 
 See [the testing strategy](docs/testing/README.md) for commands, layer boundaries,
 the critical-rule map, artifacts, and the explicit Milestone 8 worker/event deferral.
-The dated [Milestone 6 verification](docs/verification-milestone6.md) records
+The dated [Milestone 6 verification](docs/milestone6/milestone-6-verification.md) records
 execution and the [required-check policy](docs/testing/enforcement.md) with actual
 GitHub PR evidence.
 

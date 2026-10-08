@@ -1,7 +1,7 @@
 # RestaurantOS current state
 
 Milestone 6 verification is dated 2026-10-06 in
-[the acceptance review](verification-milestone6.md). The complete local command
+[the acceptance review](milestone6/milestone-6-verification.md). The complete local command
 passed, and all three roadmap exit criteria were verified with full GitHub CI and
 missing/pending/failing/passing enforcement proof. Historical
 results below retain their original dates.
@@ -53,7 +53,7 @@ The active `main` ruleset requires the GitHub Actions `Milestone 6 acceptance`
 aggregate with an up-to-date branch and no bypass actors. Missing/pending/failing
 checks disabled ordinary merge on the disposable proof PR; restored passing
 checks enabled merge, after which the probe PR was closed without merging.
-Evidence is recorded in the [acceptance review](verification-milestone6.md).
+Evidence is recorded in the [acceptance review](milestone6/milestone-6-verification.md).
 
 Worker/event delivery, retry, duplicate and failure-recovery tests remain deferred
 to Milestone 8 under the approved plan. No worker coverage is claimed. Redis
@@ -94,7 +94,7 @@ is unimplemented. PostgreSQL sessions and the existing limiter are unchanged.
 See [Redis infrastructure](architecture/redis.md).
 T3 verification on 2026-10-07 passed baseline/static, 169 unit tests, 189
 integration tests, image smoke and 24 browser journeys; owned cleanup passed on
-success and injected failure. See [issue 21 evidence](verification-milestone7-issue21.md).
+success and injected failure. See [issue 21 evidence](milestone7/verification-milestone7-issue21.md).
 This does not establish full Milestone 7 acceptance.
 
 ## Database schema and migrations

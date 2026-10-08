@@ -12,9 +12,9 @@ existing modular monolith. PostgreSQL remains authoritative. Dashboard caching
 is optional pending measurements; AI endpoints and background workers are outside
 this milestone's initial scope.
 
-Sources: [master roadmap](../RestaurantOS_Master_Roadmap.md#milestone-7--redis-caching-and-rate-limiting),
-[current state](current-state.md), [module ADR](adr/0002-feature-modules.md),
-[authentication contract](api/authentication.md), and inspected
+Sources: [master roadmap](../../RestaurantOS_Master_Roadmap.md#milestone-7--redis-caching-and-rate-limiting),
+[current state](../current-state.md), [module ADR](../adr/0002-feature-modules.md),
+[authentication contract](../api/authentication.md), and inspected
 `backend/app/modules/catalog/service.py`, `backend/app/modules/auth/rate_limit.py`,
 `backend/app/modules/auth/service.py`, `backend/app/core/config.py`.
 

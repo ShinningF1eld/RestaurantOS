@@ -1,7 +1,7 @@
 # Milestone 7 task plan
 
 Status: Published
-Source: docs/milestone-7-design.md, approved revision 12 (2026-10-07); RestaurantOS_Master_Roadmap.md, Milestone 7.
+Source: docs/milestone7/milestone-7-design.md, approved revision 12 (2026-10-07); RestaurantOS_Master_Roadmap.md, Milestone 7.
 Inspected revision: 6a528f4826796991d8c5cfe2ad9f6cffb480981e; working tree initially clean.
 Updated: 2026-10-07
 Target: ShinningF1eld/RestaurantOS
@@ -37,11 +37,11 @@ Current code reads catalog directly and counts all login attempts in PostgreSQL 
 
 ## Purpose and references
 
-Resolve cache and limiter tuning before implementation. Source: `docs/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1, R5–R9.
+Resolve cache and limiter tuning before implementation. Source: `docs/milestone7/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1, R5–R9.
 
 ## Scope
 
-Document the remaining choices in docs/milestone-7-design.md and the auth/cache contracts; this task specifies policy rather than implementing it.
+Document the remaining choices in docs/milestone7/milestone-7-design.md and the auth/cache contracts; this task specifies policy rather than implementing it.
 
 ## Dependencies
 
@@ -57,15 +57,15 @@ None.
 
 ## Verification
 
-Completed in `docs/milestone-7-design.md` revision 12. The design records concrete overlap, outage, ambiguous-operation and recovery examples, and explicitly assigns the numeric local entry cap to mandatory deployment sizing. GitHub issue #19 is closed as completed.
+Completed in `docs/milestone7/milestone-7-design.md` revision 12. The design records concrete overlap, outage, ambiguous-operation and recovery examples, and explicitly assigns the numeric local entry cap to mandatory deployment sizing. GitHub issue #19 is closed as completed.
 
-<!-- github-plan: docs/milestone-7-design.md | T1 -->
+<!-- github-plan: docs/milestone7/milestone-7-design.md | T1 -->
 
 ### T2: Capture reproducible uncached menu-read baseline
 
 ## Purpose and references
 
-Capture reproducible uncached menu-read baseline. Source: `docs/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R7.
+Capture reproducible uncached menu-read baseline. Source: `docs/milestone7/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R7.
 
 ## Scope
 
@@ -77,22 +77,22 @@ None.
 
 ## Acceptance criteria
 
-- [x] Define dataset sizes, organization/branch memberships, recipe/stock mix, endpoint mix, concurrency and cold/warm/mixed-write scenarios; record hardware, runtime versions and source revision. Cold/warm cache states are N/A for the uncached run and specified for the post-cache comparison. See [benchmark procedure](testing/menu-read-benchmark.md).
+- [x] Define dataset sizes, organization/branch memberships, recipe/stock mix, endpoint mix, concurrency and cold/warm/mixed-write scenarios; record hardware, runtime versions and source revision. Cold/warm cache states are N/A for the uncached run and specified for the post-cache comparison. See [benchmark procedure](../testing/menu-read-benchmark.md).
 - [x] Record P50/P95/P99 latency, PostgreSQL query counts, error rate and baseline cache hit ratio as not applicable; state measurement method and repetitions. The full run contains 1,000 measured requests per cell and three repetitions.
 - [x] Seed and clean only owned disposable PostgreSQL resources; never mutate/migrate the application database or retain credentials in artifacts. Success and injected post-measurement failure both cleaned the allocated database.
 - [x] Make the same workload reusable for post-cache comparison and define the evidence needed to evaluate optional dashboard caching.
 
 ## Verification
 
-Corrected capture completed 2026-10-07 using script version 1.1.0 at clean implementation commit `aa01cde845ba5b780f6875abdca274fc452ad70c`, Python 3.12.13 and PostgreSQL 16.15. It used temporary `docker-compose.test.yml` services and an independently allocated `restaurantos_benchmark_*_test` database. Command: set `TEST_DATABASE_URL` to the test service's loopback `restaurantos_test` template, then run `backend/.venv-m6-dev/Scripts/python.exe scripts/benchmark-menu-reads.py` (default: 1,000 requests, 50 warm-ups, three repetitions, concurrency 1/10/25/50). The corrected run completed 48 cells / 48,000 measured requests with zero errors. JSON: `artifacts/benchmarks/corrected/menu-read-baseline-20261007T130416Z-c6ac7674.json` (git-ignored). Query totals averaged six per menu-list, seven per item-list, 6.8 per mixed-read request, and 7.500916666666667 per mixed-write request. Mixed writes are now exactly 10% item updates, 10% menu updates and 80% reads over complete ten-request cycles. All settings are explicitly isolated and effective nonsecret values are recorded. Injected seed, measurement and real HTTP request failures returned nonzero, left zero allocated benchmark databases and wrote no result artifact. The initial version 1.0.0 artifact is superseded because its mixed-write ratio was mislabeled and settings were not fully isolated. See [reproduction and metric details](testing/menu-read-benchmark.md) and [verification](verification-milestone7-issue20.md).
+Corrected capture completed 2026-10-07 using script version 1.1.0 at clean implementation commit `aa01cde845ba5b780f6875abdca274fc452ad70c`, Python 3.12.13 and PostgreSQL 16.15. It used temporary `docker-compose.test.yml` services and an independently allocated `restaurantos_benchmark_*_test` database. Command: set `TEST_DATABASE_URL` to the test service's loopback `restaurantos_test` template, then run `backend/.venv-m6-dev/Scripts/python.exe scripts/benchmark-menu-reads.py` (default: 1,000 requests, 50 warm-ups, three repetitions, concurrency 1/10/25/50). The corrected run completed 48 cells / 48,000 measured requests with zero errors. JSON: `artifacts/benchmarks/corrected/menu-read-baseline-20261007T130416Z-c6ac7674.json` (git-ignored). Query totals averaged six per menu-list, seven per item-list, 6.8 per mixed-read request, and 7.500916666666667 per mixed-write request. Mixed writes are now exactly 10% item updates, 10% menu updates and 80% reads over complete ten-request cycles. All settings are explicitly isolated and effective nonsecret values are recorded. Injected seed, measurement and real HTTP request failures returned nonzero, left zero allocated benchmark databases and wrote no result artifact. The initial version 1.0.0 artifact is superseded because its mixed-write ratio was mislabeled and settings were not fully isolated. See [reproduction and metric details](../testing/menu-read-benchmark.md) and [verification](verification-milestone7-issue20.md).
 
-<!-- github-plan: docs/milestone-7-design.md | T2 -->
+<!-- github-plan: docs/milestone7/milestone-7-design.md | T2 -->
 
 ### T3: Provide bounded Redis adapter and isolated runtime configuration
 
 ## Purpose and references
 
-Provide bounded Redis adapter and isolated runtime configuration. Source: `docs/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R4–R7, R10.
+Provide bounded Redis adapter and isolated runtime configuration. Source: `docs/milestone7/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R4–R7, R10.
 
 ## Scope
 
@@ -124,13 +124,13 @@ results, omissions and acceptance mapping. Auth identifier HMAC usage remains
 a future caller responsibility; T3 stores no auth identifiers. Full Milestone 7
 acceptance is not claimed.
 
-<!-- github-plan: docs/milestone-7-design.md | T3 -->
+<!-- github-plan: docs/milestone7/milestone-7-design.md | T3 -->
 
 ### T4: Cache authorized menu reads with live stock and absolute age bounds
 
 ## Purpose and references
 
-Cache authorized menu reads with live stock and absolute age bounds. Source: `docs/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1–R4.
+Cache authorized menu reads with live stock and absolute age bounds. Source: `docs/milestone7/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1–R4.
 
 ## Scope
 
@@ -162,16 +162,20 @@ live receipt/waste/count/consumption and recipe changes, current database prices
 for orders, and corrupt-payload fallback. Unit tests use deterministic clocks and
 barriers to prove remaining TTL, slow-fill rejection and out-of-order concurrent
 fills for both cache lists. These were three explicit partial gate runs with
-`--no-install`, not full Milestone 7 acceptance. GitHub issue #22 remains open;
-no issue state or branch publication was changed.
+`--no-install`, not full Milestone 7 acceptance. Independent review reproduced
+these gates at `c199346` on 2026-10-08; see the
+[issue #22 verification](verification-milestone7-issue22.md), including the
+physical Redis restart execution limit. GitHub issue #22 was closed as completed
+with all five criteria checked on 2026-10-08 at the user's request. No branch
+publication was performed by this documentation update.
 
-<!-- github-plan: docs/milestone-7-design.md | T4 -->
+<!-- github-plan: docs/milestone7/milestone-7-design.md | T4 -->
 
 ### T5: Invalidate committed catalog changes without risking business writes
 
 ## Purpose and references
 
-Invalidate committed catalog changes without risking business writes. Source: `docs/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1, R3, R4.
+Invalidate committed catalog changes without risking business writes. Source: `docs/milestone7/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1, R3, R4.
 
 ## Scope
 
@@ -193,13 +197,13 @@ Apply the T1 invalidation matrix to menu/menu-item create/update/delete/deactiva
 
 Run backend-unit, backend-integration and backend-static; deterministically coordinate source read/write/invalidation/fill races and inject audit rollback and Redis invalidation failure.
 
-<!-- github-plan: docs/milestone-7-design.md | T5 -->
+<!-- github-plan: docs/milestone7/milestone-7-design.md | T5 -->
 
 ### T6: Use atomic Redis admission and failed-login accounting
 
 ## Purpose and references
 
-Use atomic Redis admission and failed-login accounting. Source: `docs/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R5, R8, R9.
+Use atomic Redis admission and failed-login accounting. Source: `docs/milestone7/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R5, R8, R9.
 
 ## Scope
 
@@ -222,13 +226,13 @@ Replace PostgreSQL limiter use in backend/app/modules/auth/rate_limit.py and int
 
 Run backend-unit, backend-integration and backend-static; use real Redis atomic operations and deterministic overlap of password checks to prove bounded admission, lease expiry and account-independent failure handling.
 
-<!-- github-plan: docs/milestone-7-design.md | T6 -->
+<!-- github-plan: docs/milestone7/milestone-7-design.md | T6 -->
 
 ### T7: Enforce stricter local limits through Redis outages and recovery
 
 ## Purpose and references
 
-Enforce stricter local limits through Redis outages and recovery. Source: `docs/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R5, R6, R10.
+Enforce stricter local limits through Redis outages and recovery. Source: `docs/milestone7/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R5, R6, R10.
 
 ## Scope
 
@@ -251,13 +255,13 @@ Add per-process degraded limiter state and controlled recovery, integrating both
 
 Run backend-unit, backend-integration and backend-static; use deterministic clocks/barriers plus real Redis outage/restart, two API processes, memory pressure and process restart; assert Redis is untouched during open-circuit requests.
 
-<!-- github-plan: docs/milestone-7-design.md | T7 -->
+<!-- github-plan: docs/milestone7/milestone-7-design.md | T7 -->
 
 ### T8: Verify cache and limiter workflows in full repository gates
 
 ## Purpose and references
 
-Verify cache and limiter workflows in full repository gates. Source: `docs/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1–R10.
+Verify cache and limiter workflows in full repository gates. Source: `docs/milestone7/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1–R10.
 
 ## Scope
 
@@ -279,13 +283,13 @@ Integrate cross-feature service and browser regressions into scripts/validate.py
 
 Run ./scripts/validate.ps1 and a complete remote PR CI run; record exact commands/outcomes/omissions and deterministic race evidence. Follow docs/testing/enforcement.md if gate policy changes.
 
-<!-- github-plan: docs/milestone-7-design.md | T8 -->
+<!-- github-plan: docs/milestone7/milestone-7-design.md | T8 -->
 
 ### T9: Publish measured performance and Milestone 7 operational evidence
 
 ## Purpose and references
 
-Publish measured performance and Milestone 7 operational evidence. Source: `docs/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R4–R7, R10; roadmap exit criteria.
+Publish measured performance and Milestone 7 operational evidence. Source: `docs/milestone7/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R4–R7, R10; roadmap exit criteria.
 
 ## Scope
 
@@ -307,7 +311,7 @@ Run before/after workloads and update README, docs/current-state.md, auth/cache 
 
 Re-run documented benchmark commands, review evidence against all R1–R10 and roadmap exit criteria, and verify README claims directly against saved measurements.
 
-<!-- github-plan: docs/milestone-7-design.md | T9 -->
+<!-- github-plan: docs/milestone7/milestone-7-design.md | T9 -->
 
 ## Publication record
 

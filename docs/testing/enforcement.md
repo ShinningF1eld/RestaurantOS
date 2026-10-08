@@ -19,7 +19,7 @@ ruleset active, checking its changes, and repeating the disposable PR proof afte
 policy/workflow changes. Administrator access does not bypass the ordinary merge
 button under the inspected policy.
 
-The dated [Milestone 6 verification](../verification-milestone6.md) records
+The dated [Milestone 6 verification](../milestone6/milestone-6-verification.md) records
 missing/pending, failing and passing states of
 [disposable PR #16](https://github.com/ShinningF1eld/RestaurantOS/pull/16).
 The temporary failing regression is removed by a subsequent commit, and the

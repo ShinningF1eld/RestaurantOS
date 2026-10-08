@@ -130,12 +130,12 @@ request path, workload, percentile method and effective settings of that capture
 The final loader's real smoke verifies identical effective settings, so the full
 1.1.0 capture remains the comparison baseline. The smoke is not a replacement
 latency baseline.
-See the [Issue #20 verification](../verification-milestone7-issue20.md) for the
+See the [Issue #20 verification](../milestone7/verification-milestone7-issue20.md) for the
 corrected capture and validation evidence.
 
 ## Recorded comparison evidence
 
-The [recorded latency baseline](../verification-milestone7-issue20.md#recorded-latency-baseline)
+The [recorded latency baseline](../milestone7/verification-milestone7-issue20.md#recorded-latency-baseline)
 preserves all 48 measured P50/P95/P99 cells and PostgreSQL statement totals in
 tracked documentation, together with the method for comparing cached results.
 Use both latency and query counts when assessing the cached version.
