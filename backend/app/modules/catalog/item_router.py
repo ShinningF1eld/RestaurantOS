@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
@@ -37,10 +37,16 @@ async def create_menu_item(
 @router.get("/menus/{menu_id}/items", response_model=list[MenuItemResponse])
 async def get_menu_items(
     menu_id: int,
+    request: Request,
     principal: AuthenticatedPrincipal = Depends(get_current_principal),
     db: AsyncSession = Depends(get_db),
 ) -> list[MenuItemResponse]:
-    menu_items = await CatalogService(db, principal).list_menu_items(menu_id)
+    menu_items = await CatalogService(
+        db,
+        principal,
+        menu_cache=request.app.state.catalog_menu_cache,
+        redis=request.app.state.redis,
+    ).list_menu_items(menu_id)
     return [MenuItemResponse.model_validate(menu_item) for menu_item in menu_items]
 
 

@@ -52,20 +52,30 @@ category and degraded duration.
 `adapter.namespace(use_case, version)` returns `restaurantos:{env}:{use_case}:vN:`.
 In test mode it includes `REDIS_TEST_NAMESPACE` before the use case. Callers append
 verified safe identifiers; future auth callers must reuse normalized identifier
-HMAC protection rather than append raw emails, IPs, cookies or tokens. The first
-catalog consumer caches only `GET /restaurants/{restaurant_id}/menus` under
-`restaurantos:{env}:catalog:v1:org:{org_uuid}:restaurant:{restaurant_id}:menus`.
+HMAC protection rather than append raw emails, IPs, cookies or tokens. Catalog
+caches `GET /restaurants/{restaurant_id}/menus` under
+`restaurantos:{env}:catalog:v1:org:{org_uuid}:restaurant:{restaurant_id}:menus`
+and `GET /menus/{menu_id}/items` under
+`restaurantos:{env}:catalog:v1:org:{org_uuid}:menu:{menu_id}:items`.
 
 That endpoint resolves current membership, branch assignment, restaurant scope
 and `menu.read` before any Redis access. It stores typed menu fields only, with
 source-read start time in the payload. The TTL is the remaining portion of the
 10-second absolute age after the PostgreSQL read and serialization; hits never
-renew it. The endpoint response contains no stock or recipe availability fields.
+renew it. The menu-list response contains no stock or recipe availability fields.
 Corrupt/schema-invalid/expired entries are misses. A Redis timeout or connection
 failure falls back to the scoped PostgreSQL query and opens the catalog-only
 circuit; reads bypass Redis during a five-second cooldown, then one real cache
 operation probes recovery while concurrent requests continue through PostgreSQL.
-Menu-list invalidation and item-list caching are separate follow-up work.
+
+The item-list endpoint checks current membership, assignment, menu existence/scope
+and `menu.read` before Redis. Its payload contains only menu-item IDs, parent IDs,
+name, description, fixed-precision price and `is_available`. Inventory tracking,
+out-of-stock state and available portions are read from PostgreSQL on every
+request, including cache hits. If a cached item is absent from that live read,
+the endpoint reloads the scoped list. Both list caches validate the same absolute
+age and use the catalog-only outage circuit. Post-commit invalidation for either
+list remains separate follow-up work.
 
 The validation runner discovers random loopback Redis ports from its unique
 Compose project and passes explicit runtime settings into tests and browser API

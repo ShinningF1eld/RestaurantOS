@@ -7,11 +7,14 @@ import math
 import os
 import time
 from collections.abc import Callable
+from decimal import Decimal
+from typing import Annotated
 from threading import Lock
 from typing import Protocol
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from app.modules.catalog.domain.policies import MAX_MENU_PRICE
 from app.redis.adapter import FailureKind, RedisFailure
 
 
@@ -44,6 +47,33 @@ class MenuListPayload(BaseModel):
     restaurant_id: int
     source_started_at: float
     menus: list[CachedMenu]
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class CachedMenuItem(BaseModel):
+    """Stable menu-item fields; stock availability is always read live."""
+
+    menu_item_id: int
+    menu_id: int
+    restaurant_id: int
+    name: str
+    description: str | None
+    price: Annotated[
+        Decimal,
+        Field(ge=0, le=MAX_MENU_PRICE, max_digits=10, decimal_places=2),
+    ]
+    is_available: bool
+
+    model_config = ConfigDict(from_attributes=True, frozen=True, extra="forbid")
+
+
+class MenuItemListPayload(BaseModel):
+    schema_version: int
+    menu_id: int
+    restaurant_id: int
+    source_started_at: float
+    items: list[CachedMenuItem]
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -81,6 +111,17 @@ class CatalogMenuCache:
         return (
             f"{redis.namespace('catalog', 1)}org:{organization_id}:"
             f"restaurant:{restaurant_id}:menus"
+        )
+
+    @staticmethod
+    def menu_items_key(
+        redis: RedisCommands,
+        *,
+        organization_id: str,
+        menu_id: int,
+    ) -> str:
+        return (
+            f"{redis.namespace('catalog', 1)}org:{organization_id}:menu:{menu_id}:items"
         )
 
     async def _begin_lookup(self) -> tuple[bool, bool]:
@@ -144,6 +185,37 @@ class CatalogMenuCache:
             return None
         return payload.menus
 
+    def _valid_item_payload(
+        self,
+        raw: object,
+        *,
+        menu_id: int,
+        restaurant_id: int,
+    ) -> list[CachedMenuItem] | None:
+        if not isinstance(raw, (bytes, str)):
+            return None
+        try:
+            payload = MenuItemListPayload.model_validate_json(raw)
+        except (ValidationError, ValueError, UnicodeDecodeError):
+            return None
+        age = self._wall_time() - payload.source_started_at
+        item_ids = [item.menu_item_id for item in payload.items]
+        if (
+            payload.schema_version != 1
+            or payload.menu_id != menu_id
+            or payload.restaurant_id != restaurant_id
+            or not math.isfinite(payload.source_started_at)
+            or age < 0
+            or age >= MENU_LIST_MAX_AGE_SECONDS
+            or len(item_ids) != len(set(item_ids))
+            or any(
+                item.menu_id != menu_id or item.restaurant_id != restaurant_id
+                for item in payload.items
+            )
+        ):
+            return None
+        return payload.items
+
     async def lookup(
         self,
         redis: RedisCommands,
@@ -181,6 +253,44 @@ class CatalogMenuCache:
             redis_available=True,
         )
 
+    async def lookup_menu_items(
+        self,
+        redis: RedisCommands,
+        key: str,
+        *,
+        menu_id: int,
+        restaurant_id: int,
+    ) -> tuple[list[CachedMenuItem] | None, bool]:
+        allowed, is_probe = await self._begin_lookup()
+        if not allowed:
+            return None, False
+
+        try:
+            raw = await redis.execute("GET", key)
+        except RedisFailure as error:
+            if error.kind in {
+                FailureKind.TIMEOUT,
+                FailureKind.CONNECTION,
+                FailureKind.CLOSED,
+            }:
+                await self._open_circuit(error.kind)
+            if is_probe:
+                await self._finish_probe(success=False)
+            return None, False
+        except BaseException:
+            if is_probe:
+                await self._finish_probe(success=False)
+            raise
+
+        if is_probe:
+            await self._finish_probe(success=True)
+        return (
+            self._valid_item_payload(raw, menu_id=menu_id, restaurant_id=restaurant_id)
+            if raw is not None
+            else None,
+            True,
+        )
+
     async def store(
         self,
         redis: RedisCommands,
@@ -215,5 +325,40 @@ class CatalogMenuCache:
             }:
                 await self._open_circuit(error.kind)
 
+    async def store_menu_items(
+        self,
+        redis: RedisCommands,
+        key: str,
+        *,
+        menu_id: int,
+        restaurant_id: int,
+        items: list[CachedMenuItem],
+        source_started_at: float,
+        source_started_monotonic: float,
+    ) -> None:
+        payload = MenuItemListPayload(
+            schema_version=1,
+            menu_id=menu_id,
+            restaurant_id=restaurant_id,
+            source_started_at=source_started_at,
+            items=items,
+        )
+        serialized_payload = payload.model_dump_json()
+        elapsed_ms = math.ceil(
+            max(0.0, self._monotonic() - source_started_monotonic) * 1000
+        )
+        remaining_ms = MENU_LIST_MAX_AGE_MS - elapsed_ms
+        if remaining_ms <= 0:
+            return
+        try:
+            await redis.execute("SET", key, serialized_payload, "PX", remaining_ms)
+        except RedisFailure as error:
+            if error.kind in {
+                FailureKind.TIMEOUT,
+                FailureKind.CONNECTION,
+                FailureKind.CLOSED,
+            }:
+                await self._open_circuit(error.kind)
 
-__all__ = ["CachedMenu", "CatalogMenuCache"]
+
+__all__ = ["CachedMenu", "CachedMenuItem", "CatalogMenuCache"]

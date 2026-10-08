@@ -153,9 +153,11 @@ Implement measured catalog read caching in backend/app/modules/catalog and neces
 Run backend-unit, backend-integration and backend-static; test actual warm hits, two tenants, revoked assignment/membership, deleted resources, live stock, corruption and deterministic slow/concurrent fills.
 
 Progress (2026-10-08): the first vertical slice caches
-`GET /restaurants/{restaurant_id}/menus` after fresh authorization and tenant
-scope checks, using the accepted key and absolute-age policy. Item-list caching
-and the remaining T4 acceptance coverage are not complete; issue #22 remains open.
+`GET /restaurants/{restaurant_id}/menus`; the second caches
+`GET /menus/{menu_id}/items`. Both run fresh authorization and tenant scope checks
+before cache access and use the accepted tenant-scoped keys and absolute-age
+policy. Item payloads leave inventory tracking and availability live in PostgreSQL.
+The remaining T4 acceptance coverage is not complete; issue #22 remains open.
 
 <!-- github-plan: docs/milestone-7-design.md | T4 -->
 

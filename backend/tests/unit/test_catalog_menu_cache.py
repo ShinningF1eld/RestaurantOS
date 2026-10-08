@@ -3,10 +3,12 @@ from __future__ import annotations
 import json
 
 import pytest
+from pydantic import ValidationError
 
 from app.modules.catalog.menu_cache import (
     MENU_LIST_MAX_AGE_MS,
     CachedMenu,
+    CachedMenuItem,
     CatalogMenuCache,
 )
 from app.redis.adapter import FailureKind, RedisFailure
@@ -51,6 +53,47 @@ def test_menu_list_key_uses_the_accepted_tenant_scoped_shape() -> None:
     }
 
 
+def test_menu_item_key_and_payload_use_the_accepted_tenant_scope() -> None:
+    redis = FakeRedis()
+
+    key = CatalogMenuCache.menu_items_key(redis, organization_id="org-uuid", menu_id=17)
+    other_organization_key = CatalogMenuCache.menu_items_key(
+        redis, organization_id="other-org-uuid", menu_id=17
+    )
+    item = CachedMenuItem(
+        menu_item_id=31,
+        menu_id=17,
+        restaurant_id=42,
+        name="Lunch",
+        description=None,
+        price="12.30",
+        is_available=True,
+    )
+
+    assert key == "restaurantos:development:catalog:v1:org:org-uuid:menu:17:items"
+    assert other_organization_key != key
+    assert set(CachedMenuItem.model_fields) == {
+        "menu_item_id",
+        "menu_id",
+        "restaurant_id",
+        "name",
+        "description",
+        "price",
+        "is_available",
+    }
+    assert item.price.as_tuple().exponent == -2
+    with pytest.raises(ValidationError):
+        CachedMenuItem(
+            menu_item_id=32,
+            menu_id=17,
+            restaurant_id=42,
+            name="Invalid price",
+            description=None,
+            price="NaN",
+            is_available=True,
+        )
+
+
 @pytest.mark.asyncio
 async def test_store_uses_only_remaining_absolute_age_ttl() -> None:
     monotonic = [20.0]
@@ -86,6 +129,67 @@ async def test_store_uses_only_remaining_absolute_age_ttl() -> None:
     payload = json.loads(redis.values[key])
     assert payload["source_started_at"] == wall_time[0]
     assert payload["menus"][0]["name"] == "Lunch"
+
+
+@pytest.mark.asyncio
+async def test_menu_item_store_uses_only_remaining_absolute_age_ttl() -> None:
+    monotonic = [20.0]
+    wall_time = [1_800_000_000.0]
+    cache = CatalogMenuCache(
+        monotonic=lambda: monotonic[0], wall_time=lambda: wall_time[0]
+    )
+    redis = FakeRedis()
+    item = CachedMenuItem(
+        menu_item_id=31,
+        menu_id=17,
+        restaurant_id=42,
+        name="Lunch",
+        description=None,
+        price="12.30",
+        is_available=True,
+    )
+    monotonic[0] += 1.234
+
+    await cache.store_menu_items(
+        redis,
+        "item-list",
+        menu_id=17,
+        restaurant_id=42,
+        items=[item],
+        source_started_at=wall_time[0],
+        source_started_monotonic=20.0,
+    )
+
+    command = redis.commands[-1]
+    assert command[:2] == ("SET", "item-list")
+    assert command[3:] == ("PX", MENU_LIST_MAX_AGE_MS - 1234)
+    payload = json.loads(redis.values["item-list"])
+    assert payload["items"][0]["price"] == "12.30"
+    assert "inventory_tracking" not in payload["items"][0]
+    assert "out_of_stock" not in payload["items"][0]
+    assert "available_portions" not in payload["items"][0]
+
+
+@pytest.mark.asyncio
+async def test_menu_item_payload_with_wrong_parent_is_a_miss() -> None:
+    cache = CatalogMenuCache(wall_time=lambda: 100.0)
+    redis = FakeRedis()
+    redis.values["item-list"] = json.dumps(
+        {
+            "schema_version": 1,
+            "menu_id": 18,
+            "restaurant_id": 42,
+            "source_started_at": 100.0,
+            "items": [],
+        }
+    ).encode()
+
+    items, redis_available = await cache.lookup_menu_items(
+        redis, "item-list", menu_id=17, restaurant_id=42
+    )
+
+    assert items is None
+    assert redis_available is True
 
 
 @pytest.mark.asyncio

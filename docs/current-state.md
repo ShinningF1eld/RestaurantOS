@@ -80,8 +80,11 @@ lazy connections, one total command deadline and safe failure categories. Startu
 and `/health` remain independent of Redis. The first T4 slice now caches only
 `GET /restaurants/{restaurant_id}/menus`, after fresh access/scope checks, with
 the design's tenant-scoped key and 10-second absolute age. Stock and recipe
-availability are not part of that payload. Item-list caching and post-commit
-invalidation remain follow-up work; Redis/local auth limiting is unimplemented.
+availability are not part of that payload. The second T4 slice now caches
+`GET /menus/{menu_id}/items` with fresh access/scope checks and the accepted
+tenant-scoped key; item payloads exclude inventory tracking and live availability,
+which are read from PostgreSQL on each request. Post-commit invalidation remains
+follow-up work; Redis/local auth limiting is unimplemented.
 PostgreSQL sessions and the existing limiter are unchanged. See
 [Redis infrastructure](architecture/redis.md).
 The first endpoint slice was checked on 2026-10-08: `backend-static` passed and

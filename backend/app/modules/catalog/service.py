@@ -16,7 +16,11 @@ from app.modules.recipes.service import RecipeAvailabilityService
 from app.modules.tenancy.access import AccessService
 from app.modules.tenancy.domain.policies import AccessContext
 from app.modules.audit.service import record
-from app.modules.catalog.menu_cache import CachedMenu, CatalogMenuCache
+from app.modules.catalog.menu_cache import (
+    CachedMenu,
+    CachedMenuItem,
+    CatalogMenuCache,
+)
 from app.redis.adapter import RedisAdapter
 
 
@@ -51,14 +55,20 @@ class CatalogService:
         return context
 
     async def _attach_menu_item_availability(
-        self, menu_items: list[MenuItem]
-    ) -> list[MenuItem]:
+        self,
+        menu_items: list[MenuItem],
+        *,
+        expected_menu_id: int | None = None,
+        missing_is_cache_miss: bool = False,
+    ) -> list[MenuItem] | None:
         availability = await RecipeAvailabilityService(self._session).for_menu_items(
-            menu_items
+            menu_items, expected_menu_id=expected_menu_id
         )
         for menu_item in menu_items:
             status = availability.get(menu_item.menu_item_id)
             if status is None:
+                if missing_is_cache_miss:
+                    return None
                 raise NotFoundError("Menu item not found")
             # These response-only attributes keep the ORM model focused on stored
             # catalog state while exposing current stock beside menu items.
@@ -222,11 +232,67 @@ class CatalogService:
     async def list_menu_items(self, menu_id: int) -> list[MenuItem]:
         """List items only within an accessible menu."""
         context = await self._prepare()
-        if await self._catalog.get_menu_by_id(menu_id) is None:
+        menu = await self._catalog.get_menu_by_id(menu_id)
+        if menu is None:
             raise NotFoundError("Menu not found")
         context.require("menu.read")
+        cache_key: str | None = None
+        redis_available = False
+        if self._menu_cache is not None and self._redis is not None:
+            cache_key = self._menu_cache.menu_items_key(
+                self._redis,
+                organization_id=str(context.organization_id),
+                menu_id=menu_id,
+            )
+            cached_items, redis_available = await self._menu_cache.lookup_menu_items(
+                self._redis,
+                cache_key,
+                menu_id=menu_id,
+                restaurant_id=menu.restaurant_id,
+            )
+            if cached_items is not None:
+                cached_models = [
+                    MenuItem(
+                        menu_item_id=item.menu_item_id,
+                        menu_id=item.menu_id,
+                        name=item.name,
+                        description=item.description,
+                        price=item.price,
+                        is_available=item.is_available,
+                    )
+                    for item in cached_items
+                ]
+                cached_response = await self._attach_menu_item_availability(
+                    cached_models,
+                    expected_menu_id=menu_id,
+                    missing_is_cache_miss=True,
+                )
+                if cached_response is not None:
+                    return cached_response
+
+        source_started_at = time.time()
+        source_started_monotonic = time.monotonic()
         menu_items = list(await self._catalog.list_menu_items_for_menu(menu_id))
-        return await self._attach_menu_item_availability(menu_items)
+        response_items = await self._attach_menu_item_availability(
+            menu_items, expected_menu_id=menu_id
+        )
+        assert response_items is not None
+        if (
+            cache_key is not None
+            and redis_available
+            and self._menu_cache is not None
+            and self._redis is not None
+        ):
+            await self._menu_cache.store_menu_items(
+                self._redis,
+                cache_key,
+                menu_id=menu_id,
+                restaurant_id=menu.restaurant_id,
+                items=[CachedMenuItem.model_validate(item) for item in menu_items],
+                source_started_at=source_started_at,
+                source_started_monotonic=source_started_monotonic,
+            )
+        return response_items
 
     async def get_menu_item(self, menu_item_id: int) -> MenuItem:
         """Get a menu item or raise the public not-found domain error."""
