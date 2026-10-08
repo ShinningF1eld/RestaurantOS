@@ -6,6 +6,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
+from app.core.logging import JsonFormatter
 from app.modules.catalog.menu_cache import (
     MENU_LIST_MAX_AGE_MS,
     CachedMenu,
@@ -139,6 +140,11 @@ async def test_invalidation_failure_is_logged_safely_without_opening_read_circui
     assert warning.failure_kind == kind.value
     assert sensitive_key not in warning.getMessage()
     assert sensitive_key not in str(warning.__dict__)
+    formatted = JsonFormatter().format(warning)
+    payload = json.loads(formatted)
+    assert payload["event"] == "catalog_cache_invalidation_failed"
+    assert payload["failure_kind"] == kind.value
+    assert sensitive_key not in formatted
     # Only the lookup is issued after the failed DEL, proving invalidation did
     # not independently open the catalog read circuit.
     assert redis.commands[-1] == ("GET", "unrelated-key")
@@ -461,7 +467,10 @@ async def test_non_finite_source_age_is_rejected() -> None:
 
 
 @pytest.mark.asyncio
-async def test_transport_failure_bypasses_redis_until_single_recovery_probe() -> None:
+async def test_transport_failure_bypasses_redis_until_single_recovery_probe(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level("INFO", logger="app.modules.catalog.menu_cache")
     monotonic = [5.0]
     cache = CatalogMenuCache(monotonic=lambda: monotonic[0], cooldown_seconds=5)
     redis = FakeRedis()
@@ -481,3 +490,15 @@ async def test_transport_failure_bypasses_redis_until_single_recovery_probe() ->
     assert recovered.redis_available is True
     assert after_recovery.redis_available is True
     assert len(redis.commands) == 3
+    transitions = [
+        json.loads(JsonFormatter().format(record))
+        for record in caplog.records
+        if record.name == "app.modules.catalog.menu_cache"
+    ]
+    assert len(transitions) == 2
+    opened, recovered_log = transitions
+    assert opened["reason"] == "connection"
+    assert isinstance(opened["process_id"], int)
+    assert recovered_log["process_id"] == opened["process_id"]
+    assert recovered_log["duration_seconds"] == 5.0
+    assert "menu-list" not in json.dumps(transitions)

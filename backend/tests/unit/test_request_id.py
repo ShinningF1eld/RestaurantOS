@@ -64,7 +64,14 @@ def test_json_logging_keeps_request_metadata_but_not_arbitrary_extras() -> None:
     record.http_path = "/health"
     record.status_code = 200
     record.duration_ms = 1.25
+    record.event = "catalog_cache_invalidation_failed"
+    record.failure_kind = "connection"
+    record.process_id = 123
+    record.reason = "timeout"
+    record.duration_seconds = 5.25
     record.secret = "do-not-log"  # pragma: allowlist secret
+    record.cache_key = "private-cache-key"
+    record.redis_url = "private-redis-url"
 
     payload = json.loads(JsonFormatter().format(record))
 
@@ -72,4 +79,11 @@ def test_json_logging_keeps_request_metadata_but_not_arbitrary_extras() -> None:
     assert payload["http_path"] == "/health"
     assert payload["status_code"] == 200
     assert payload["duration_ms"] == 1.25
+    assert payload["event"] == "catalog_cache_invalidation_failed"
+    assert payload["failure_kind"] == "connection"
+    assert payload["process_id"] == 123
+    assert payload["reason"] == "timeout"
+    assert payload["duration_seconds"] == 5.25
     assert "secret" not in payload
+    assert "cache_key" not in payload
+    assert "redis_url" not in payload
