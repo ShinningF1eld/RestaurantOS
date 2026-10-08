@@ -5,10 +5,15 @@ Milestone 7 T3 implements transport only, following approved design revision 12.
 allocates it once as `app.state.redis`, reuses it across requests, and closes it
 on shutdown. Pool construction performs no network I/O and startup does not PING,
 connect or migrate PostgreSQL. `/health` remains process liveness during outages.
-There is no shared health boolean, circuit, cache policy or limiter policy.
+The adapter has no shared health boolean or business cache/limiter policy.
 Overlapping test lifespans track their active adapter owners so out-of-order
 shutdown cannot restore a closed pool. A short lifecycle lock protects only
 in-memory ownership changes; no Redis I/O occurs while holding it.
+
+The catalog menu-list consumer owns a separate per-process outage circuit in
+`app/modules/catalog/menu_cache.py`; authentication will own its own degraded
+state. A successful cache operation does not establish health for another use
+case.
 
 ## Configuration and deadline
 
@@ -39,16 +44,28 @@ Shutdown also has a bounded close and reports only a safe category on failure.
 The adapter never logs URLs, commands, keys or values. Do not log raw settings
 validation `errors()` input, driver exceptions, client/pool repr or connection
 kwargs. Settings repr/JSON redact the secret URL; string validation diagnostics
-hide inputs. Business modules will own separate safe transition events and
-catalog/auth degradation state in subsequent issues.
+hide inputs. Catalog circuit transitions log only process identity, safe failure
+category and degraded duration.
 
 ## Keys and validation ownership
 
 `adapter.namespace(use_case, version)` returns `restaurantos:{env}:{use_case}:vN:`.
 In test mode it includes `REDIS_TEST_NAMESPACE` before the use case. Callers append
 verified safe identifiers; future auth callers must reuse normalized identifier
-HMAC protection rather than append raw emails, IPs, cookies or tokens. No catalog
-keys or auth atomic scripts are implemented here.
+HMAC protection rather than append raw emails, IPs, cookies or tokens. The first
+catalog consumer caches only `GET /restaurants/{restaurant_id}/menus` under
+`restaurantos:{env}:catalog:v1:org:{org_uuid}:restaurant:{restaurant_id}:menus`.
+
+That endpoint resolves current membership, branch assignment, restaurant scope
+and `menu.read` before any Redis access. It stores typed menu fields only, with
+source-read start time in the payload. The TTL is the remaining portion of the
+10-second absolute age after the PostgreSQL read and serialization; hits never
+renew it. The endpoint response contains no stock or recipe availability fields.
+Corrupt/schema-invalid/expired entries are misses. A Redis timeout or connection
+failure falls back to the scoped PostgreSQL query and opens the catalog-only
+circuit; reads bypass Redis during a five-second cooldown, then one real cache
+operation probes recovery while concurrent requests continue through PostgreSQL.
+Menu-list invalidation and item-list caching are separate follow-up work.
 
 The validation runner discovers random loopback Redis ports from its unique
 Compose project and passes explicit runtime settings into tests and browser API

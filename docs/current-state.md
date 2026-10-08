@@ -77,9 +77,20 @@ real credentials and remain commit-trackable.
 
 Milestone 7 T3 adds the asynchronous shared Redis adapter through API lifespan,
 lazy connections, one total command deadline and safe failure categories. Startup
-and `/health` remain independent of Redis. Catalog caching, invalidation and
-Redis/local auth limiting remain unimplemented. PostgreSQL sessions and the
-existing limiter are unchanged. See [Redis infrastructure](architecture/redis.md).
+and `/health` remain independent of Redis. The first T4 slice now caches only
+`GET /restaurants/{restaurant_id}/menus`, after fresh access/scope checks, with
+the design's tenant-scoped key and 10-second absolute age. Stock and recipe
+availability are not part of that payload. Item-list caching and post-commit
+invalidation remain follow-up work; Redis/local auth limiting is unimplemented.
+PostgreSQL sessions and the existing limiter are unchanged. See
+[Redis infrastructure](architecture/redis.md).
+The first endpoint slice was checked on 2026-10-08: `backend-static` passed and
+`backend-integration` passed 191 tests with real disposable PostgreSQL/Redis,
+including warm-hit authorization, connection-failure fallback/circuit behavior,
+and no Alembic model drift. The `backend-unit` gate did not complete locally; it
+stalled in the existing auth security tests before reaching the new cache unit
+tests. A focused synchronous cache-key unit test passed. No schema migration was
+introduced, and validation did not touch the application database.
 T3 verification on 2026-10-07 passed baseline/static, 169 unit tests, 189
 integration tests, image smoke and 24 browser journeys; owned cleanup passed on
 success and injected failure. See [issue 21 evidence](verification-milestone7-issue21.md).

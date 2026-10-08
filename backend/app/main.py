@@ -30,6 +30,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from app.modules.analytics.router import router as analytics_router
 from app.modules.catalog.menu_router import router as menu_router
+from app.modules.catalog.menu_cache import CatalogMenuCache
 from app.modules.catalog.item_router import router as menu_item_router
 from app.modules.tenancy.router import router as tenancy_router
 from app.modules.audit.router import router as audit_router
@@ -77,6 +78,7 @@ app = FastAPI(
 )
 app.state.redis_lifespans = []
 app.state.redis_lifecycle_lock = Lock()
+app.state.catalog_menu_cache = CatalogMenuCache()
 
 app.include_router(auth_router)
 for business_router in (

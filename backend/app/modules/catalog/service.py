@@ -1,5 +1,8 @@
 """Catalog application service and framework-independent command inputs."""
 
+import time
+from collections.abc import Sequence
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, NotFoundError
@@ -13,6 +16,8 @@ from app.modules.recipes.service import RecipeAvailabilityService
 from app.modules.tenancy.access import AccessService
 from app.modules.tenancy.domain.policies import AccessContext
 from app.modules.audit.service import record
+from app.modules.catalog.menu_cache import CachedMenu, CatalogMenuCache
+from app.redis.adapter import RedisAdapter
 
 
 from app.modules.catalog.domain.commands import (
@@ -28,10 +33,17 @@ class CatalogService:
     """Coordinates catalog use cases and owns write transactions."""
 
     def __init__(
-        self, session: AsyncSession, principal: AuthenticatedPrincipal
+        self,
+        session: AsyncSession,
+        principal: AuthenticatedPrincipal,
+        *,
+        menu_cache: CatalogMenuCache | None = None,
+        redis: RedisAdapter | None = None,
     ) -> None:
         self._session = session
         self._access = AccessService(session, principal)
+        self._menu_cache = menu_cache
+        self._redis = redis
 
     async def _prepare(self, *, lock: bool = False) -> AccessContext:
         context = await self._access.current(lock=lock)
@@ -79,11 +91,45 @@ class CatalogService:
             )
         return menu
 
-    async def list_menus(self, restaurant_id: int) -> list[Menu]:
+    async def list_menus(self, restaurant_id: int) -> Sequence[Menu | CachedMenu]:
         """List menus only within an accessible restaurant."""
         context = await self._prepare()
+        # This live check must precede all cache access: cached data never grants
+        # membership, branch assignment, resource scope, or capability.
         await self._access.restaurant(context, restaurant_id, "menu.read")
-        return list(await self._catalog.list_menus_for_restaurant(restaurant_id))
+        cache_key: str | None = None
+        redis_available = False
+        if self._menu_cache is not None and self._redis is not None:
+            cache_key = self._menu_cache.key(
+                self._redis,
+                organization_id=str(context.organization_id),
+                restaurant_id=restaurant_id,
+            )
+            cached = await self._menu_cache.lookup(
+                self._redis, cache_key, restaurant_id=restaurant_id
+            )
+            if cached.menus is not None:
+                return cached.menus
+            redis_available = cached.redis_available
+
+        source_started_at = time.time()
+        source_started_monotonic = time.monotonic()
+        menus = list(await self._catalog.list_menus_for_restaurant(restaurant_id))
+        if (
+            cache_key is not None
+            and redis_available
+            and self._menu_cache is not None
+            and self._redis is not None
+        ):
+            await self._menu_cache.store(
+                self._redis,
+                cache_key,
+                restaurant_id=restaurant_id,
+                menus=[CachedMenu.model_validate(menu) for menu in menus],
+                source_started_at=source_started_at,
+                source_started_monotonic=source_started_monotonic,
+            )
+        return menus
 
     async def get_menu(self, menu_id: int) -> Menu:
         """Get a menu or raise the public not-found domain error."""
