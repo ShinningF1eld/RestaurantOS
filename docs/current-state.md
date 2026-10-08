@@ -77,23 +77,21 @@ real credentials and remain commit-trackable.
 
 Milestone 7 T3 adds the asynchronous shared Redis adapter through API lifespan,
 lazy connections, one total command deadline and safe failure categories. Startup
-and `/health` remain independent of Redis. The first T4 slice now caches only
-`GET /restaurants/{restaurant_id}/menus`, after fresh access/scope checks, with
-the design's tenant-scoped key and 10-second absolute age. Stock and recipe
-availability are not part of that payload. The second T4 slice now caches
-`GET /menus/{menu_id}/items` with fresh access/scope checks and the accepted
-tenant-scoped key; item payloads exclude inventory tracking and live availability,
-which are read from PostgreSQL on each request. Post-commit invalidation remains
-follow-up work; Redis/local auth limiting is unimplemented.
-PostgreSQL sessions and the existing limiter are unchanged. See
-[Redis infrastructure](architecture/redis.md).
-The first endpoint slice was checked on 2026-10-08: `backend-static` passed and
-`backend-integration` passed 191 tests with real disposable PostgreSQL/Redis,
-including warm-hit authorization, connection-failure fallback/circuit behavior,
-and no Alembic model drift. The `backend-unit` gate did not complete locally; it
-stalled in the existing auth security tests before reaching the new cache unit
-tests. A focused synchronous cache-key unit test passed. No schema migration was
-introduced, and validation did not touch the application database.
+and `/health` remain independent of Redis. T4 caches
+`GET /restaurants/{restaurant_id}/menus` and `GET /menus/{menu_id}/items` after
+fresh membership, assignment, resource-scope and capability checks. Payloads use
+typed tenant-scoped keys and a 10-second absolute age. Stock, recipe tracking and
+availability remain live PostgreSQL reads on every item-list request. T4 evidence
+is dated 2026-10-08: the explicit `backend-unit` gate passed 182 tests,
+`backend-integration` passed 197 tests using disposable PostgreSQL/Redis, and
+`backend-static` passed lint, format and mypy. Regressions cover two organizations,
+revoked membership and assignment, deleted resources, cache corruption, live
+receipt/waste/count/consumption and recipe changes, authoritative order prices,
+and slow/concurrent fill age bounds. These `--no-install` gate runs are partial
+repository validation, not full Milestone 7 acceptance. T4 adds no schema
+migration. Post-commit catalog invalidation remains T5; Redis/local auth limiting
+is unimplemented. PostgreSQL sessions and the existing limiter are unchanged.
+See [Redis infrastructure](architecture/redis.md).
 T3 verification on 2026-10-07 passed baseline/static, 169 unit tests, 189
 integration tests, image smoke and 24 browser journeys; owned cleanup passed on
 success and injected failure. See [issue 21 evidence](verification-milestone7-issue21.md).

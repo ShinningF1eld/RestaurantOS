@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 
 import pytest
@@ -148,7 +149,7 @@ async def test_menu_item_store_uses_only_remaining_absolute_age_ttl() -> None:
         price="12.30",
         is_available=True,
     )
-    monotonic[0] += 1.234
+    monotonic[0] += 1.25
 
     await cache.store_menu_items(
         redis,
@@ -162,7 +163,7 @@ async def test_menu_item_store_uses_only_remaining_absolute_age_ttl() -> None:
 
     command = redis.commands[-1]
     assert command[:2] == ("SET", "item-list")
-    assert command[3:] == ("PX", MENU_LIST_MAX_AGE_MS - 1234)
+    assert command[3:] == ("PX", MENU_LIST_MAX_AGE_MS - 1250)
     payload = json.loads(redis.values["item-list"])
     assert payload["items"][0]["price"] == "12.30"
     assert "inventory_tracking" not in payload["items"][0]
@@ -209,6 +210,94 @@ async def test_slow_fill_is_discarded_after_absolute_age() -> None:
     )
 
     assert redis.commands == []
+
+
+@pytest.mark.asyncio
+async def test_slow_menu_item_fill_is_discarded_after_absolute_age() -> None:
+    monotonic = [20.0]
+    cache = CatalogMenuCache(monotonic=lambda: monotonic[0])
+    redis = FakeRedis()
+
+    monotonic[0] = 30.001
+    await cache.store_menu_items(
+        redis,
+        "item-list",
+        menu_id=17,
+        restaurant_id=42,
+        items=[],
+        source_started_at=1_800_000_000.0,
+        source_started_monotonic=20.0,
+    )
+
+    assert redis.commands == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cache_items", [False, True])
+async def test_concurrent_old_fill_keeps_original_deadline_when_it_writes_last(
+    cache_items: bool,
+) -> None:
+    old_fill_waiting = asyncio.Event()
+    new_fill_written = asyncio.Event()
+
+    class OrderedRedis(FakeRedis):
+        async def execute(self, *arguments: object) -> object:
+            if (
+                arguments[0] == "SET"
+                and asyncio.current_task().get_name() == "old-fill"
+            ):
+                old_fill_waiting.set()
+                await new_fill_written.wait()
+            result = await super().execute(*arguments)
+            if (
+                arguments[0] == "SET"
+                and asyncio.current_task().get_name() == "new-fill"
+            ):
+                new_fill_written.set()
+            return result
+
+    monotonic_by_task = {"old-fill": 9.5, "new-fill": 9.1}
+    cache = CatalogMenuCache(
+        monotonic=lambda: monotonic_by_task[asyncio.current_task().get_name()]
+    )
+    redis = OrderedRedis()
+
+    async def store_fill(*, started_at: float, started_monotonic: float):
+        if cache_items:
+            await cache.store_menu_items(
+                redis,
+                "item-list",
+                menu_id=17,
+                restaurant_id=42,
+                items=[],
+                source_started_at=started_at,
+                source_started_monotonic=started_monotonic,
+            )
+        else:
+            await cache.store(
+                redis,
+                "menu-list",
+                restaurant_id=42,
+                menus=[],
+                source_started_at=started_at,
+                source_started_monotonic=started_monotonic,
+            )
+
+    old_fill = asyncio.create_task(
+        store_fill(started_at=200.0, started_monotonic=0.0),
+        name="old-fill",
+    )
+    await old_fill_waiting.wait()
+    new_fill = asyncio.create_task(
+        store_fill(started_at=209.0, started_monotonic=9.0),
+        name="new-fill",
+    )
+    await asyncio.gather(old_fill, new_fill)
+
+    set_commands = [command for command in redis.commands if command[0] == "SET"]
+    assert [command[-1] for command in set_commands] == [9_900, 500]
+    final_payload = json.loads(redis.values[str(set_commands[-1][1])])
+    assert final_payload["source_started_at"] == 200.0
 
 
 @pytest.mark.asyncio

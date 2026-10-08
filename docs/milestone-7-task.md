@@ -142,22 +142,28 @@ Implement measured catalog read caching in backend/app/modules/catalog and neces
 
 ## Acceptance criteria
 
-- [ ] Fresh membership, assignments, resource existence/scope and menu.read capability checks run before every cache hit; foreign/unassigned IDs remain 404 and forbidden capabilities 403.
-- [ ] Cache typed serialized catalog data using environment/organization/restaurant/menu/schema keys; never store ORM instances, permission decisions or stock availability.
-- [ ] Read stock and recipe tracking/availability live on hits, including stock consumption, receipt/waste/count and recipe changes; order validation still reads authoritative PostgreSQL prices and stock.
-- [ ] Measure age from source-read start and set only remaining TTL; reject expired/slow fills, validate payload schema/age and prevent concurrent old fills receiving a fresh full TTL.
-- [ ] Redis timeout/restart or corrupt payload falls back to scoped PostgreSQL reads with the same response contract; inactive/deleted resources do not bypass fresh scope checks.
+- [x] Fresh membership, assignments, resource existence/scope and menu.read capability checks run before every cache hit; foreign/unassigned IDs remain 404 and forbidden capabilities 403.
+- [x] Cache typed serialized catalog data using environment/organization/restaurant/menu/schema keys; never store ORM instances, permission decisions or stock availability.
+- [x] Read stock and recipe tracking/availability live on hits, including stock consumption, receipt/waste/count and recipe changes; order validation still reads authoritative PostgreSQL prices and stock.
+- [x] Measure age from source-read start and set only remaining TTL; reject expired/slow fills, validate payload schema/age and prevent concurrent old fills receiving a fresh full TTL.
+- [x] Redis timeout/restart or corrupt payload falls back to scoped PostgreSQL reads with the same response contract; inactive/deleted resources do not bypass fresh scope checks.
 
 ## Verification
 
 Run backend-unit, backend-integration and backend-static; test actual warm hits, two tenants, revoked assignment/membership, deleted resources, live stock, corruption and deterministic slow/concurrent fills.
 
-Progress (2026-10-08): the first vertical slice caches
-`GET /restaurants/{restaurant_id}/menus`; the second caches
-`GET /menus/{menu_id}/items`. Both run fresh authorization and tenant scope checks
-before cache access and use the accepted tenant-scoped keys and absolute-age
-policy. Item payloads leave inventory tracking and availability live in PostgreSQL.
-The remaining T4 acceptance coverage is not complete; issue #22 remains open.
+Verification (2026-10-08): T4 acceptance is complete in code and local evidence.
+`backend/.venv-m6-dev/Scripts/python.exe scripts/validate.py --gate backend-unit --no-install`
+passed 182 tests; the corresponding `backend-integration` gate passed 197 tests
+using isolated disposable PostgreSQL and Redis; `backend-static` passed lint,
+format and mypy. The integration regressions prove warm cache hits across two
+organizations, fresh membership and assignment checks, deleted item/menu scope,
+live receipt/waste/count/consumption and recipe changes, current database prices
+for orders, and corrupt-payload fallback. Unit tests use deterministic clocks and
+barriers to prove remaining TTL, slow-fill rejection and out-of-order concurrent
+fills for both cache lists. These were three explicit partial gate runs with
+`--no-install`, not full Milestone 7 acceptance. GitHub issue #22 remains open;
+no issue state or branch publication was changed.
 
 <!-- github-plan: docs/milestone-7-design.md | T4 -->
 

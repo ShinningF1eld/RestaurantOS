@@ -192,22 +192,86 @@ def test_menu_item_list_cache_keeps_stock_live_and_rechecks_membership(
             "is_available",
         }
 
+        receipt = client.post(
+            f"/api/restaurants/{restaurant_id}/inventory/ingredients/"
+            f"{ingredient.json()['id']}/movements",
+            json={
+                "kind": "receipt",
+                "quantity": "4",
+                "reason": "Live stock receipt",
+                "idempotency_key": "item-cache-receipt",
+            },
+        )
+        assert receipt.status_code == 201, receipt.text
+        after_receipt = client.get(f"/menus/{menu_id}/items")
+        assert after_receipt.status_code == 200, after_receipt.text
+        assert after_receipt.json()[0]["available_portions"] == 6
+
+        waste = client.post(
+            f"/api/restaurants/{restaurant_id}/inventory/ingredients/"
+            f"{ingredient.json()['id']}/movements",
+            json={
+                "kind": "waste",
+                "quantity": "4",
+                "reason": "Live stock waste",
+                "idempotency_key": "item-cache-waste",
+            },
+        )
+        assert waste.status_code == 201, waste.text
+        after_waste = client.get(f"/menus/{menu_id}/items")
+        assert after_waste.status_code == 200, after_waste.text
+        assert after_waste.json()[0]["available_portions"] == 5
+
         count = client.post(
             f"/api/restaurants/{restaurant_id}/inventory/ingredients/"
             f"{ingredient.json()['id']}/movements",
             json={
                 "kind": "count",
-                "quantity": "2",
-                "reason": "Live stock check",
-                "expected_version": 1,
+                "quantity": "8",
+                "reason": "Live stock count",
+                "expected_version": 3,
                 "idempotency_key": "item-cache-count",
             },
         )
         assert count.status_code == 201, count.text
-        second = client.get(f"/menus/{menu_id}/items")
-        assert second.status_code == 200, second.text
-        assert second.json()[0]["available_portions"] == 0
-        assert second.json()[0]["out_of_stock"] is True
+        after_count = client.get(f"/menus/{menu_id}/items")
+        assert after_count.status_code == 200, after_count.text
+        assert after_count.json()[0]["available_portions"] == 2
+
+        # Order validation must use the current PostgreSQL price even while the
+        # menu-item list still serves the intentionally stale cached price.
+        changed_price = client.put(f"/menu-items/{item_id}", json={"price": "18.99"})
+        assert changed_price.status_code == 200, changed_price.text
+        order = client.post(
+            f"/api/restaurants/{restaurant_id}/orders",
+            json={
+                "idempotency_key": "item-cache-authoritative-price",
+                "items": [{"menu_item_id": item_id, "quantity": 1}],
+            },
+        )
+        assert order.status_code == 201, order.text
+        order_id = order.json()["order_id"]
+        order_detail = client.get(f"/api/orders/{order_id}")
+        assert order_detail.status_code == 200, order_detail.text
+        assert str(order_detail.json()["items"][0]["unit_price"]) == "18.99"
+        submitted = client.put(f"/api/orders/{order_id}", json={"status": "SUBMITTED"})
+        assert submitted.status_code == 200, submitted.text
+        accepted = client.put(f"/api/orders/{order_id}", json={"status": "ACCEPTED"})
+        assert accepted.status_code == 200, accepted.text
+        after_consumption = client.get(f"/menus/{menu_id}/items")
+        assert after_consumption.status_code == 200, after_consumption.text
+        assert after_consumption.json()[0]["available_portions"] == 1
+
+        changed_recipe = client.put(
+            f"/menu-items/{item_id}/recipe",
+            json={"inventory_tracking": False, "components": []},
+        )
+        assert changed_recipe.status_code == 200, changed_recipe.text
+        after_recipe_change = client.get(f"/menus/{menu_id}/items")
+        assert after_recipe_change.status_code == 200, after_recipe_change.text
+        assert after_recipe_change.json()[0]["inventory_tracking"] is False
+        assert after_recipe_change.json()[0]["out_of_stock"] is False
+        assert after_recipe_change.json()[0]["available_portions"] is None
         assert source_reads == 1
 
         with engine.begin() as connection:
@@ -220,6 +284,110 @@ def test_menu_item_list_cache_keeps_stock_live_and_rechecks_membership(
         assert source_reads == 1
     finally:
         client.portal.call(redis.execute, "DEL", key)
+
+
+def test_corrupt_menu_item_cache_falls_back_to_scoped_database_payload(
+    authenticated_client, auth_user, monkeypatch
+) -> None:
+    from app.main import app
+    from app.modules.catalog.menu_cache import CatalogMenuCache
+    from app.modules.catalog.repo.queries import CatalogRepository
+
+    client = authenticated_client
+    restaurant = client.post("/api/restaurants", json={"name": "Corrupt item cache"})
+    assert restaurant.status_code == 201, restaurant.text
+    menu = client.post(
+        f"/restaurants/{restaurant.json()['id']}/menus", json={"name": "Lunch"}
+    )
+    assert menu.status_code == 200, menu.text
+    menu_id = menu.json()["menu_id"]
+    item = client.post(
+        f"/menus/{menu_id}/items", json={"name": "Soup", "price": "5.00"}
+    )
+    assert item.status_code == 200, item.text
+
+    redis = app.state.redis
+    key = CatalogMenuCache.menu_items_key(
+        redis, organization_id=auth_user["organization_id"], menu_id=menu_id
+    )
+    source_reads = 0
+    original = CatalogRepository.list_menu_items_for_menu
+
+    async def count_source_reads(self, requested_menu_id):
+        nonlocal source_reads
+        source_reads += 1
+        return await original(self, requested_menu_id)
+
+    monkeypatch.setattr(
+        CatalogRepository, "list_menu_items_for_menu", count_source_reads
+    )
+    try:
+        client.portal.call(
+            redis.execute,
+            "SET",
+            key,
+            json.dumps(
+                {
+                    "schema_version": 99,
+                    "menu_id": menu_id,
+                    "restaurant_id": restaurant.json()["id"],
+                    "source_started_at": 1_800_000_000.0,
+                    "items": [],
+                }
+            ),
+            "PX",
+            10_000,
+        )
+        first = client.get(f"/menus/{menu_id}/items")
+        second = client.get(f"/menus/{menu_id}/items")
+
+        assert first.status_code == second.status_code == 200
+        assert first.json() == second.json() == [item.json()]
+        assert source_reads == 1
+    finally:
+        client.portal.call(redis.execute, "DEL", key)
+
+
+def test_deleted_menu_is_checked_before_cached_empty_item_list(
+    authenticated_client, auth_user, monkeypatch
+) -> None:
+    from app.main import app
+    from app.modules.catalog.menu_cache import CatalogMenuCache
+
+    client = authenticated_client
+    restaurant = client.post("/api/restaurants", json={"name": "Deleted menu cache"})
+    assert restaurant.status_code == 201, restaurant.text
+    menu = client.post(
+        f"/restaurants/{restaurant.json()['id']}/menus", json={"name": "Empty"}
+    )
+    assert menu.status_code == 200, menu.text
+    menu_id = menu.json()["menu_id"]
+    redis = app.state.redis
+    key = CatalogMenuCache.menu_items_key(
+        redis, organization_id=auth_user["organization_id"], menu_id=menu_id
+    )
+    original_execute = redis.execute
+    redis_gets = 0
+
+    async def count_gets(*arguments):
+        nonlocal redis_gets
+        if arguments[0] == "GET" and arguments[1] == key:
+            redis_gets += 1
+        return await original_execute(*arguments)
+
+    monkeypatch.setattr(redis, "execute", count_gets)
+    try:
+        warmed = client.get(f"/menus/{menu_id}/items")
+        assert warmed.status_code == 200, warmed.text
+        assert warmed.json() == []
+        deleted = client.delete(f"/menus/{menu_id}")
+        assert deleted.status_code == 200, deleted.text
+
+        missing = client.get(f"/menus/{menu_id}/items")
+        assert missing.status_code == 404
+        assert redis_gets == 1
+    finally:
+        client.portal.call(original_execute, "DEL", key)
 
 
 def test_menu_item_cache_entry_with_deleted_item_reloads_scoped_list(
