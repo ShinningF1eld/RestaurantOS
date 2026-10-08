@@ -629,6 +629,9 @@ def test_redis_invalidation_failure_does_not_fail_committed_menu_create(
         for record in caplog.records
     )
     monkeypatch.setattr(redis, "execute", original_execute)
+    persisted = client.get(f"/menus/{created.json()['menu_id']}")
+    assert persisted.status_code == 200, persisted.text
+    assert persisted.json()["name"] == "Committed"
     assert client.portal.call(original_execute, "GET", key) is not None
 
 
