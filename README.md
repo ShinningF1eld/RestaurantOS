@@ -81,7 +81,9 @@ Local Redis listens only on loopback port 6379 without persistence. Startup and
 `/health` do not require Redis. The restaurant menu-list and menu-item-list
 endpoints have tenant-scoped Redis caches with live authorization and a 10-second
 absolute age; item stock and recipe availability are read live from PostgreSQL.
-Catalog invalidation and Redis auth limiting remain future work. See
+Committed catalog writes invalidate their scoped list keys after PostgreSQL
+commit; Redis failures are logged and cannot undo a business write. Redis auth
+limiting remains future work. See
 [Redis infrastructure](docs/architecture/redis.md) for their behavior and isolated
 validation.
 

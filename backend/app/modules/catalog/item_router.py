@@ -19,10 +19,16 @@ router = APIRouter(tags=["Menu Items"])
 async def create_menu_item(
     menu_id: int,
     item_data: MenuItemCreate,
+    request: Request,
     principal: AuthenticatedPrincipal = Depends(get_current_principal),
     db: AsyncSession = Depends(get_db),
 ) -> MenuItemResponse:
-    menu_item = await CatalogService(db, principal).create_menu_item(
+    menu_item = await CatalogService(
+        db,
+        principal,
+        menu_cache=request.app.state.catalog_menu_cache,
+        redis=request.app.state.redis,
+    ).create_menu_item(
         menu_id,
         CreateMenuItem(
             name=item_data.name,
@@ -64,10 +70,16 @@ async def get_menu_item(
 async def update_menu_item(
     menu_item_id: int,
     item_data: MenuItemUpdate,
+    request: Request,
     principal: AuthenticatedPrincipal = Depends(get_current_principal),
     db: AsyncSession = Depends(get_db),
 ) -> MenuItemResponse:
-    menu_item = await CatalogService(db, principal).update_menu_item(
+    menu_item = await CatalogService(
+        db,
+        principal,
+        menu_cache=request.app.state.catalog_menu_cache,
+        redis=request.app.state.redis,
+    ).update_menu_item(
         menu_item_id,
         UpdateMenuItem(
             name=item_data.name,
@@ -82,10 +94,16 @@ async def update_menu_item(
 @router.delete("/menu-items/{menu_item_id}")
 async def delete_menu_item(
     menu_item_id: int,
+    request: Request,
     principal: AuthenticatedPrincipal = Depends(get_current_principal),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
-    outcome = await CatalogService(db, principal).delete_menu_item(menu_item_id)
+    outcome = await CatalogService(
+        db,
+        principal,
+        menu_cache=request.app.state.catalog_menu_cache,
+        redis=request.app.state.redis,
+    ).delete_menu_item(menu_item_id)
     if outcome == "deactivated":
         return {"message": "Menu item deactivated because it has order history"}
     return {"message": "Menu item deleted successfully"}

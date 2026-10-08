@@ -33,6 +33,11 @@ class FakeRedis:
         if arguments[0] == "SET":
             self.values[str(arguments[1])] = str(arguments[2]).encode()
             return b"OK"
+        if arguments[0] == "DEL":
+            deleted = 0
+            for key in arguments[1:]:
+                deleted += int(self.values.pop(str(key), None) is not None)
+            return deleted
         raise AssertionError(f"Unexpected command: {arguments[0]}")
 
 
@@ -93,6 +98,51 @@ def test_menu_item_key_and_payload_use_the_accepted_tenant_scope() -> None:
             price="NaN",
             is_available=True,
         )
+
+
+@pytest.mark.asyncio
+async def test_invalidation_deletes_only_requested_keys() -> None:
+    cache = CatalogMenuCache()
+    redis = FakeRedis()
+    redis.values.update(
+        {
+            "affected-menu-list": b"menus",
+            "affected-item-list": b"items",
+            "unrelated-tenant": b"keep",
+        }
+    )
+
+    await cache.invalidate(redis, "affected-menu-list", "affected-item-list")
+
+    assert redis.commands == [("DEL", "affected-menu-list", "affected-item-list")]
+    assert redis.values == {"unrelated-tenant": b"keep"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "kind", [FailureKind.TIMEOUT, FailureKind.CONNECTION, FailureKind.COMMAND]
+)
+async def test_invalidation_failure_is_logged_safely_without_opening_read_circuit(
+    kind: FailureKind, caplog: pytest.LogCaptureFixture
+) -> None:
+    cache = CatalogMenuCache()
+    redis = FakeRedis()
+    redis.failure = RedisFailure(kind)
+    sensitive_key = "org:private-org:restaurant:123:menus"
+
+    await cache.invalidate(redis, sensitive_key)
+    redis.failure = None
+    lookup = await cache.lookup(redis, "unrelated-key", restaurant_id=42)
+
+    warning = next(record for record in caplog.records if record.message)
+    assert warning.event == "catalog_cache_invalidation_failed"
+    assert warning.failure_kind == kind.value
+    assert sensitive_key not in warning.getMessage()
+    assert sensitive_key not in str(warning.__dict__)
+    # Only the lookup is issued after the failed DEL, proving invalidation did
+    # not independently open the catalog read circuit.
+    assert redis.commands[-1] == ("GET", "unrelated-key")
+    assert lookup.redis_available is True
 
 
 @pytest.mark.asyncio
@@ -298,6 +348,56 @@ async def test_concurrent_old_fill_keeps_original_deadline_when_it_writes_last(
     assert [command[-1] for command in set_commands] == [9_900, 500]
     final_payload = json.loads(redis.values[str(set_commands[-1][1])])
     assert final_payload["source_started_at"] == 200.0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cache_items", [False, True])
+async def test_old_fill_after_post_commit_invalidation_keeps_source_deadline(
+    cache_items: bool,
+) -> None:
+    invalidation_complete = asyncio.Event()
+
+    class InvalidationRaceRedis(FakeRedis):
+        async def execute(self, *arguments: object) -> object:
+            if arguments[0] == "SET":
+                await invalidation_complete.wait()
+            result = await super().execute(*arguments)
+            if arguments[0] == "DEL":
+                invalidation_complete.set()
+            return result
+
+    monotonic = [9.5]
+    cache = CatalogMenuCache(monotonic=lambda: monotonic[0])
+    redis = InvalidationRaceRedis()
+    key = "item-list" if cache_items else "menu-list"
+
+    async def fill_from_old_read() -> None:
+        if cache_items:
+            await cache.store_menu_items(
+                redis,
+                key,
+                menu_id=17,
+                restaurant_id=42,
+                items=[],
+                source_started_at=100.0,
+                source_started_monotonic=0.0,
+            )
+        else:
+            await cache.store(
+                redis,
+                key,
+                restaurant_id=42,
+                menus=[],
+                source_started_at=100.0,
+                source_started_monotonic=0.0,
+            )
+
+    old_fill = asyncio.create_task(fill_from_old_read())
+    await cache.invalidate(redis, key)
+    await old_fill
+
+    set_command = next(command for command in redis.commands if command[0] == "SET")
+    assert set_command[-2:] == ("PX", 500)
 
 
 @pytest.mark.asyncio

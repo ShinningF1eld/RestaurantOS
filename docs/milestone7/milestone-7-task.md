@@ -187,11 +187,13 @@ Apply the T1 invalidation matrix to menu/menu-item create/update/delete/deactiva
 
 ## Acceptance criteria
 
-- [ ] Invalidate affected restaurant/menu/item keys only after successful commit, covering list and detail payloads and all catalog mutations.
-- [ ] Audit/flush/constraint failure rolls back business changes and produces no committed-change invalidation; successful writes remain successful when Redis invalidation fails.
-- [ ] Handle the existing delete_menu_item early-return paths so deactivation and deletion both invalidate after commit.
-- [ ] Prove a fill racing invalidation cannot extend stale data beyond the accepted absolute age; failed invalidation is safely observable.
-- [ ] Maintain fixed-precision prices, immutable order snapshots and inventory/order locks; no event worker/outbox is introduced.
+- [x] Invalidate affected restaurant/menu/item keys only after successful commit for every catalog mutation affecting the two cached list endpoints. Menu/item detail endpoints remain uncached under approved revision 12.
+- [x] Audit/flush/constraint/commit failure rolls back business changes and produces no committed-change invalidation; successful writes remain successful when Redis invalidation fails.
+- [x] Handle both `delete_menu_item` outcomes so deactivation and hard deletion invalidate after commit.
+- [x] Prove a fill racing invalidation cannot extend stale data beyond the accepted absolute age; failed invalidation is safely observable.
+- [x] Maintain fixed-precision prices, immutable order snapshots and inventory/order locks; no event worker/outbox is introduced.
+
+Verification evidence: [issue 23 verification](verification-milestone7-issue23.md), reviewed 2026-10-08.
 
 ## Verification
 

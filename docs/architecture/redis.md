@@ -74,8 +74,19 @@ name, description, fixed-precision price and `is_available`. Inventory tracking,
 out-of-stock state and available portions are read from PostgreSQL on every
 request, including cache hits. If a cached item is absent from that live read,
 the endpoint reloads the scoped list. Both list caches validate the same absolute
-age and use the catalog-only outage circuit. Post-commit invalidation for either
-list remains separate follow-up work.
+age and use the catalog-only outage circuit. Menu create/update invalidates only
+the restaurant menu-list key; menu deletion also invalidates that menu's item-list
+key. Item create/update/hard-delete/deactivation invalidates only its parent menu's
+item-list key. These targeted `DEL` commands run after the service-owned database
+transaction commits, never inside it. Classified Redis failures emit a structured
+warning without exposing keys and cannot change the committed business result or
+open the catalog read circuit. Recipe/tracking and inventory stock changes do not
+invalidate catalog keys because their availability fields are read live.
+
+A fill already reading PostgreSQL when a write commits may repopulate a deleted
+key afterward. Its `SET PX` still uses only the remaining portion of the original
+10-second source-read age, for both list types; invalidation does not change the
+bounded-staleness policy.
 
 The validation runner discovers random loopback Redis ports from its unique
 Compose project and passes explicit runtime settings into tests and browser API

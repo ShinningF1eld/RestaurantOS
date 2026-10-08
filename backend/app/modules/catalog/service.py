@@ -54,6 +54,47 @@ class CatalogService:
         self._catalog = CatalogRepository(self._session, context)
         return context
 
+    async def _invalidate_menu_list(
+        self, context: AccessContext, restaurant_id: int
+    ) -> None:
+        if self._menu_cache is None or self._redis is None:
+            return
+        key = self._menu_cache.key(
+            self._redis,
+            organization_id=str(context.organization_id),
+            restaurant_id=restaurant_id,
+        )
+        await self._menu_cache.invalidate(self._redis, key)
+
+    async def _invalidate_menu_items(
+        self, context: AccessContext, menu_id: int
+    ) -> None:
+        if self._menu_cache is None or self._redis is None:
+            return
+        key = self._menu_cache.menu_items_key(
+            self._redis,
+            organization_id=str(context.organization_id),
+            menu_id=menu_id,
+        )
+        await self._menu_cache.invalidate(self._redis, key)
+
+    async def _invalidate_deleted_menu(
+        self, context: AccessContext, restaurant_id: int, menu_id: int
+    ) -> None:
+        if self._menu_cache is None or self._redis is None:
+            return
+        menu_list_key = self._menu_cache.key(
+            self._redis,
+            organization_id=str(context.organization_id),
+            restaurant_id=restaurant_id,
+        )
+        item_list_key = self._menu_cache.menu_items_key(
+            self._redis,
+            organization_id=str(context.organization_id),
+            menu_id=menu_id,
+        )
+        await self._menu_cache.invalidate(self._redis, menu_list_key, item_list_key)
+
     async def _attach_menu_item_availability(
         self,
         menu_items: list[MenuItem],
@@ -99,6 +140,7 @@ class CatalogService:
                 menu.menu_id,
                 restaurant_id=menu.restaurant_id,
             )
+        await self._invalidate_menu_list(context, restaurant_id)
         return menu
 
     async def list_menus(self, restaurant_id: int) -> Sequence[Menu | CachedMenu]:
@@ -172,6 +214,8 @@ class CatalogService:
                 menu.menu_id,
                 restaurant_id=menu.restaurant_id,
             )
+            restaurant_id = menu.restaurant_id
+        await self._invalidate_menu_list(context, restaurant_id)
         return menu
 
     async def delete_menu(self, menu_id: int) -> None:
@@ -193,6 +237,8 @@ class CatalogService:
                 restaurant_id=menu.restaurant_id,
             )
             await self._catalog.delete_menu(menu)
+            restaurant_id = menu.restaurant_id
+        await self._invalidate_deleted_menu(context, restaurant_id, menu_id)
 
     async def create_menu_item(self, menu_id: int, command: CreateMenuItem) -> MenuItem:
         """Create a menu item only for an existing menu."""
@@ -227,6 +273,7 @@ class CatalogService:
                 },
             )
             await self._attach_menu_item_availability([menu_item])
+        await self._invalidate_menu_items(context, menu_id)
         return menu_item
 
     async def list_menu_items(self, menu_id: int) -> list[MenuItem]:
@@ -347,6 +394,8 @@ class CatalogService:
                 },
             )
             await self._attach_menu_item_availability([menu_item])
+            menu_id = menu_item.menu_id
+        await self._invalidate_menu_items(context, menu_id)
         return menu_item
 
     async def delete_menu_item(self, menu_item_id: int) -> DeleteMenuItemOutcome:
@@ -376,14 +425,18 @@ class CatalogService:
                     restaurant_id=menu.restaurant_id,
                     changes={"is_available": False},
                 )
-                return "deactivated"
-            record(
-                self._session,
-                context,
-                "menu_item.deleted",
-                "menu_item",
-                menu_item_id,
-                restaurant_id=menu.restaurant_id,
-            )
-            await self._catalog.delete_menu_item(menu_item)
-            return "deleted"
+                outcome: DeleteMenuItemOutcome = "deactivated"
+            else:
+                record(
+                    self._session,
+                    context,
+                    "menu_item.deleted",
+                    "menu_item",
+                    menu_item_id,
+                    restaurant_id=menu.restaurant_id,
+                )
+                await self._catalog.delete_menu_item(menu_item)
+                outcome = "deleted"
+            menu_id = menu_item.menu_id
+        await self._invalidate_menu_items(context, menu_id)
+        return outcome

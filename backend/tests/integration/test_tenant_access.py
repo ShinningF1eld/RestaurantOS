@@ -89,18 +89,26 @@ def workspace(authenticated_client, auth_user):
             .post("/api/restaurants", json={"name": "B branch"})
             .json()["id"]
         )
-        foreign_menu = (
-            clients["other"]
-            .post(f"/restaurants/{foreign_branch}/menus", json={"name": "B menu"})
-            .json()["menu_id"]
-        )
-        foreign_item = (
-            clients["other"]
-            .post(
-                f"/menus/{foreign_menu}/items", json={"name": "B item", "price": "20"}
+        # These additional TestClient objects dispatch through separate event
+        # loops while sharing the application's one Redis adapter. Seed the
+        # foreign catalog rows directly so this authorization fixture doesn't
+        # issue Redis commands from a second loop; endpoint mutation behavior is
+        # covered by the single-client catalog-cache integration tests.
+        with engine.begin() as db:
+            foreign_menu = db.scalar(
+                text(
+                    "INSERT INTO menus (restaurant_id,name) "
+                    "VALUES (:restaurant,'B menu') RETURNING menu_id"
+                ),
+                {"restaurant": foreign_branch},
             )
-            .json()["menu_item_id"]
-        )
+            foreign_item = db.scalar(
+                text(
+                    "INSERT INTO menu_items (menu_id,name,price,is_available) "
+                    "VALUES (:menu,'B item',20,true) RETURNING menu_item_id"
+                ),
+                {"menu": foreign_menu},
+            )
         foreign_order = (
             clients["other"]
             .post(

@@ -101,6 +101,23 @@ class CatalogMenuCache:
         self._probe_in_flight = False
         self._state_lock = Lock()
 
+    async def invalidate(self, redis: RedisCommands, *keys: str) -> None:
+        """Best-effort targeted invalidation; committed writes never depend on it."""
+        if not keys:
+            return
+        try:
+            await redis.execute("DEL", *keys)
+        except RedisFailure as error:
+            # Do not open the read circuit here: failed invalidation is bounded by
+            # the source-age TTL and is independent of cache lookup health.
+            logger.warning(
+                "Catalog cache invalidation failed",
+                extra={
+                    "event": "catalog_cache_invalidation_failed",
+                    "failure_kind": error.kind.value,
+                },
+            )
+
     @staticmethod
     def key(
         redis: RedisCommands,
