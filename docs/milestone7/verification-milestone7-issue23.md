@@ -43,6 +43,9 @@ Commands ran from the repository root, using the installed locked environment an
 | `backend/.venv-m6-dev/Scripts/python.exe scripts/validate.py --gate backend-integration --no-install` | Passed: 201 tests, 636 existing deprecation warnings. Disposable PostgreSQL/Redis services were removed. The runner's `alembic check` reported “No new upgrade operations detected.” |
 | `backend/.venv-m6-dev/Scripts/python.exe scripts/validate.py --gate backend-static --no-install` | Passed: Ruff lint, format check (160 files), and mypy (122 source files). |
 
+A final focused rerun after strengthening the Redis-failure persistence assertion
+also passed: `PYTEST_ADDOPTS='-k test_redis_invalidation_failure_does_not_fail_committed_menu_create -x --tb=short' backend/.venv-m6-dev/Scripts/python.exe scripts/validate.py --gate backend-integration --no-install` (1 passed, 200 deselected; disposable migrations and `alembic check` passed).
+
 These are the three requested backend gates, not full repository or Milestone 7
 acceptance. Frontend, browser, migrations rehearsal, image, baseline/secret scan,
 remote CI, and full Milestone 7 verification were not run for this issue. The
