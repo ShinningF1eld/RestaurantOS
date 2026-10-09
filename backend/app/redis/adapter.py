@@ -71,11 +71,16 @@ class RedisAdapter:
         self._settings = settings
         self._factory = client_factory
         self._client: AsyncRedisClient | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     async def open(self) -> None:
         """Allocate once without PING/connect; an outage never blocks startup."""
         if self._client is None:
             self._client = self._factory(self._settings)
+            self._loop = asyncio.get_running_loop()
+
+    def owns_current_loop(self) -> bool:
+        return self._client is not None and self._loop is asyncio.get_running_loop()
 
     async def _bounded(self, operation: Callable[[], Awaitable[object]]) -> object:
         failure: FailureKind

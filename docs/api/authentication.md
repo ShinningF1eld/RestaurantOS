@@ -36,6 +36,37 @@ The browser supplies Origin. Error bodies retain `{ "detail": "..." }`.
 storage. Invalid-password, unknown-email and disabled-account login failures
 share a generic error. Auth responses are not cacheable.
 
+Authentication uses fixed windows and atomic Redis admission. Login reserves
+capacity in both normalized email/source-IP and IP-wide buckets before password
+verification: 5 failures per pair per 60 seconds and 30 per IP per 900 seconds.
+Wrong passwords, unknown users (with dummy verification) and disabled users count
+equally. Success never clears failures; storage errors and cancellation do not
+count. Reservations expire after 10 seconds. During Redis outages, process-local
+quotas are 3/pair/60 seconds and 10/IP/900 seconds. All throttles, including local
+capacity exhaustion, return the same generic 429 and Retry-After.
+
+Refresh counts every client attempt against 100/IP/60 seconds, and every attempt
+resolving to a known family against 10/family/60 seconds, including successful
+rotation, expiry and replay. Missing/malformed/unknown tokens have no family
+charge. Genuine storage errors are excluded. Local outage limits are 50/IP and
+5/family per 60 seconds. PostgreSQL limiter history is retained without runtime
+counter writes. Existing rotation/replay and CSRF contracts remain in force.
+
+An 8-second operation deadline covers lookup, verification, session creation and
+commit. Timeout returns generic 503 without credentials or cookies and releases
+admission best effort. Cancellation discards late native verification results;
+there is no lease renewal. If commit acknowledgement is delayed, an orphaned
+family may persist, but its undisclosed credentials cannot be used. Normal absolute
+expiry and the operator's expired-session cleanup also cover those families.
+Uncertain commits produce safe structured events without account identifiers or
+credentials. Cookie construction and ASGI header delivery both enforce expiry.
+
+Local counters are bounded, independent per process and lost on restart. They do
+not inherit pre-outage Redis history. Recovery probes run at most once per five
+seconds per process and require three successes; surviving local buckets remain
+enforced alongside Redis until natural expiry. These weaker outage guarantees and
+weaker distributed guessing protection without an email-global limit are accepted.
+
 Refresh reuse revokes the family, including its current access token. Independent
 logins create independent families. Disabling an account rejects all of its
 sessions. Rotation never extends the family's absolute expiry. A refresh whose

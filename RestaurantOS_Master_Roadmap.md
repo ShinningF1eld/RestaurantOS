@@ -776,6 +776,11 @@ Testing should start earlier; this milestone completes the full strategy.
 
 ## Milestone 7 — Redis caching and rate limiting
 
+Progress evidence (2026-10-09): issue #24's Redis auth admission, failure/refresh
+accounting and bounded deadline are recorded in
+[its verification report](docs/milestone7/verification-milestone7-issue24.md).
+This does not establish full Milestone 7 acceptance; issue #24 remains open.
+
 ### Objective
 
 Use Redis for measured performance and ephemeral coordination needs.

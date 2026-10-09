@@ -160,6 +160,14 @@ def main():
                 "API_URL": api,
                 "AUTH_COOKIE_SECURE": "false",
                 "AUTH_TRUSTED_ORIGINS": f'["{origin}"]',
+                "AUTH_LOGIN_EMAIL_LIMIT": "5",
+                "AUTH_LOGIN_IP_LIMIT": "30",
+                "AUTH_LOGIN_WINDOW_SECONDS": "60",
+                "AUTH_LOGIN_IP_WINDOW_SECONDS": "900",
+                "AUTH_REFRESH_FAMILY_LIMIT": "10",
+                "AUTH_REFRESH_IP_LIMIT": "100",
+                "AUTH_REFRESH_WINDOW_SECONDS": "60",
+                "AUTH_LOCAL_MAX_ENTRIES": "10000",
                 "PLAYWRIGHT_BASE_URL": origin,
                 "PLAYWRIGHT_WEB_PORT": str(web_port),
                 "PLAYWRIGHT_PYTHON": sys.executable,
@@ -170,10 +178,6 @@ def main():
         )
         for key in (
             "PLAYWRIGHT_EXTERNAL_SERVER",
-            "AUTH_LOGIN_EMAIL_LIMIT",
-            "AUTH_LOGIN_IP_LIMIT",
-            "AUTH_REFRESH_FAMILY_LIMIT",
-            "AUTH_REFRESH_IP_LIMIT",
             "AUTH_ACCESS_SECONDS",
             "AUTH_SESSION_SECONDS",
         ):

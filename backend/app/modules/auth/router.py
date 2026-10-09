@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import time
 
 from fastapi import APIRouter, Depends, Request, Response
 
@@ -7,6 +8,7 @@ from app.modules.auth.dependencies import client_ip, get_current_principal
 from app.modules.auth.domain.principal import AuthenticatedPrincipal
 from app.modules.auth.schemas import LoginRequest, UserSummary
 from app.modules.auth.service import IssuedSession, login, logout, refresh_session
+from app.modules.auth.domain.errors import AuthStorageError
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -23,6 +25,11 @@ def clear_cookies(response: Response) -> None:
 
 
 def set_cookies(response: Response, result: IssuedSession) -> UserSummary:
+    if (
+        result.delivery_deadline is not None
+        and time.monotonic() >= result.delivery_deadline
+    ):
+        raise AuthStorageError()
     settings = get_settings()
     response.headers["Cache-Control"] = "no-store"
     remaining = max(
@@ -46,28 +53,42 @@ def set_cookies(response: Response, result: IssuedSession) -> UserSummary:
         httponly=True,
         samesite="lax",
     )
-    return UserSummary(
+    summary = UserSummary(
         id=result.principal.id,
         email=result.principal.email,
         status=result.principal.status,
     )
+    if (
+        result.delivery_deadline is not None
+        and time.monotonic() >= result.delivery_deadline
+    ):
+        # The exception handler constructs a new response without these cookies.
+        raise AuthStorageError()
+    return summary
 
 
 @router.post("/login", response_model=UserSummary)
 async def login_route(
     body: LoginRequest, request: Request, response: Response
 ) -> UserSummary:
-    return set_cookies(
-        response, await login(body.email, body.password, client_ip(request))
-    )
+    result = await login(body.email, body.password, client_ip(request))
+    request.state.auth_delivery_deadline = result.delivery_deadline
+    return set_cookies(response, result)
 
 
 @router.post("/refresh", response_model=UserSummary)
 async def refresh_route(request: Request, response: Response) -> UserSummary:
-    return set_cookies(
-        response,
-        await refresh_session(request.cookies.get("ros_refresh"), client_ip(request)),
+    result = await refresh_session(
+        request.cookies.get("ros_refresh"), client_ip(request)
     )
+    request.state.auth_delivery_deadline = result.delivery_deadline
+    request.state.auth_abandon_delivery = result.abandon_delivery
+    try:
+        return set_cookies(response, result)
+    except AuthStorageError:
+        if result.abandon_delivery:
+            await result.abandon_delivery()
+        raise
 
 
 @router.post("/logout", status_code=204)

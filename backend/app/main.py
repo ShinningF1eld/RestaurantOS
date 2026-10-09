@@ -26,6 +26,7 @@ from app.modules.auth.domain.errors import (
     RateLimitError,
 )
 from app.modules.auth.router import router as auth_router, clear_cookies
+from app.modules.auth.rate_limit import AuthLimiter, install_limiter
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from app.modules.analytics.router import router as analytics_router
@@ -79,6 +80,20 @@ app = FastAPI(
 app.state.redis_lifespans = []
 app.state.redis_lifecycle_lock = Lock()
 app.state.catalog_menu_cache = CatalogMenuCache()
+app.state.auth_redis_unavailable = RedisAdapter(settings)
+
+
+def auth_redis() -> RedisAdapter:
+    # Pools belong to their lifespan event loop, including overlapping clients.
+    with app.state.redis_lifecycle_lock:
+        for adapter in reversed(app.state.redis_lifespans):
+            if adapter.owns_current_loop():
+                return adapter  # type: ignore[no-any-return]
+    return app.state.auth_redis_unavailable  # type: ignore[no-any-return]
+
+
+app.state.auth_limiter = AuthLimiter(settings, auth_redis)
+install_limiter(app.state.auth_limiter)
 
 app.include_router(auth_router)
 for business_router in (

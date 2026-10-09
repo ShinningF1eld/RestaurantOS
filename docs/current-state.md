@@ -92,9 +92,14 @@ repository validation, not full Milestone 7 acceptance. T4 adds no schema
 migration. T5 invalidates only affected menu-list and item-list keys after the
 service-owned PostgreSQL transaction commits. Redis invalidation failures are
 logged safely and do not fail or roll back committed catalog writes; recipe and
-stock changes need no invalidation because those fields are read live. Redis/local
-auth limiting is unimplemented. PostgreSQL sessions and the existing limiter are
-unchanged. See [issue 23 verification](milestone7/verification-milestone7-issue23.md).
+stock changes need no invalidation because those fields are read live. Issue #24
+replaces runtime PostgreSQL limiter writes with atomic Redis login admission and
+failure accounting plus separately accepted refresh accounting. The limiter
+table/history and PostgreSQL sessions remain in place. Stricter bounded local
+fallback and controlled recovery are wired without database shadow counters;
+the broader issue #25 outage/restart/multi-process verification remains separate.
+See [issue 23 verification](milestone7/verification-milestone7-issue23.md) and
+[issue 24 evidence](milestone7/verification-milestone7-issue24.md).
 See [Redis infrastructure](architecture/redis.md).
 T3 verification on 2026-10-07 passed baseline/static, 169 unit tests, 189
 integration tests, image smoke and 24 browser journeys; owned cleanup passed on

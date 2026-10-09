@@ -40,8 +40,14 @@ each at least 32 bytes generated from a secure source. Never reuse example value
 
 Defaults: `AUTH_ACCESS_SECONDS=600`, `AUTH_SESSION_SECONDS=604800`;
 `AUTH_LOGIN_EMAIL_LIMIT=5`, `AUTH_LOGIN_IP_LIMIT=30`,
-`AUTH_LOGIN_WINDOW_SECONDS=900`; `AUTH_REFRESH_FAMILY_LIMIT=30`,
-`AUTH_REFRESH_IP_LIMIT=120`, `AUTH_REFRESH_WINDOW_SECONDS=60`.
+`AUTH_LOGIN_WINDOW_SECONDS=60`, `AUTH_LOGIN_IP_WINDOW_SECONDS=900`;
+`AUTH_REFRESH_FAMILY_LIMIT=10`, `AUTH_REFRESH_IP_LIMIT=100`,
+`AUTH_REFRESH_WINDOW_SECONDS=60`. The email-limit setting now controls the
+normalized email/source-IP pair, rather than an email-global bucket. Update older
+local environment files explicitly; ignored files are not rewritten automatically.
+`AUTH_LOCAL_MAX_ENTRIES=10000` is a finite development default. Measure per-entry
+memory, available RAM, outage workload and process count before production sizing;
+this default is not a measured production capacity recommendation.
 The JWT issuer/audience default to `restaurantos` / `restaurantos-browser`.
 
 Changing the JWT secret invalidates access tokens. Existing refresh families can
@@ -62,6 +68,19 @@ Disable revokes the account's sessions. Cleanup removes expired session families
 and rate buckets in bounded batches. Run cleanup periodically through an operator
 job; no scheduler is introduced here. Retain consumed refresh digests until
 absolute family expiry so replay remains detectable.
+
+Redis limiter entries expire automatically. PostgreSQL limiter history is retained
+without runtime counter writes; cleanup still handles its expired legacy rows.
+A deadline/cancellation during commit can leave an undisclosed session family
+temporarily stored. The row alone grants no access; normal absolute expiry and
+bounded family cleanup remove it and its refresh digests. Investigate
+`auth_commit_uncertain` events using request IDs and safe `reason`/`process_id`
+fields; never collect credentials.
+
+Redis failures immediately activate stricter local enforcement without PostgreSQL
+limiter fallback. Probes occur every five seconds, requiring three successful
+atomic limiter probes for recovery. Live local history remains enforced through
+recovery. Multi-process outage quotas are independent; restart loses history.
 
 If refresh fails after a lost network response, sign in again. Never replay an
 old refresh token to "recover" a response. If auth storage is unavailable, issuance

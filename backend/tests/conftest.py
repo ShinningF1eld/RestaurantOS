@@ -85,6 +85,16 @@ def pytest_configure(config: pytest.Config) -> None:
     os.environ["AUTH_RATE_LIMIT_SECRET"] = secrets.token_urlsafe(48)
     os.environ["AUTH_TRUSTED_ORIGINS"] = '["http://localhost:3000"]'
     os.environ["AUTH_COOKIE_SECURE"] = "false"
+    os.environ.update(
+        AUTH_LOGIN_EMAIL_LIMIT="5",
+        AUTH_LOGIN_IP_LIMIT="30",
+        AUTH_LOGIN_WINDOW_SECONDS="60",
+        AUTH_LOGIN_IP_WINDOW_SECONDS="900",
+        AUTH_REFRESH_FAMILY_LIMIT="10",
+        AUTH_REFRESH_IP_LIMIT="100",
+        AUTH_REFRESH_WINDOW_SECONDS="60",
+        AUTH_LOCAL_MAX_ENTRIES="10000",
+    )
     # Explicit test infrastructure only; never read developer Redis from .env.
     import sys
 
@@ -122,8 +132,51 @@ def clean_database() -> None:
             )
 
     truncate()
-    yield
-    truncate()
+    # Auth quotas now live in Redis. Give every test an owned namespace and
+    # independent local history; remove only the exact keys it used afterwards.
+    import asyncio
+    from threading import Lock
+    from app.main import app, auth_redis
+    from app.core.config import get_settings
+    from app.modules.auth.rate_limit import AuthLimiter, install_limiter
+    from app.redis.adapter import RedisAdapter
+
+    owned_keys: set[str] = set()
+    owned_lock = Lock()
+    suffix = secrets.token_hex(12)
+
+    class OwnedRedis:
+        def __init__(self, adapter):
+            self.adapter = adapter
+
+        def namespace(self, use_case, version):
+            return self.adapter.namespace(use_case, version) + suffix + ":"
+
+        async def execute(self, *arguments):
+            if arguments[0] == "EVAL":
+                with owned_lock:
+                    owned_keys.update(arguments[3 : 3 + int(arguments[2])])
+            return await self.adapter.execute(*arguments)
+
+    app.state.auth_limiter = AuthLimiter(
+        get_settings(), lambda: OwnedRedis(auth_redis())
+    )
+    install_limiter(app.state.auth_limiter)
+    try:
+        yield
+    finally:
+
+        async def cleanup_auth_keys():
+            adapter = RedisAdapter(get_settings())
+            await adapter.open()
+            try:
+                if owned_keys:
+                    await adapter.execute("DEL", *owned_keys)
+            finally:
+                await adapter.close()
+
+        asyncio.run(cleanup_auth_keys())
+        truncate()
 
 
 @pytest.fixture

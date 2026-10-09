@@ -1,9 +1,9 @@
 # Milestone 7: Redis caching and rate limiting
 
-Status: Approved, revision 12 (catalog Redis outage circuit policy recorded)
-Updated: 2026-10-07  
+Status: Approved, revision 13 (Issue #24 fixed windows and deadline contract)
+Updated: 2026-10-09
 Inspection: repository HEAD `a1acf44`; working tree clean before this document.  
-Approval: user accepted the completed plan on 2026-10-07 ("The plan is done then"). Remaining tuning is identified below; implementation and verification have not been performed.
+Original approval: user accepted the completed plan on 2026-10-07 ("The plan is done then"). Revision 13 records the user's 2026-10-09 Issue #24 deadline clarifications. Implementation and verification evidence is recorded separately in the issue reports.
 
 ## Goal and scope
 
@@ -300,6 +300,52 @@ current-state/README evidence. No frontend behavior change is assumed.
 
 ## Implementation tuning and assumptions
 
+### Issue #24 implementation decisions — 2026-10-09
+
+The user confirmed that Issue #24 retains fixed quota windows and the revision
+12 thresholds and durations; sliding windows and token buckets are deferred.
+Reservations retain a 10-second lease without renewal. Authentication has a
+strict 8-second overall operation deadline covering database lookup, password
+verification, session creation and commit. Deadline exhaustion returns a generic
+retryable server error, delivers no usable credentials and records no credential failure.
+Timeout, cancellation and genuine server errors release both reservations;
+lease expiry remains the crash-recovery fallback. Late verification results
+must neither authenticate nor update failure counters. Cancellation must not
+leave detached verification/session work capable of completing authentication
+after lease expiration. Deterministic verification, cancellation, cleanup and
+overlap tests are required.
+
+If implementation cannot reliably enforce the deadline and prevent late side
+effects, report the limitation and propose bounded lease renewal with a maximum
+overall deadline rather than silently completing after lease expiration. These
+decisions supplement revision 12; its other accepted policies remain unchanged.
+
+Implementation inspection (2026-10-09; no limiter implementation yet): the
+current AnyIO password worker is a native thread. A bounded cancellation probe
+against the installed runtime confirmed that the authentication task cancels
+while the native worker continues, with no late authentication continuation.
+Such a worker cannot be forcibly stopped through thread cancellation. Separately,
+the SQLAlchemy/asyncpg commit boundary cannot establish rollback merely from a
+cancelled or timed-out commit acknowledgement: PostgreSQL may already have
+committed. No cookies need be returned, but an undisclosed session family may
+persist. The interpretation of the deadline's no-session/late-side-effect rule
+at this uncertain commit boundary was clarified by the user as follows.
+
+Accepted deadline contract (2026-10-09): after timeout or cancellation, deliver
+no access token, refresh token or authentication cookie; discard late computation
+and database results. An orphaned session family may persist if PostgreSQL commits
+before its acknowledgement reaches the caller. Guaranteed rollback of an already
+committed transaction is not required. A stored family alone grants no access:
+never expose its credentials through responses, logs or another channel. Timeout or cancellation
+returns the existing generic 503, releases admission best effort and records no
+credential failure. Normal absolute expiry and expired-session cleanup cover
+abandoned families. Log uncertain commits with safe structured events without
+credentials. Late native password results must never create sessions, issue
+credentials or finalize failures after cancellation. Keep the 8-second deadline
+and 10-second lease without renewal. Deterministic regressions must cover delayed
+commit acknowledgement, late password completion and session-creation cancellation.
+Any credentials delivered after the deadline constitute a correctness bug.
+
 The overall plan is accepted. The following details remain tuning tasks or
 disclosed defaults; material changes to the accepted behavior require review.
 
@@ -356,3 +402,4 @@ an additional issue #19 architecture choice.
 | 2026-10-07 | Accept refresh accounting by known family plus source IP; count successful and failed known-family attempts, count all client-originated attempts in the IP bucket except genuine server/storage failures; normal Redis quotas 10/family and 100/IP per 60s; degraded local quotas 5/family and 50/IP per 60s | User accepted issue #19 refresh accounting and quotas; revision 10 records the policy before implementation |
 | 2026-10-07 | Classify the exact process-local limiter entry count as mandatory deployment sizing rather than an unresolved architecture choice; require a finite configurable value based on measured memory/workload before production and record concrete overlap/outage/ambiguity/recovery examples | User chose to defer the number to deployment while requiring the decision to be explicit; revision 11 completes issue #19 design policy |
 | 2026-10-07 | Add a separate per-process catalog cache circuit: transport/connection timeout opens the circuit; triggering request falls back to PostgreSQL; later catalog reads bypass Redis; one bounded single-flight real cache recovery attempt may close it after success; corrupt/schema-invalid cache entries remain cache misses rather than Redis-health failures; auth and catalog do not share one global health flag | User explicitly chose to add catalog Redis-failure handling before continuing with issue #21; revision 12 records the policy while retaining the accepted 100 ms total Redis operation budget |
+| 2026-10-09 | Retain fixed quota windows, 10-second leases without renewal and an 8-second auth deadline; discard late results and deliver no credentials after deadline/cancellation; accept undisclosed orphan families after uncertain commit, with safe logging and normal expiry/cleanup | User's explicit Issue #24 implementation decisions; revision 13 recorded before implementation |

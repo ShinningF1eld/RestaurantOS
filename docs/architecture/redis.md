@@ -11,9 +11,14 @@ shutdown cannot restore a closed pool. A short lifecycle lock protects only
 in-memory ownership changes; no Redis I/O occurs while holding it.
 
 The catalog menu-list consumer owns a separate per-process outage circuit in
-`app/modules/catalog/menu_cache.py`; authentication will own its own degraded
-state. A successful cache operation does not establish health for another use
-case.
+`app/modules/catalog/menu_cache.py`; authentication owns its separate degraded
+state in `app/modules/auth/rate_limit.py`. A successful cache operation does not
+establish health for another use case.
+
+Auth selects the adapter owned by the current lifespan's event loop, avoiding
+cross-loop sockets in overlapping test clients. Requests without an opened
+adapter enter the same local policy as a closed Redis transport. The pool remains
+lifespan-owned; no limiter-specific pool is introduced.
 
 ## Configuration and deadline
 

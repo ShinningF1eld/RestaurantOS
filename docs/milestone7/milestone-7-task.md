@@ -217,16 +217,24 @@ Replace PostgreSQL limiter use in backend/app/modules/auth/rate_limit.py and int
 
 ## Acceptance criteria
 
-- [ ] Normalize email with strip().casefold() at the service boundary, including direct callers; use existing validated source IP and HMAC email/IP pair plus IP-wide keys for all account outcomes.
-- [ ] Atomically check both buckets and acquire bounded in-flight leases before password verification; finalize wrong-password/unknown/disabled outcomes identically and keep unknown-account dummy verification.
-- [ ] Successful logins do not increment failure counts; storage/transport errors and cancellation release capacity per T1. Success never clears IP failures; implement the recorded pair-clear decision.
-- [ ] All triggered buckets use existing generic 429 detail and Retry-After independent of account existence; no raw keys or identifiers leak.
-- [ ] Implement separate refresh accounting without changing cookie/session/replay/CSRF/renewal contracts; no runtime PostgreSQL limiter writes or shadow accounting remain.
-- [ ] Keep existing limiter schema/history in place unless a separately justified migration is required; do not delete data as cleanup.
+- [x] Normalize email with strip().casefold() at the service boundary, including direct callers; use existing validated source IP and HMAC email/IP pair plus IP-wide keys for all account outcomes.
+- [x] Atomically check both buckets and acquire bounded in-flight leases before password verification; finalize wrong-password/unknown/disabled outcomes identically and keep unknown-account dummy verification.
+- [x] Successful logins do not increment failure counts; storage/transport errors and cancellation release capacity per T1. Success clears neither pair nor IP failures.
+- [x] All triggered buckets use existing generic 429 detail and Retry-After independent of account existence; no raw keys or identifiers leak.
+- [x] Implement separate refresh accounting without changing cookie/session/replay/CSRF/renewal contracts; no runtime PostgreSQL limiter writes or shadow accounting remain.
+- [x] Keep existing limiter schema/history in place unless a separately justified migration is required; do not delete data as cleanup.
 
 ## Verification
 
 Run backend-unit, backend-integration and backend-static; use real Redis atomic operations and deterministic overlap of password checks to prove bounded admission, lease expiry and account-independent failure handling.
+
+Verified on 2026-10-09: 198 unit and 218 real PostgreSQL/Redis integration tests,
+backend static checks and baseline passed. Revision 13 supplements the original
+revision 12 with the user's fixed-window, deadline and uncertain-commit contract.
+See [issue #24 evidence](verification-milestone7-issue24.md) for commands, browser
+results, limitations and the accepted orphan-session cleanup behavior. Issue #24
+remains open at the user's request. Local fallback/recovery foundations are
+included to honor T1's ambiguity policy; T7's broader verification remains open.
 
 <!-- github-plan: docs/milestone7/milestone-7-design.md | T6 -->
 
