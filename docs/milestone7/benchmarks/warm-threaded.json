@@ -1,0 +1,2844 @@
+{
+  "benchmark": "restaurantos-menu-read-comparison",
+  "cache_mode": "warm",
+  "metadata": {
+    "benchmark_configuration": {
+      "cache_state": "warm",
+      "concurrency_levels": [
+        1,
+        10,
+        25,
+        50
+      ],
+      "measured_requests_per_scenario_level_repetition": 1000,
+      "percentile_method": "nearest-rank",
+      "repetitions": 3,
+      "scenarios": [
+        "menu-list",
+        "menu-items",
+        "mixed-read",
+        "mixed-write"
+      ],
+      "warmup_requests_per_scenario_level_repetition": 50
+    },
+    "benchmark_script_sha256": "292b1e2021a83efcee4b0c8d42be15ab4339a12a0d0ab721380c443a5c0f8d81",
+    "benchmark_script_version": "2.0.0",
+    "dataset": {
+      "dashboard_history": "no orders (original catalog workload)",
+      "inventory_ingredients": 4,
+      "inventory_tracked_items": 40,
+      "items_per_menu": 40,
+      "memberships": {
+        "branch_assignments": 1,
+        "manager": 1,
+        "owner": 1
+      },
+      "menu_items": 160,
+      "menus": 4,
+      "organizations": 1,
+      "recipe_components": 40,
+      "restaurants": 1,
+      "seed_definition": "fixed catalog, recipe and stock values; one Owner and one assigned Manager; generated auth credentials remain runtime-only",
+      "stock_per_ingredient": "5000.000 g",
+      "tracked_item_fraction": 0.25
+    },
+    "git_commit": "4ff9aee89588952dd381db6bc1589506f8ebe967",
+    "git_worktree_dirty": true,
+    "host": {
+      "available_memory_bytes": 531345408,
+      "logical_cpu_count": 12,
+      "os": "Windows-11-10.0.26200-SP0",
+      "processor": "Intel64 Family 6 Model 151 Stepping 5, GenuineIntel"
+    },
+    "measurement": {
+      "api_log_level": "WARNING",
+      "cache_hit_ratio": "request-local validated cache lookup, cleared if source list reloads; denominator catalog GETs only",
+      "latency": "client-side HTTP request duration, including auth middleware, authorization and response serialization",
+      "postgres_queries": "SQLAlchemy before_cursor_execute events scoped by request-local context and returned in X-Benchmark-Postgres-Queries; setup/migration/seed/login are excluded",
+      "sql_phase_costs": "nonoverlapping before/after cursor execution counts and durations; includes database wait/driver time, excludes DTO/Python/HTTP time; not additive latency percentiles"
+    },
+    "runtime": {
+      "application_environment": "development",
+      "auth_access_lifetime_seconds": 600,
+      "auth_refresh_strategy": "POST /auth/refresh between batches at 80% of access lifetime",
+      "catalog_absolute_age_seconds": 10,
+      "configuration_source": "explicit Settings defaults and benchmark overrides; dotenv and ambient settings ignored",
+      "database_pool": "SQLAlchemy default pool for the long-lived API process",
+      "effective_settings": {
+        "auth_access_seconds": 600,
+        "auth_cookie_secure": false,
+        "auth_jwt_audience": "restaurantos-browser",
+        "auth_jwt_issuer": "restaurantos",
+        "auth_login_email_limit": 5,
+        "auth_login_ip_limit": 30,
+        "auth_login_window_seconds": 60,
+        "auth_refresh_family_limit": 10,
+        "auth_refresh_ip_limit": 100,
+        "auth_refresh_window_seconds": 60,
+        "auth_session_seconds": 604800,
+        "auth_trusted_origins": [
+          "http://localhost:3000"
+        ],
+        "database_echo": false,
+        "environment": "development",
+        "log_level": "WARNING"
+      },
+      "fastapi": "0.141.1",
+      "httpx": "0.28.1",
+      "postgresql": "16.15 (Debian 16.15-1.pgdg13+2)",
+      "python": "3.12.13",
+      "redis": "Redis server v=7.4.11 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=40ff01a501d8e4b6",
+      "redis_max_connections": 20,
+      "redis_operation_budget_ms": 100,
+      "sqlalchemy": "2.0.52",
+      "uvicorn": "0.52.4"
+    },
+    "timestamp_utc": "2026-10-10T08:45:50.394068+00:00",
+    "workloads": {
+      "menu-items": "100% GET /menus/{menu_id}/items; menus round-robin",
+      "menu-list": "100% GET /restaurants/{restaurant_id}/menus",
+      "mixed-read": "20% menu-list + 80% menu-items",
+      "mixed-write": "20% catalog PUT updates (10% item, 10% menu) + 80% menu-item GETs",
+      "writes_are_enabled": true
+    }
+  },
+  "results": [
+    {
+      "cache_hit_count": 998,
+      "cache_hit_ratio": 0.998,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 1,
+      "first_wave_latency_ms": {
+        "p50": 23.67469999808236,
+        "p95": 23.67469999808236,
+        "p99": 23.67469999808236
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 23.93849999862141,
+        "p95": 29.575000000477303,
+        "p99": 38.81599999658647
+      },
+      "postgres_query_count": 5002,
+      "queries_per_request": 5.002,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 3.720733500082133,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 4.493631899840693,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0029446000007737894,
+          "queries_per_request": 0.002
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 998,
+      "cache_hit_ratio": 0.998,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 10,
+      "first_wave_latency_ms": {
+        "p50": 519.8707999988983,
+        "p95": 621.840700001485,
+        "p99": 621.840700001485
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 203.34790000197245,
+        "p95": 465.14139999999315,
+        "p99": 650.4270000004908
+      },
+      "postgres_query_count": 5002,
+      "queries_per_request": 5.002,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.955979899903468,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 6.252566600036516,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.006198999999469379,
+          "queries_per_request": 0.002
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 996,
+      "cache_hit_ratio": 0.996,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 25,
+      "first_wave_latency_ms": {
+        "p50": 552.4435999977868,
+        "p95": 1403.5576000023866,
+        "p99": 2207.648799998424
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 566.596099997696,
+        "p95": 1980.5689999993774,
+        "p99": 2995.25580000045
+      },
+      "postgres_query_count": 5004,
+      "queries_per_request": 5.004,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.427819799904682,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.6225371998298215,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.009563399995386135,
+          "queries_per_request": 0.004
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 997,
+      "cache_hit_ratio": 0.997,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 50,
+      "first_wave_latency_ms": {
+        "p50": 1355.0437000012607,
+        "p95": 4064.6464999990712,
+        "p99": 9163.63420000198
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 1018.9355000002251,
+        "p95": 4486.530800000764,
+        "p99": 7371.003599997493
+      },
+      "postgres_query_count": 5003,
+      "queries_per_request": 5.003,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.179545799892367,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.253597500064643,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.007006399999227142,
+          "queries_per_request": 0.003
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 988,
+      "cache_hit_ratio": 0.988,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 1,
+      "first_wave_latency_ms": {
+        "p50": 34.89889999764273,
+        "p95": 34.89889999764273,
+        "p99": 34.89889999764273
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 28.773199999704957,
+        "p95": 39.6723000012571,
+        "p99": 58.50780000037048
+      },
+      "postgres_query_count": 6012,
+      "queries_per_request": 6.012,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 3.812399300015386,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 4.791211799958546,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.01907730000311858,
+          "queries_per_request": 0.012
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.7725149000216334,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 992,
+      "cache_hit_ratio": 0.992,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 10,
+      "first_wave_latency_ms": {
+        "p50": 287.9962000006344,
+        "p95": 325.55780000257073,
+        "p99": 325.55780000257073
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 212.76120000038645,
+        "p95": 419.5217999986198,
+        "p99": 661.1357999972824
+      },
+      "postgres_query_count": 6008,
+      "queries_per_request": 6.008,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.494671200020093,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.539397399916197,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.020295400001486996,
+          "queries_per_request": 0.008
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 2.2677961000372306,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 988,
+      "cache_hit_ratio": 0.988,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 25,
+      "first_wave_latency_ms": {
+        "p50": 713.9027999983227,
+        "p95": 2075.2283000001626,
+        "p99": 2654.2496000001847
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 662.1704999997746,
+        "p95": 2045.6265000029816,
+        "p99": 3483.8144999994256
+      },
+      "postgres_query_count": 6012,
+      "queries_per_request": 6.012,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.622556000031182,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.784837399973185,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.020255099996575154,
+          "queries_per_request": 0.012
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 2.0441102999757277,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 988,
+      "cache_hit_ratio": 0.988,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 50,
+      "first_wave_latency_ms": {
+        "p50": 1066.3497999994433,
+        "p95": 3962.8838999997242,
+        "p99": 5538.626599998679
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 1030.3548000010778,
+        "p95": 4547.552899999573,
+        "p99": 7530.0028000019665
+      },
+      "postgres_query_count": 6012,
+      "queries_per_request": 6.012,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 3.8720420999343332,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.004017800059955,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.018743000015092548,
+          "queries_per_request": 0.012
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.7254326999645855,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 987,
+      "cache_hit_ratio": 0.987,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 1,
+      "first_wave_latency_ms": {
+        "p50": 27.13710000170977,
+        "p95": 27.13710000170977,
+        "p99": 27.13710000170977
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 28.081299999030307,
+        "p95": 35.5980999993335,
+        "p99": 46.98680000001332
+      },
+      "postgres_query_count": 5813,
+      "queries_per_request": 5.813,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 3.7478734999567678,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 4.585341100017104,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.017006300011416897,
+          "queries_per_request": 0.013
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.389152700030536,
+          "queries_per_request": 0.8
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 990,
+      "cache_hit_ratio": 0.99,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 10,
+      "first_wave_latency_ms": {
+        "p50": 253.9071999999578,
+        "p95": 291.528500001732,
+        "p99": 291.528500001732
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 239.52300000019022,
+        "p95": 454.2290999997931,
+        "p99": 630.3349000008893
+      },
+      "postgres_query_count": 5810,
+      "queries_per_request": 5.81,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.48328340003718,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.668098600050143,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0216142999852309,
+          "queries_per_request": 0.01
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.6942098999206792,
+          "queries_per_request": 0.8
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 985,
+      "cache_hit_ratio": 0.985,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 25,
+      "first_wave_latency_ms": {
+        "p50": 624.6025999971607,
+        "p95": 2066.509500000393,
+        "p99": 2776.972099996783
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 659.3558999993547,
+        "p95": 2130.923900000198,
+        "p99": 3212.6786000007996
+      },
+      "postgres_query_count": 5815,
+      "queries_per_request": 5.815,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.527753799917264,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.882535699947766,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.026468900010513607,
+          "queries_per_request": 0.015
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.6576107000255433,
+          "queries_per_request": 0.8
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 985,
+      "cache_hit_ratio": 0.985,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 50,
+      "first_wave_latency_ms": {
+        "p50": 1425.1915999993798,
+        "p95": 4107.002400000056,
+        "p99": 7347.159699998883
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 1190.9540999986348,
+        "p95": 5182.735500002309,
+        "p99": 7936.19580000086
+      },
+      "postgres_query_count": 5815,
+      "queries_per_request": 5.815,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.678402100016683,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 6.384386100056872,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.02639429999908316,
+          "queries_per_request": 0.015
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.7758406000393734,
+          "queries_per_request": 0.8
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 700,
+      "cache_hit_ratio": 0.875,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 800,
+      "cache_state": "warm",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 0,
+      "first_wave_latency_ms": {
+        "p50": 48.50029999943217,
+        "p95": 48.50029999943217,
+        "p99": 48.50029999943217
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 30.118499998934567,
+        "p95": 43.55130000112695,
+        "p99": 51.73970000032568
+      },
+      "postgres_query_count": 6811,
+      "queries_per_request": 6.811,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 3.847034199941845,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 4.8736297000687046,
+          "queries_per_request": 3.1
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.14879199998176773,
+          "queries_per_request": 0.1
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.693472699920676,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.8057519000030879,
+          "queries_per_request": 0.611
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 710,
+      "cache_hit_ratio": 0.8875,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 800,
+      "cache_state": "warm",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 7,
+      "first_wave_latency_ms": {
+        "p50": 427.03030000120634,
+        "p95": 477.64269999970566,
+        "p99": 477.64269999970566
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 276.90910000092117,
+        "p95": 583.8388999982271,
+        "p99": 992.1235000001616
+      },
+      "postgres_query_count": 6790,
+      "queries_per_request": 6.79,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.810160299897689,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 6.457685099900118,
+          "queries_per_request": 3.1
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.1720769999883487,
+          "queries_per_request": 0.09
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 2.1483579000559985,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 1.1609330999781378,
+          "queries_per_request": 0.6
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 712,
+      "cache_hit_ratio": 0.89,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 800,
+      "cache_state": "warm",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 16,
+      "first_wave_latency_ms": {
+        "p50": 775.1056999986758,
+        "p95": 1758.6847000020498,
+        "p99": 3071.0129999970377
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 655.2288999992015,
+        "p95": 2265.0008000018715,
+        "p99": 3284.71669999999
+      },
+      "postgres_query_count": 6788,
+      "queries_per_request": 6.788,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.523858999938966,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 6.084674899902893,
+          "queries_per_request": 3.1
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.15372589998878539,
+          "queries_per_request": 0.088
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 2.0014472999682766,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.9799402999087761,
+          "queries_per_request": 0.6
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 709,
+      "cache_hit_ratio": 0.88625,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 800,
+      "cache_state": "warm",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 36,
+      "first_wave_latency_ms": {
+        "p50": 1625.024900000426,
+        "p95": 5429.909400001634,
+        "p99": 9250.430599997344
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 1307.6752000015404,
+        "p95": 5757.594999999128,
+        "p99": 8897.911000000022
+      },
+      "postgres_query_count": 6791,
+      "queries_per_request": 6.791,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 5.00391370010766,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 6.6047376999413245,
+          "queries_per_request": 3.1
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.17952449998483644,
+          "queries_per_request": 0.091
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 2.1741285000425705,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 1.055208500016306,
+          "queries_per_request": 0.6
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 998,
+      "cache_hit_ratio": 0.998,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 1,
+      "first_wave_latency_ms": {
+        "p50": 26.543699998001102,
+        "p95": 26.543699998001102,
+        "p99": 26.543699998001102
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 23.8534999989497,
+        "p95": 30.065099999774247,
+        "p99": 37.168599999859
+      },
+      "postgres_query_count": 5002,
+      "queries_per_request": 5.002,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 3.7000840999826323,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 4.526685899880249,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0026553000025160145,
+          "queries_per_request": 0.002
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 997,
+      "cache_hit_ratio": 0.997,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 10,
+      "first_wave_latency_ms": {
+        "p50": 218.26270000019576,
+        "p95": 296.8237999994017,
+        "p99": 296.8237999994017
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 226.07799999968847,
+        "p95": 603.3692000019073,
+        "p99": 658.1865000007383
+      },
+      "postgres_query_count": 5003,
+      "queries_per_request": 5.003,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.365179600092233,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.643148399911297,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.007785300000250572,
+          "queries_per_request": 0.003
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 997,
+      "cache_hit_ratio": 0.997,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 25,
+      "first_wave_latency_ms": {
+        "p50": 755.6041000025289,
+        "p95": 1890.0069000010262,
+        "p99": 1947.0596999999543
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 596.3429000003089,
+        "p95": 2068.431399999099,
+        "p99": 2951.6677999999956
+      },
+      "postgres_query_count": 5003,
+      "queries_per_request": 5.003,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.509330900044006,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.808996500043577,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.006485099998826627,
+          "queries_per_request": 0.003
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 997,
+      "cache_hit_ratio": 0.997,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 50,
+      "first_wave_latency_ms": {
+        "p50": 1320.664900002157,
+        "p95": 4288.4782000001,
+        "p99": 13552.136400001473
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 1134.1922999999952,
+        "p95": 4783.176099997945,
+        "p99": 6684.002300000429
+      },
+      "postgres_query_count": 5003,
+      "queries_per_request": 5.003,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.375451499894552,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.799777799955336,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.006197700000484474,
+          "queries_per_request": 0.003
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 988,
+      "cache_hit_ratio": 0.988,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 1,
+      "first_wave_latency_ms": {
+        "p50": 33.47919999941951,
+        "p95": 33.47919999941951,
+        "p99": 33.47919999941951
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 30.111899999610614,
+        "p95": 38.882400000147754,
+        "p99": 49.280999999609776
+      },
+      "postgres_query_count": 6012,
+      "queries_per_request": 6.012,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 3.9221481998902163,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 4.924126099853311,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.018839100004697684,
+          "queries_per_request": 0.012
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.839650999958394,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 988,
+      "cache_hit_ratio": 0.988,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 10,
+      "first_wave_latency_ms": {
+        "p50": 328.7653000006685,
+        "p95": 362.87129999982426,
+        "p99": 362.87129999982426
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 263.6327000000165,
+        "p95": 543.50130000239,
+        "p99": 723.5594000012497
+      },
+      "postgres_query_count": 6012,
+      "queries_per_request": 6.012,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.695758700006991,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.90766770002665,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.020713100009743357,
+          "queries_per_request": 0.012
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 2.1328616999817314,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 988,
+      "cache_hit_ratio": 0.988,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 25,
+      "first_wave_latency_ms": {
+        "p50": 832.0173000029172,
+        "p95": 2726.256800000556,
+        "p99": 2864.534200001799
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 644.1206000017701,
+        "p95": 2168.6325000009674,
+        "p99": 2986.68319999706
+      },
+      "postgres_query_count": 6012,
+      "queries_per_request": 6.012,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.535330099941348,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 6.02221609992921,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.02289829999790527,
+          "queries_per_request": 0.012
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 2.1775981000319007,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 985,
+      "cache_hit_ratio": 0.985,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 50,
+      "first_wave_latency_ms": {
+        "p50": 1606.9007000005513,
+        "p95": 7442.052200000035,
+        "p99": 21136.192999998457
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 1228.2631999987643,
+        "p95": 5652.311500001815,
+        "p99": 7502.759899998637
+      },
+      "postgres_query_count": 6015,
+      "queries_per_request": 6.015,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 5.300758699981088,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 7.060327200135362,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.03077310000298894,
+          "queries_per_request": 0.015
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 2.4783401000022423,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 988,
+      "cache_hit_ratio": 0.988,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 1,
+      "first_wave_latency_ms": {
+        "p50": 33.965500002523186,
+        "p95": 33.965500002523186,
+        "p99": 33.965500002523186
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 28.170699999463977,
+        "p95": 34.87740000127815,
+        "p99": 39.93800000171177
+      },
+      "postgres_query_count": 5812,
+      "queries_per_request": 5.812,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 3.730008199971053,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 4.550725599950965,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.01666750000003958,
+          "queries_per_request": 0.012
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.3928376999865577,
+          "queries_per_request": 0.8
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 985,
+      "cache_hit_ratio": 0.985,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 10,
+      "first_wave_latency_ms": {
+        "p50": 238.9002999989316,
+        "p95": 296.88659999737865,
+        "p99": 296.88659999737865
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 271.12920000217855,
+        "p95": 572.3452000020188,
+        "p99": 698.9307000003464
+      },
+      "postgres_query_count": 5815,
+      "queries_per_request": 5.815,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.417472599980101,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.543253499963612,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.028762399993865984,
+          "queries_per_request": 0.015
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.6475396999594523,
+          "queries_per_request": 0.8
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 985,
+      "cache_hit_ratio": 0.985,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 25,
+      "first_wave_latency_ms": {
+        "p50": 782.6773999986472,
+        "p95": 1660.573299999669,
+        "p99": 1757.285799998499
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 670.9405000001425,
+        "p95": 2235.9938000008697,
+        "p99": 3270.3413000017463
+      },
+      "postgres_query_count": 5815,
+      "queries_per_request": 5.815,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.70948710005905,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 6.001514600076916,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.026580499990814133,
+          "queries_per_request": 0.015
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.6909165999677498,
+          "queries_per_request": 0.8
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 983,
+      "cache_hit_ratio": 0.983,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 50,
+      "first_wave_latency_ms": {
+        "p50": 1257.1520999990753,
+        "p95": 6609.770099999878,
+        "p99": 7705.909500000416
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 1261.0831999991206,
+        "p95": 4829.619000000093,
+        "p99": 7594.213199998194
+      },
+      "postgres_query_count": 5817,
+      "queries_per_request": 5.817,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 5.621964100002515,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 6.947925900116388,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.034972699995705625,
+          "queries_per_request": 0.017
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.7832389999712177,
+          "queries_per_request": 0.8
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 700,
+      "cache_hit_ratio": 0.875,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 800,
+      "cache_state": "warm",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 0,
+      "first_wave_latency_ms": {
+        "p50": 44.14010000255075,
+        "p95": 44.14010000255075,
+        "p99": 44.14010000255075
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 30.540200001269113,
+        "p95": 42.76930000196444,
+        "p99": 51.94680000204244
+      },
+      "postgres_query_count": 6800,
+      "queries_per_request": 6.8,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 3.842124399907334,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 4.89612859994304,
+          "queries_per_request": 3.1
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.16288459997304017,
+          "queries_per_request": 0.1
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.7536772000021301,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.806966000036482,
+          "queries_per_request": 0.6
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 710,
+      "cache_hit_ratio": 0.8875,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 800,
+      "cache_state": "warm",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 6,
+      "first_wave_latency_ms": {
+        "p50": 294.37329999927897,
+        "p95": 379.53510000079405,
+        "p99": 379.53510000079405
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 254.40669999807142,
+        "p95": 602.0204999986163,
+        "p99": 835.8740000003309
+      },
+      "postgres_query_count": 6790,
+      "queries_per_request": 6.79,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.443823599980533,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.78171609999481,
+          "queries_per_request": 3.1
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.15552500001285807,
+          "queries_per_request": 0.09
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.9773525999880803,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 1.0576042999091442,
+          "queries_per_request": 0.6
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 714,
+      "cache_hit_ratio": 0.8925,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 800,
+      "cache_state": "warm",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 14,
+      "first_wave_latency_ms": {
+        "p50": 680.7411999980104,
+        "p95": 2198.849700002029,
+        "p99": 2539.5853000009083
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 676.3915000010456,
+        "p95": 2426.603799998702,
+        "p99": 3635.662199998478
+      },
+      "postgres_query_count": 6786,
+      "queries_per_request": 6.786,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.624170000144659,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 6.02302300001611,
+          "queries_per_request": 3.1
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.14941129999351688,
+          "queries_per_request": 0.086
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.983495800090168,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.968438200026867,
+          "queries_per_request": 0.6
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 710,
+      "cache_hit_ratio": 0.8875,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 800,
+      "cache_state": "warm",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 33,
+      "first_wave_latency_ms": {
+        "p50": 1670.3105000015057,
+        "p95": 5632.255200001964,
+        "p99": 6024.562999999034
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 1247.0997999989777,
+        "p95": 5195.784899999126,
+        "p99": 7822.934299998451
+      },
+      "postgres_query_count": 6790,
+      "queries_per_request": 6.79,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.367973500135122,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.8628343998898345,
+          "queries_per_request": 3.1
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.16015560000232654,
+          "queries_per_request": 0.09
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.9804989000003843,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.9339693999754672,
+          "queries_per_request": 0.6
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 999,
+      "cache_hit_ratio": 0.999,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 1,
+      "first_wave_latency_ms": {
+        "p50": 19.79890000075102,
+        "p95": 19.79890000075102,
+        "p99": 19.79890000075102
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 16.550899999856483,
+        "p95": 20.316600002843188,
+        "p99": 24.241900002380135
+      },
+      "postgres_query_count": 5001,
+      "queries_per_request": 5.001,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.4651446999414475,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 2.8885296000335074,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0005856999996467493,
+          "queries_per_request": 0.001
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 998,
+      "cache_hit_ratio": 0.998,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 10,
+      "first_wave_latency_ms": {
+        "p50": 164.95299999951385,
+        "p95": 207.81600000191247,
+        "p99": 207.81600000191247
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 140.40039999963483,
+        "p95": 403.30080000057933,
+        "p99": 479.03329999826383
+      },
+      "postgres_query_count": 5002,
+      "queries_per_request": 5.002,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.978919899902394,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 3.6462062999671616,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.004377600002044346,
+          "queries_per_request": 0.002
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 998,
+      "cache_hit_ratio": 0.998,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 25,
+      "first_wave_latency_ms": {
+        "p50": 465.27079999941634,
+        "p95": 1207.7701000016532,
+        "p99": 1281.7265999983647
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 413.32750000219676,
+        "p95": 1383.2218999996257,
+        "p99": 2109.6410999998625
+      },
+      "postgres_query_count": 5002,
+      "queries_per_request": 5.002,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.9808798999911232,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 3.661035700060893,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0018216999997093808,
+          "queries_per_request": 0.002
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 998,
+      "cache_hit_ratio": 0.998,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 50,
+      "first_wave_latency_ms": {
+        "p50": 972.208999999566,
+        "p95": 4026.449799999682,
+        "p99": 6551.610499998787
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 787.5831999990623,
+        "p95": 3235.57190000065,
+        "p99": 4875.123000001622
+      },
+      "postgres_query_count": 5002,
+      "queries_per_request": 5.002,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.8793447999705677,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 3.6292190999738523,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0017373000009683892,
+          "queries_per_request": 0.002
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 992,
+      "cache_hit_ratio": 0.992,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 1,
+      "first_wave_latency_ms": {
+        "p50": 24.317200000950834,
+        "p95": 24.317200000950834,
+        "p99": 24.317200000950834
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 20.64480000262847,
+        "p95": 25.552800001605647,
+        "p99": 29.073499998048646
+      },
+      "postgres_query_count": 6008,
+      "queries_per_request": 6.008,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.5843009999189235,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 3.0493673001183197,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.007192299995949725,
+          "queries_per_request": 0.008
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.1318461000155366,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 992,
+      "cache_hit_ratio": 0.992,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 10,
+      "first_wave_latency_ms": {
+        "p50": 230.32709999824874,
+        "p95": 264.6859000014956,
+        "p99": 264.6859000014956
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 206.94609999918612,
+        "p95": 414.1975000020466,
+        "p99": 466.6410000027099
+      },
+      "postgres_query_count": 6008,
+      "queries_per_request": 6.008,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.9074043999935384,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 3.63269029989533,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.010539200004131999,
+          "queries_per_request": 0.008
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.3168252000432403,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 992,
+      "cache_hit_ratio": 0.992,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 25,
+      "first_wave_latency_ms": {
+        "p50": 430.6776000012178,
+        "p95": 1173.0276999987836,
+        "p99": 1706.6406000012648
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 511.4039000000048,
+        "p95": 1773.8406999997096,
+        "p99": 2901.738299999124
+      },
+      "postgres_query_count": 6008,
+      "queries_per_request": 6.008,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.1559381999322795,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.123357500113343,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.024553600003855536,
+          "queries_per_request": 0.008
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.7710724999196827,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 988,
+      "cache_hit_ratio": 0.988,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 50,
+      "first_wave_latency_ms": {
+        "p50": 1072.6291999999376,
+        "p95": 4585.447899997234,
+        "p99": 5684.758800001873
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 932.3805000021821,
+        "p95": 4266.483100000187,
+        "p99": 5704.003599999851
+      },
+      "postgres_query_count": 6012,
+      "queries_per_request": 6.012,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.054560999898968,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.107873900084087,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.01735460000418243,
+          "queries_per_request": 0.012
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.6441757000393409,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 990,
+      "cache_hit_ratio": 0.99,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 1,
+      "first_wave_latency_ms": {
+        "p50": 23.092999999789754,
+        "p95": 23.092999999789754,
+        "p99": 23.092999999789754
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 20.051499999681255,
+        "p95": 25.940399998944486,
+        "p99": 31.06820000175503
+      },
+      "postgres_query_count": 5810,
+      "queries_per_request": 5.81,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.6103779000695795,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 3.1007374999717285,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.00901270000031218,
+          "queries_per_request": 0.01
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.9054296000103932,
+          "queries_per_request": 0.8
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 990,
+      "cache_hit_ratio": 0.99,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 10,
+      "first_wave_latency_ms": {
+        "p50": 305.86849999963306,
+        "p95": 347.6561000024958,
+        "p99": 347.6561000024958
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 188.74359999972512,
+        "p95": 394.0440000005765,
+        "p99": 480.3143999997701
+      },
+      "postgres_query_count": 5810,
+      "queries_per_request": 5.81,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 3.040560599962191,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 3.801380699904257,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.012228999996295897,
+          "queries_per_request": 0.01
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.1396981999423588,
+          "queries_per_request": 0.8
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 985,
+      "cache_hit_ratio": 0.985,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 25,
+      "first_wave_latency_ms": {
+        "p50": 607.7370000020892,
+        "p95": 1168.2230000005802,
+        "p99": 1429.7516000005999
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 555.5838000000222,
+        "p95": 2064.542000000074,
+        "p99": 2850.0922999992326
+      },
+      "postgres_query_count": 5815,
+      "queries_per_request": 5.815,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.226408500100661,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.5638209999633546,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.026992499995685648,
+          "queries_per_request": 0.015
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.415451899956679,
+          "queries_per_request": 0.8
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 990,
+      "cache_hit_ratio": 0.99,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 50,
+      "first_wave_latency_ms": {
+        "p50": 1169.3487999982608,
+        "p95": 3801.1857999990752,
+        "p99": 5715.441000000283
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 880.8986999974877,
+        "p95": 4114.491000000271,
+        "p99": 6060.3292000014335
+      },
+      "postgres_query_count": 5810,
+      "queries_per_request": 5.81,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 3.4379261000394763,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 4.3109659000219835,
+          "queries_per_request": 3.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.014207499993062811,
+          "queries_per_request": 0.01
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.154170299978432,
+          "queries_per_request": 0.8
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 700,
+      "cache_hit_ratio": 0.875,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 800,
+      "cache_state": "warm",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 0,
+      "first_wave_latency_ms": {
+        "p50": 35.841199998685624,
+        "p95": 35.841199998685624,
+        "p99": 35.841199998685624
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 21.00810000047204,
+        "p95": 29.494700000213925,
+        "p99": 35.15970000080415
+      },
+      "postgres_query_count": 6800,
+      "queries_per_request": 6.8,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.6007973000450875,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 3.1303958000207786,
+          "queries_per_request": 3.1
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.09401420001813676,
+          "queries_per_request": 0.1
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.0804243000675342,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.5015063000537339,
+          "queries_per_request": 0.6
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 708,
+      "cache_hit_ratio": 0.885,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 800,
+      "cache_state": "warm",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 7,
+      "first_wave_latency_ms": {
+        "p50": 351.65820000111125,
+        "p95": 426.3731999999436,
+        "p99": 426.3731999999436
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 191.21529999756604,
+        "p95": 435.43429999772343,
+        "p99": 625.5835000010848
+      },
+      "postgres_query_count": 6792,
+      "queries_per_request": 6.792,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 3.5860679000033997,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 4.335028899982717,
+          "queries_per_request": 3.1
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.11365880000084871,
+          "queries_per_request": 0.092
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 1.4221129000252404,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.8151889000146184,
+          "queries_per_request": 0.6
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 718,
+      "cache_hit_ratio": 0.8975,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 800,
+      "cache_state": "warm",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 16,
+      "first_wave_latency_ms": {
+        "p50": 599.6754000007058,
+        "p95": 1558.8328999983787,
+        "p99": 2340.8304000004136
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 704.571099999157,
+        "p95": 2341.248099997756,
+        "p99": 3312.5099999997474
+      },
+      "postgres_query_count": 6782,
+      "queries_per_request": 6.782,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.592245400079264,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 6.169972399991821,
+          "queries_per_request": 3.1
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.15541909999592463,
+          "queries_per_request": 0.082
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 2.018073999999615,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 1.025672299987491,
+          "queries_per_request": 0.6
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 711,
+      "cache_hit_ratio": 0.88875,
+      "cache_hit_ratio_label": "validated payload reused without source reload / catalog GETs",
+      "cache_lookup_count": 800,
+      "cache_state": "warm",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 35,
+      "first_wave_latency_ms": {
+        "p50": 1846.5940000023693,
+        "p95": 4995.379799998773,
+        "p99": 6118.176300002233
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 1413.3526000005077,
+        "p95": 5716.153900000791,
+        "p99": 9133.868000000803
+      },
+      "postgres_query_count": 6789,
+      "queries_per_request": 6.789,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 4.845753300091019,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 6.446543299985933,
+          "queries_per_request": 3.1
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.16643310000290512,
+          "queries_per_request": 0.089
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 2.1239505999474204,
+          "queries_per_request": 1.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 1.0842092000129924,
+          "queries_per_request": 0.6
+        }
+      },
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    }
+  ],
+  "schema_version": 2
+}

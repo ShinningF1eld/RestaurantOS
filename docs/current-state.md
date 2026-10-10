@@ -1,7 +1,12 @@
 # RestaurantOS current state
 
+Milestone 7 measurements and operational/failure evidence are dated 2026-10-10
+in [issue #27 verification](milestone7/verification-milestone7-issue27.md).
+Catalog/dashboard experiments and full ten-gate local validation passed;
+final PR CI remains required. Full milestone acceptance is not yet claimed.
+
 Milestone 6 verification is dated 2026-10-06 in
-[the acceptance review](verification-milestone6.md). The complete local command
+[the acceptance review](milestone6/milestone-6-verification.md). The complete local command
 passed, and all three roadmap exit criteria were verified with full GitHub CI and
 missing/pending/failing/passing enforcement proof. Historical
 results below retain their original dates.
@@ -27,9 +32,10 @@ roadmap features are complete.
 - Earlier audit host: Python 3.13.15, Node.js 24.14.1, npm 11.11.0.
 - Milestone 6 validation: isolated Python 3.12.13 environment, Node.js 24.14.1,
   npm 11.11.0; the older developer virtual environment was not replaced.
-- The only repository instruction file is `frontend/AGENTS.md`.
+- Repository instructions live in root `AGENTS.md` and `frontend/AGENTS.md`.
 
-Developer Docker Compose manages PostgreSQL. The independent
+Developer Docker Compose manages PostgreSQL and optional nonpersistent Redis
+on loopback port 6379. The independent
 `docker-compose.test.yml` adds disposable PostgreSQL/Redis for validation. The API
 and frontend run as host processes. Compose credentials are predictable local
 development defaults and are not suitable for shared or deployed environments.
@@ -52,7 +58,7 @@ The active `main` ruleset requires the GitHub Actions `Milestone 6 acceptance`
 aggregate with an up-to-date branch and no bypass actors. Missing/pending/failing
 checks disabled ordinary merge on the disposable proof PR; restored passing
 checks enabled merge, after which the probe PR was closed without merging.
-Evidence is recorded in the [acceptance review](verification-milestone6.md).
+Evidence is recorded in the [acceptance review](milestone6/milestone-6-verification.md).
 
 Worker/event delivery, retry, duplicate and failure-recovery tests remain deferred
 to Milestone 8 under the approved plan. No worker coverage is claimed. Redis
@@ -65,6 +71,7 @@ cutover results below are historical, not evidence of an M6 application cutover.
 | Component | Variable | Example file |
 |---|---|---|
 | Backend and Alembic | `DATABASE_URL` | `backend/.env.example` |
+| Shared Redis | Secret `REDIS_URL`, `REDIS_OPERATION_BUDGET_MS` (default/maximum 100), `REDIS_MAX_CONNECTIONS` (20), `REDIS_TEST_NAMESPACE` | `backend/.env.example` |
 | Backend runtime | `ENVIRONMENT`, `LOG_LEVEL`, `DATABASE_ECHO` | `backend/.env.example` |
 | Authentication | Required independent `AUTH_JWT_SECRET`, `AUTH_RATE_LIMIT_SECRET`; trusted origins, cookie security, lifetimes and limits | `backend/.env.example` | <!-- pragma: allowlist secret -->
 | Backend tests | `TEST_DATABASE_URL` (database name must end in `_test`) | `backend/.env.example` |
@@ -72,6 +79,84 @@ cutover results below are historical, not evidence of an M6 application cutover.
 
 Both real local environment files are ignored. The example files contain no
 real credentials and remain commit-trackable.
+
+Milestone 7 T3 adds the asynchronous shared Redis adapter through API lifespan,
+lazy connections, one total command deadline and safe failure categories. Startup
+and `/health` remain independent of Redis. T4 caches
+`GET /restaurants/{restaurant_id}/menus` and `GET /menus/{menu_id}/items` after
+fresh membership, assignment, resource-scope and capability checks. Payloads use
+typed tenant-scoped keys and a 10-second absolute age. Stock, recipe tracking and
+availability remain live PostgreSQL reads on every item-list request. T4 evidence
+is dated 2026-10-08: the explicit `backend-unit` gate passed 182 tests,
+`backend-integration` passed 197 tests using disposable PostgreSQL/Redis, and
+`backend-static` passed lint, format and mypy. Regressions cover two organizations,
+revoked membership and assignment, deleted resources, cache corruption, live
+receipt/waste/count/consumption and recipe changes, authoritative order prices,
+and slow/concurrent fill age bounds. These `--no-install` gate runs are partial
+repository validation, not full Milestone 7 acceptance. T4 adds no schema
+migration. T5 invalidates only affected menu-list and item-list keys after the
+service-owned PostgreSQL transaction commits. Redis invalidation failures are
+logged safely and do not fail or roll back committed catalog writes; recipe and
+stock changes need no invalidation because those fields are read live. Issue #24
+replaces runtime PostgreSQL limiter writes with atomic Redis login admission and
+failure accounting plus separately accepted refresh accounting. The limiter
+table/history and PostgreSQL sessions remain in place. Stricter bounded local
+fallback and controlled recovery are wired without database shadow counters;
+issue #25 now hardens recovery/finalization and verifies physical Redis
+outage/restart, two API processes, flapping, bounded memory and process restart
+loss under approved revision 13. On 2026-10-10, baseline, 210 unit tests,
+221 PostgreSQL/Redis integration tests, Ruff, format and mypy passed; model drift
+was absent. The isolated production frontend build and all 24 Chromium journeys
+also passed. These are partial repository gates, not full Milestone 7 acceptance.
+See [issue 25 evidence](milestone7/verification-milestone7-issue25.md), including
+the reproducible local allocation measurement and deployment-sizing limits.
+See [issue 23 verification](milestone7/verification-milestone7-issue23.md) and
+[issue 24 evidence](milestone7/verification-milestone7-issue24.md).
+See [Redis infrastructure](architecture/redis.md).
+T3 verification on 2026-10-07 passed baseline/static, 169 unit tests, 189
+integration tests, image smoke and 24 browser journeys; owned cleanup passed on
+success and injected failure. See [issue 21 evidence](milestone7/verification-milestone7-issue21.md).
+This does not establish full Milestone 7 acceptance.
+
+Issue #26 pre-commit verification on 2026-10-10 passed the complete ten-gate
+local command with locked installation: 210 backend unit, 223 PostgreSQL/Redis
+integration, 22 frontend and 26 Chromium tests, static checks, both production
+build gates, clean/legacy migrations and image startup without migrations.
+Existing regressions were reused and missing browser/race coverage was added.
+Injected service/browser failure cleanup passed. No production/API/schema changes
+or application database migration were made. Remote PR CI on the final changes
+remains required; issue #26 and full Milestone 7 acceptance are not complete.
+See [issue 26 evidence](milestone7/verification-milestone7-issue26.md).
+
+Issue #27 measurement evidence (2026-10-10) reuses the corrected original
+uncached artifact and records complete cold/warm/current-control captures
+(48,000 attempts each), plus physical outage/restart captures (18,000 each).
+Cold has one transport error/unknown SQL observation; the other catalog captures
+have zero request errors. Warm SQL rates fall by approximately 8.3–16.6%, while
+historical-baseline median P95s regress 14.0–90.2%. The matched current control
+shows mixed differences and substantial repetition variation, so a consistent
+latency speedup is not established. All raw data, observer changes and failed
+attempts are disclosed in [issue 27 evidence](milestone7/verification-milestone7-issue27.md),
+[measurements](milestone7/performance-milestone7.md) and
+[current control](milestone7/performance-milestone7-control.md).
+The [catalog contract](api/catalog-cache.md) and [Redis runbook](runbooks/redis-cache.md)
+document lookup age, post-commit invalidation, live stock/access, fallback,
+limiter accounting/recovery, memory and process/restart limitations.
+
+GitHub #26 is closed and its starting revision `4ff9aee` passed all ten push-CI
+jobs and `Milestone 6 acceptance` in [run 38034397930](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/38034397930).
+Its explicit PR-CI verification remains pending; a closed issue/passing push
+does not establish that requirement. Issue #27 dashboard live/prototype captures
+passed (12,000 attempts each, zero errors), with approximately 40% fewer prototype
+queries but mixed latency results. The real Owner-authorized delete probe proved
+immediate live visibility versus stale prototype values until expiry, with Manager
+denial, unchanged stock and a transactional audit; production caching is deferred.
+Failure-cleanup probes passed. Full ten-gate local validation with locked
+installation passed: 225 backend unit, 223 PostgreSQL/Redis integration, 22
+frontend and 26 Chromium tests, static/build, migrations and image checks.
+Final PR evidence remains pending, so full milestone acceptance is not claimed.
+No production behavior, schema, dependencies or
+application database migration change for these measurements.
 
 ## Database schema and migrations
 
@@ -89,7 +174,7 @@ The current models and tables are:
 | User | UUID `id` | Normalized unique email, Argon2id hash, active/disabled status |
 | AuthSession | UUID `id` | User, absolute expiry, family revocation |
 | RefreshToken | UUID `id` | Token digest, family, consumed history and successor |
-| RateLimitBucket | Key digest + window start | Atomic shared counters and expiry |
+| RateLimitBucket | Key digest + window start | Retained PostgreSQL limiter history; runtime limits use Redis/local state |
 | Organization | UUID `id` | Unique generated display number and slug; active/archived status |
 | Membership | UUID `id` | Unique user; one organization; OWNER/MANAGER/EMPLOYEE; active/revoked |
 | RestaurantAssignment | `membership_id` + `restaurant_id` | Membership and restaurant must belong to the same organization |

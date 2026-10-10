@@ -776,6 +776,45 @@ Testing should start earlier; this milestone completes the full strategy.
 
 ## Milestone 7 — Redis caching and rate limiting
 
+Progress evidence (2026-10-09): issue #24's Redis auth admission, failure/refresh
+accounting and bounded deadline are recorded in
+[its verification report](docs/milestone7/verification-milestone7-issue24.md).
+This does not establish full Milestone 7 acceptance; issue #24 remains open.
+Progress evidence (2026-10-10): issue #25 hardens limiter recovery and conservative
+finalization, with real Redis stop/start, two API processes, process restart,
+memory bounds and flapping evidence in
+[its verification report](docs/milestone7/verification-milestone7-issue25.md).
+Baseline, backend unit/integration/static and browser gates passed. Full milestone acceptance
+and performance evidence remain tasks #26 and #27.
+
+Progress evidence (2026-10-10): issue #26's full ten-gate local command passed,
+including 210 backend unit, 223 PostgreSQL/Redis integration, 22 frontend and
+26 Chromium tests. Missing cache/limiter browser workflows and real fill races
+were added while reusing existing regressions. Failure cleanup was verified.
+See [pre-commit evidence](docs/milestone7/verification-milestone7-issue26.md).
+Remote PR CI on the final changes remains pending; issue #26 and milestone
+acceptance are not complete. Performance evidence remains issue #27.
+
+Progress evidence (2026-10-10): issue #27 reuses the corrected uncached baseline
+and retains full cold/warm/current-control data (48,000 attempts each), plus
+physical outage/restart data (18,000 each). Warm query rates improve about
+8.3–16.6%, but historical-baseline median P95s regress 14.0–90.2%; the current
+control shows mixed differences and substantial repetition variation.
+No consistent latency speedup is claimed. [Measured evidence](docs/milestone7/performance-milestone7.md),
+[current control](docs/milestone7/performance-milestone7-control.md) and
+[verification/exit mapping](docs/milestone7/verification-milestone7-issue27.md)
+retain observer changes, request errors and failed attempts. Cache/auth contracts
+and runbooks document actual tuning and limitations. Dashboard live/prototype
+captures and real committed-delete freshness/stock/audit checks passed; production
+dashboard caching is deferred despite approximately 40% fewer prototype queries.
+Failure cleanup and full ten-gate local validation with locked installation
+passed: 225 backend unit, 223 PostgreSQL/Redis integration, 22 frontend and
+26 Chromium tests, static/build, migrations and image. Final PR verification remains pending;
+milestone completion is not claimed.
+Starting revision `4ff9aee` passed all ten push-CI jobs and the unchanged aggregate
+in [run 38034397930](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/38034397930),
+which does not replace the required final PR run.
+
 ### Objective
 
 Use Redis for measured performance and ephemeral coordination needs.

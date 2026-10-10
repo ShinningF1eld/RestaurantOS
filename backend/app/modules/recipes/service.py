@@ -54,15 +54,19 @@ class RecipeAvailabilityService:
         self.session = session
 
     async def for_menu_items(
-        self, menu_items: Sequence[MenuItem]
+        self,
+        menu_items: Sequence[MenuItem],
+        *,
+        expected_menu_id: int | None = None,
     ) -> dict[int, MenuItemAvailability]:
         if not menu_items:
             return {}
 
         item_ids = [item.menu_item_id for item in menu_items]
-        rows = await self.session.execute(
+        statement = (
             select(
                 MenuItem.menu_item_id,
+                MenuItem.menu_id,
                 MenuItem.inventory_tracking,
                 Menu.restaurant_id,
                 RecipeComponent.id,
@@ -86,8 +90,12 @@ class RecipeAvailabilityService:
             .where(MenuItem.menu_item_id.in_(item_ids))
             .order_by(MenuItem.menu_item_id, RecipeComponent.id)
         )
+        if expected_menu_id is not None:
+            statement = statement.where(MenuItem.menu_id == expected_menu_id)
+        rows = await self.session.execute(statement)
 
         restaurant_ids: dict[int, int] = {}
+        menu_ids: dict[int, int] = {}
         tracking: dict[int, bool] = {}
         components: dict[
             int,
@@ -95,6 +103,7 @@ class RecipeAvailabilityService:
         ] = {item_id: [] for item_id in item_ids}
         for (
             item_id,
+            menu_id,
             inventory_tracking,
             restaurant_id,
             component_id,
@@ -105,6 +114,7 @@ class RecipeAvailabilityService:
             balance,
         ) in rows.all():
             restaurant_ids[item_id] = restaurant_id
+            menu_ids[item_id] = menu_id
             tracking[item_id] = inventory_tracking
             if component_id is not None:
                 components[item_id].append(
@@ -119,6 +129,13 @@ class RecipeAvailabilityService:
 
         availability: dict[int, MenuItemAvailability] = {}
         for item in menu_items:
+            # A cached item can have been deleted or moved to another menu since
+            # the cache fill. Omit it so the caller can treat that entry as a miss.
+            if (
+                item.menu_item_id not in tracking
+                or menu_ids[item.menu_item_id] != item.menu_id
+            ):
+                continue
             tracked = bool(tracking[item.menu_item_id])
             if not tracked:
                 availability[item.menu_item_id] = MenuItemAvailability(

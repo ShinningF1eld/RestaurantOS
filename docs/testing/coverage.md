@@ -39,5 +39,5 @@ to Milestone 8 and has no current coverage claim.
 
 On 2026-10-06, real labelled suites generated reports, and isolated deliberately
 failing tests retained their available reports while returning exit code 1.
-The final [Milestone 6 verification](../verification-milestone6.md) records the
+The final [Milestone 6 verification](../milestone6/milestone-6-verification.md) records the
 complete local/CI results and the inspected revision.

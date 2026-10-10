@@ -9,7 +9,7 @@ from app.core.request_id import get_request_id
 
 
 class JsonFormatter(logging.Formatter):
-    """Format only stable operational fields; request bodies and extras are omitted."""
+    """Format allowlisted operational fields; omit arbitrary extras and bodies."""
 
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
@@ -19,7 +19,17 @@ class JsonFormatter(logging.Formatter):
             "message": record.getMessage(),
             "request_id": get_request_id(),
         }
-        for field in ("http_method", "http_path", "status_code", "duration_ms"):
+        for field in (
+            "http_method",
+            "http_path",
+            "status_code",
+            "duration_ms",
+            "event",
+            "failure_kind",
+            "process_id",
+            "reason",
+            "duration_seconds",
+        ):
             value = getattr(record, field, None)
             if value is not None:
                 payload[field] = value

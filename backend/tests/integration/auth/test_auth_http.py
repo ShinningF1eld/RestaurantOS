@@ -356,27 +356,69 @@ def test_login_limits_include_unknown_accounts_and_spoofed_forwarded_ip():
 
 
 def test_concurrent_login_account_counter_never_exceeds_limit(auth_user, monkeypatch):
+    import asyncio
+    import httpx
     from app.modules.auth import service
 
     limit = get_settings().auth_login_email_limit
-    barrier = Barrier(limit + 3)
-    entered_user_lookup = Barrier(limit)
-    monkeypatch.setattr(
-        service,
-        "find_by_email",
-        synchronize_calls(service.find_by_email, entered_user_lookup, limit),
-    )
 
-    def attempt(_):
-        with TestClient(app) as client:
-            barrier.wait(timeout=15)
-            return login(client, auth_user).status_code
+    async def scenario():
+        entered, rejected = 0, 0
+        all_entered, all_rejected, release = (
+            asyncio.Event(),
+            asyncio.Event(),
+            asyncio.Event(),
+        )
+        original = service.verify_password
 
-    with ThreadPoolExecutor(max_workers=limit + 3) as pool:
-        statuses = list(pool.map(attempt, range(limit + 3)))
-    assert statuses.count(200) == limit
-    assert statuses.count(429) == 3
-    assert scalar("SELECT count(*) FROM auth_sessions") == limit
+        async def blocked(*args):
+            nonlocal entered
+            entered += 1
+            if entered == limit:
+                all_entered.set()
+            await release.wait()
+            return await original(*args)
+
+        monkeypatch.setattr(service, "verify_password", blocked)
+        async with app.router.lifespan_context(app):
+            from tests.support.redis_ready import warm_redis
+
+            await warm_redis(app.state.auth_limiter._redis())
+            async with httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://testserver"
+            ) as client:
+
+                async def attempt():
+                    nonlocal rejected
+                    result = await client.post(
+                        "/auth/login",
+                        headers=HEADERS,
+                        json={
+                            "email": "unknown@example.test",
+                            "password": auth_user["password"],
+                        },
+                    )
+                    if result.status_code == 429:
+                        rejected += 1
+                        if rejected == 3:
+                            all_rejected.set()
+                    return result.status_code
+
+                tasks = [asyncio.create_task(attempt()) for _ in range(limit + 3)]
+                try:
+                    async with asyncio.timeout(6):
+                        await all_entered.wait()
+                        await all_rejected.wait()
+                    assert entered == limit
+                finally:
+                    release.set()
+                statuses = await asyncio.gather(*tasks)
+        assert statuses.count(401) == limit
+        assert statuses.count(429) == 3
+
+    asyncio.run(scenario())
+    assert scalar("SELECT count(*) FROM auth_sessions") == 0
+    assert scalar("SELECT count(*) FROM auth_rate_limit_buckets") == 0
 
 
 def test_expired_access_rejection_preserves_refresh_for_renewal(authenticated_client):
@@ -427,13 +469,15 @@ def test_rotation_database_failure_rolls_back_consumption(authenticated_client):
 @pytest.mark.parametrize("operation", ["/auth/login", "/auth/refresh"])
 def test_rate_storage_outage_fails_closed(monkeypatch, auth_user, operation):
     from sqlalchemy.exc import SQLAlchemyError
-    from app.modules.auth import rate_limit
+    from app.modules.auth import service
 
     def unavailable():
         raise SQLAlchemyError("Injected rate storage outage")
 
-    monkeypatch.setattr(rate_limit, "AsyncSessionLocal", unavailable)
+    monkeypatch.setattr(service, "AsyncSessionLocal", unavailable)
     with TestClient(app) as client:
+        if operation == "/auth/refresh":
+            client.cookies.set("ros_refresh", "unknown-token", path="/auth")
         response = client.post(
             operation,
             headers=HEADERS,
@@ -587,27 +631,11 @@ def test_refresh_ip_limit_applies_to_unknown_tokens(monkeypatch):
         assert int(limited.headers["retry-after"]) > 0
 
 
-def test_rate_bucket_window_expires(monkeypatch):
-    from datetime import datetime, timedelta, timezone
-    import asyncio
-    from app.modules.auth import rate_limit
-
-    class Clock(datetime):
-        current = datetime(2026, 1, 1, tzinfo=timezone.utc)
-
-        @classmethod
-        def now(cls, tz=None):
-            return cls.current
-
-    monkeypatch.setattr(rate_limit, "datetime", Clock)
-    asyncio.run(rate_limit.enforce_limits([("test-window", 1)], 60))
-    from app.modules.auth.domain.errors import RateLimitError
-
-    with pytest.raises(RateLimitError):
-        asyncio.run(rate_limit.enforce_limits([("test-window", 1)], 60))
-    Clock.current += timedelta(seconds=60)
-    asyncio.run(rate_limit.enforce_limits([("test-window", 1)], 60))
-    assert scalar("SELECT count(*) FROM auth_rate_limit_buckets") == 2
+def test_successful_logins_do_not_consume_failure_quota(auth_user):
+    with TestClient(app) as client:
+        for _ in range(get_settings().auth_login_email_limit + 2):
+            assert login(client, auth_user).status_code == 200
+    assert scalar("SELECT count(*) FROM auth_rate_limit_buckets") == 0
 
 
 def test_secure_cookie_flags_and_matching_logout_deletion(monkeypatch, auth_user):

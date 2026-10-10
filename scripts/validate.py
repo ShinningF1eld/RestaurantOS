@@ -3,13 +3,14 @@
 import argparse
 import os
 import shutil
-import socket
 import subprocess
 import sys
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
+
+from test_support.redis_environment import redis_environment
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
@@ -39,7 +40,7 @@ def services(external):
         from test_support.disposable_postgres import read_test_url
 
         read_test_url()
-        yield dict(os.environ)
+        yield redis_environment(os.environ)
         return
     project = "restaurantos-m6-" + uuid4().hex[:12]
     command = [
@@ -68,41 +69,9 @@ def services(external):
                 [*command, "ps", "-q", "postgres"], text=True
             ).strip(),
         }
-        yield env
+        yield redis_environment(env)
     finally:
         run(*command, "down", "--volumes", "--remove-orphans")
-
-
-def redis_check(env):
-    host, port = (
-        env.get("TEST_REDIS_HOST", "127.0.0.1"),
-        int(env.get("TEST_REDIS_PORT", "6379")),
-    )
-    key = "restaurantos:m6:" + uuid4().hex
-    with socket.create_connection((host, port), timeout=5) as connection:
-        stream = connection.makefile("rb")
-
-        def command(*parts):
-            data = f"*{len(parts)}\r\n".encode()
-            for part in parts:
-                value = part.encode()
-                data += f"${len(value)}\r\n".encode() + value + b"\r\n"
-            connection.sendall(data)
-            return stream.readline()
-
-        if command("PING") != b"+PONG\r\n":
-            raise RuntimeError("Redis infrastructure PING failed")
-        try:
-            if command("SET", key, "isolated", "EX", "30") != b"+OK\r\n":
-                raise RuntimeError("Redis isolated write failed")
-            if command("GET", key) != b"$8\r\n" or stream.read(10) != b"isolated\r\n":
-                raise RuntimeError("Redis isolated read failed")
-        finally:
-            if command("DEL", key) not in {b":0\r\n", b":1\r\n"}:
-                raise RuntimeError("Redis namespaced cleanup failed")
-            if command("GET", key) != b"$-1\r\n":
-                raise RuntimeError("Redis validation key survived cleanup")
-    print("PASS: Redis infrastructure availability and namespaced cleanup")
 
 
 def backend_tests(label, selectors, env):
@@ -179,7 +148,6 @@ def gate(name, env):
     elif name == "backend-integration":
         from test_support.disposable_postgres import disposable_database
 
-        redis_check(env)
         with disposable_database(
             prefix="restaurantos_integration", test_url=env["TEST_DATABASE_URL"]
         ) as database:

@@ -3,6 +3,7 @@
 import argparse
 import os
 import re
+import runpy
 import shutil
 import socket
 import subprocess
@@ -15,6 +16,7 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 from test_support.disposable_postgres import disposable_database
+from test_support.redis_environment import redis_environment
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
@@ -31,6 +33,7 @@ def safe_diagnostics(value, env):
         "AUTH_RATE_LIMIT_SECRET",
         "DATABASE_URL",
         "TEST_DATABASE_URL",
+        "REDIS_URL",
     ):
         secret = env.get(key)
         if secret:
@@ -150,14 +153,35 @@ def main():
     origin, api = f"http://localhost:{web_port}", f"http://localhost:{api_port}"
     artifacts = ROOT / "test-results" / "browser"
     artifacts.mkdir(parents=True, exist_ok=True)
-    with disposable_database(prefix="restaurantos_browser") as database:
-        env = database.environment()
+    owned_redis = runpy.run_path(str(BACKEND / "tests/support/owned_redis.py"))[
+        "owned_redis"
+    ]
+    with (
+        disposable_database(prefix="restaurantos_browser") as database,
+        owned_redis() as (redis_container, redis_port),
+    ):
+        env = redis_environment(
+            {
+                **database.environment(),
+                "TEST_REDIS_HOST": "127.0.0.1",
+                "TEST_REDIS_PORT": redis_port,
+            }
+        )
         env.update(
             {
                 "NEXT_PUBLIC_API_URL": api,
                 "API_URL": api,
                 "AUTH_COOKIE_SECURE": "false",
                 "AUTH_TRUSTED_ORIGINS": f'["{origin}"]',
+                "AUTH_LOGIN_EMAIL_LIMIT": "5",
+                "AUTH_LOGIN_IP_LIMIT": "30",
+                "AUTH_LOGIN_WINDOW_SECONDS": "60",
+                "AUTH_LOGIN_IP_WINDOW_SECONDS": "900",
+                "AUTH_REFRESH_FAMILY_LIMIT": "10",
+                "AUTH_REFRESH_IP_LIMIT": "100",
+                "AUTH_REFRESH_WINDOW_SECONDS": "60",
+                "AUTH_LOCAL_MAX_ENTRIES": "10000",
+                "PLAYWRIGHT_REDIS_CONTAINER": redis_container,
                 "PLAYWRIGHT_BASE_URL": origin,
                 "PLAYWRIGHT_WEB_PORT": str(web_port),
                 "PLAYWRIGHT_PYTHON": sys.executable,
@@ -168,10 +192,6 @@ def main():
         )
         for key in (
             "PLAYWRIGHT_EXTERNAL_SERVER",
-            "AUTH_LOGIN_EMAIL_LIMIT",
-            "AUTH_LOGIN_IP_LIMIT",
-            "AUTH_REFRESH_FAMILY_LIMIT",
-            "AUTH_REFRESH_IP_LIMIT",
             "AUTH_ACCESS_SECONDS",
             "AUTH_SESSION_SECONDS",
         ):
@@ -188,7 +208,8 @@ def main():
                     'await page.goto("/login"); expect(true).toBe(false); });\n',
                     encoding="utf-8",
                 )
-            with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as log:
+            env["PLAYWRIGHT_API_LOG"] = str(frontend.parent / "browser-api.log")
+            with open(env["PLAYWRIGHT_API_LOG"], "w+", encoding="utf-8") as log:
                 server = subprocess.Popen(
                     [
                         sys.executable,

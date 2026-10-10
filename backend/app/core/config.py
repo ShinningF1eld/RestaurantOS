@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     )
     log_level: LogLevel = Field(default="INFO", validation_alias="LOG_LEVEL")
     database_echo: bool = Field(default=False, validation_alias="DATABASE_ECHO")
+    redis_url: SecretStr = Field(default=SecretStr("redis://localhost:6379/0"))
+    redis_operation_budget_ms: int = Field(default=100, gt=0, le=100)
+    redis_max_connections: int = Field(default=20, gt=0, le=1000)
+    redis_test_namespace: str = Field(default="test")
     auth_jwt_secret: SecretStr = Field(validation_alias="AUTH_JWT_SECRET")
     auth_rate_limit_secret: SecretStr = Field(validation_alias="AUTH_RATE_LIMIT_SECRET")
     auth_trusted_origins: list[str] = Field(
@@ -49,10 +53,12 @@ class Settings(BaseSettings):
     auth_session_seconds: int = Field(default=604800, gt=0)
     auth_login_email_limit: int = Field(default=5, gt=0)
     auth_login_ip_limit: int = Field(default=30, gt=0)
-    auth_login_window_seconds: int = Field(default=900, gt=0)
-    auth_refresh_family_limit: int = Field(default=30, gt=0)
-    auth_refresh_ip_limit: int = Field(default=120, gt=0)
+    auth_login_window_seconds: int = Field(default=60, gt=0)
+    auth_login_ip_window_seconds: int = Field(default=900, gt=0)
+    auth_refresh_family_limit: int = Field(default=10, gt=0)
+    auth_refresh_ip_limit: int = Field(default=100, gt=0)
     auth_refresh_window_seconds: int = Field(default=60, gt=0)
+    auth_local_max_entries: int = Field(default=10000, gt=0)
     auth_trusted_proxy_ips: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -117,6 +123,36 @@ class Settings(BaseSettings):
     def validate_database_url(cls, value: str) -> str:
         if not value.startswith("postgresql+asyncpg://"):
             raise ValueError("DATABASE_URL must use postgresql+asyncpg")
+        return value
+
+    @field_validator("redis_url")
+    @classmethod
+    def validate_redis_url(cls, value: SecretStr) -> SecretStr:
+        from urllib.parse import urlsplit
+
+        try:
+            url = urlsplit(value.get_secret_value())
+            valid = (
+                url.scheme in {"redis", "rediss"}
+                and bool(url.hostname)
+                and (url.port is None or 0 < url.port <= 65535)
+                and not url.query
+                and not url.fragment
+                and (not url.path or url.path == "/" or url.path[1:].isdigit())
+            )
+        except ValueError:
+            valid = False
+        if not valid:
+            raise ValueError("REDIS_URL must be a Redis URL without query overrides")
+        return value
+
+    @field_validator("redis_test_namespace")
+    @classmethod
+    def validate_redis_test_namespace(cls, value: str) -> str:
+        import re
+
+        if not re.fullmatch(r"[a-zA-Z0-9_-]{1,80}", value):
+            raise ValueError("Redis test namespace must be a safe opaque identifier")
         return value
 
 

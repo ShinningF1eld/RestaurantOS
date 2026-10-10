@@ -1,6 +1,8 @@
 from starlette.datastructures import Headers
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from time import monotonic
+import asyncio
 
 from app.core.config import get_settings
 
@@ -36,7 +38,32 @@ class AuthBoundaryMiddleware:
                 )
                 return
 
+        discarded = False
+
+        async def abandon_delivery() -> None:
+            callback = scope.get("state", {}).get("auth_abandon_delivery")
+            if callback:
+                await callback()
+
         async def no_store(message: Message) -> None:
+            nonlocal discarded
+            if discarded:
+                return
+            expiry = scope.get("state", {}).get("auth_delivery_deadline")
+            if (
+                message["type"] == "http.response.start"
+                and message["status"] < 400
+                and expiry is not None
+                and monotonic() >= expiry
+            ):
+                discarded = True
+                await abandon_delivery()
+                await JSONResponse(
+                    {"detail": "Authentication service unavailable"},
+                    status_code=503,
+                    headers={"Cache-Control": "no-store"},
+                )(scope, receive, send)
+                return
             if message["type"] == "http.response.start" and (
                 scope["path"].startswith("/auth")
                 or "ros_access=" in headers.get("cookie", "")
@@ -52,4 +79,8 @@ class AuthBoundaryMiddleware:
                 }
             await send(message)
 
-        await self.app(scope, receive, no_store)
+        try:
+            await self.app(scope, receive, no_store)
+        except asyncio.CancelledError:
+            await abandon_delivery()
+            raise

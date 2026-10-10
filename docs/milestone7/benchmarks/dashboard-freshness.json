@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "benchmark": "dashboard-freshness-evaluation",
+  "timestamp_utc": "2026-10-10T11:06:57.520463+00:00",
+  "git_commit": "4ff9aee89588952dd381db6bc1589506f8ebe967",
+  "script_sha256": "c3af52739b46199f919376420fd5613d24d3a4a24e165daf4700d2b10ecd90eb",
+  "benchmark_script_sha256": "f6a3c87ad50e11063b5bec312b698dc99b34cb92a84b3d47a7d3a7c5bda60353",
+  "prototype_script_sha256": "7a0bde92549f05d71b0cbf7a14ba74a097ed5e749fdd3b78a940199bacd3995e",
+  "dataset": "700 historical completed paid orders, 1400 item snapshots; one permitted unprocessed legacy order deleted through the real API",
+  "results": [
+    {
+      "mode": "live",
+      "manager_delete_status": 403,
+      "owner_delete_status": 204,
+      "before": {
+        "orders": 100,
+        "sales": "2400.00",
+        "seven_day_orders": 700
+      },
+      "after_committed_delete": {
+        "orders": 99,
+        "sales": "2376.00",
+        "seven_day_orders": 699
+      },
+      "after_10_second_expiry": {
+        "orders": 99,
+        "sales": "2376.00",
+        "seven_day_orders": 699
+      },
+      "expired_windows_socket_poll_count": 0,
+      "stock_quantity_before": "20000.000",
+      "stock_quantity_after": "20000.000",
+      "committed_delete_audit_count": 1
+    },
+    {
+      "mode": "prototype",
+      "manager_delete_status": 403,
+      "owner_delete_status": 204,
+      "before": {
+        "orders": 100,
+        "sales": "2400.00",
+        "seven_day_orders": 700
+      },
+      "after_committed_delete": {
+        "orders": 100,
+        "sales": "2400.00",
+        "seven_day_orders": 700
+      },
+      "after_10_second_expiry": {
+        "orders": 99,
+        "sales": "2376.00",
+        "seven_day_orders": 699
+      },
+      "expired_windows_socket_poll_count": 0,
+      "stock_quantity_before": "20000.000",
+      "stock_quantity_after": "20000.000",
+      "committed_delete_audit_count": 1
+    }
+  ]
+}

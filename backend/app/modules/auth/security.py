@@ -51,6 +51,7 @@ async def verify_password(
         password,
         password_hash or _dummy_hash,
         limiter=_limiter(),
+        abandon_on_cancel=True,
     )
     return valid and password_hash is not None, replacement
 

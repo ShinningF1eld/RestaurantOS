@@ -29,6 +29,25 @@ See the [role/API contract](docs/api/tenancy.md) and
 cutover completed on 2026-10-02: restaurant 1 belongs to organization 1, and the
 sole existing user is its Owner. See [verification evidence](docs/current-state.md#milestone-4-completion-evidence).
 
+Milestone 7 caches scoped menu fields for at most ten seconds of source age at
+lookup, while permissions and stock remain live. Authentication uses Redis
+admission with stricter process-local outage limits. See the
+[cache contract](docs/api/catalog-cache.md) and [Redis operations](docs/runbooks/redis-cache.md).
+
+The retained local benchmark (four menus/160 items, 1,000 attempts per cell,
+three repetitions, concurrency 1/10/25/50) shows warm SQL rates about 8.3–16.6%
+below the corrected historical uncached baseline. Warm median P95s were
+14.0–90.2% higher. A current uncached control shows mixed latency changes and
+substantial repetition variation; these serial observations do not establish a
+consistent speedup. Cold, warm, mixed-write, Redis outage/restart, query/hit/error
+metrics and exact environment/revisions are in the
+[measured report](docs/milestone7/performance-milestone7.md) and
+[current control](docs/milestone7/performance-milestone7-control.md).
+Dashboard caching remains deferred: its [measured prototype](docs/milestone7/performance-milestone7-dashboard.md)
+saves about 40% of queries but retains old aggregates after a permitted order
+delete until expiry. Milestone acceptance awaits the remaining
+verification evidence recorded in [issue #27](docs/milestone7/verification-milestone7-issue27.md).
+
 ## Prerequisites
 
 - Python 3.12 (the supported documentation and CI version)
@@ -47,7 +66,7 @@ Run these commands from the repository root in PowerShell:
 Copy-Item backend/.env.example backend/.env
 Copy-Item frontend/.env.example frontend/.env.local
 
-docker compose up -d --wait postgres
+docker compose up -d --wait postgres redis
 
 $restaurantOsTestDatabase = docker exec restaurantos-postgres psql -U restaurantos -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'restaurantos_test'"
 if (-not $restaurantOsTestDatabase) {
@@ -76,6 +95,17 @@ Pop-Location
 The Compose username, password, and database name are all `restaurantos`.
 They are intentionally predictable **local-development defaults** and must not
 be reused for a shared, staging, or production environment.
+
+Local Redis listens only on loopback port 6379 without persistence. Startup and
+`/health` do not require Redis. The restaurant menu-list and menu-item-list
+endpoints have tenant-scoped Redis caches with live authorization and a 10-second
+absolute age; item stock and recipe availability are read live from PostgreSQL.
+Committed catalog writes invalidate their scoped list keys after PostgreSQL
+commit; Redis failures are logged and cannot undo a business write. Authentication
+uses Redis atomic admission and failure accounting, with stricter process-local
+outage limits; PostgreSQL remains session storage. See
+[Redis infrastructure](docs/architecture/redis.md) for their behavior and isolated
+validation.
 
 Backend tests use `restaurantos_test` and refuse to run unless
 `TEST_DATABASE_URL` names a database ending in `_test`. Tests truncate that
@@ -116,7 +146,7 @@ Use the same sequence with platform-specific virtual-environment commands:
 ```bash
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env.local
-docker compose up -d --wait postgres
+docker compose up -d --wait postgres redis
 if ! docker exec restaurantos-postgres psql -U restaurantos -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'restaurantos_test'" | grep -q 1; then
   docker exec restaurantos-postgres createdb -U restaurantos restaurantos_test
 fi
@@ -157,7 +187,7 @@ every gate and requires its aggregate `Milestone 6 acceptance` check.
 
 See [the testing strategy](docs/testing/README.md) for commands, layer boundaries,
 the critical-rule map, artifacts, and the explicit Milestone 8 worker/event deferral.
-The dated [Milestone 6 verification](docs/verification-milestone6.md) records
+The dated [Milestone 6 verification](docs/milestone6/milestone-6-verification.md) records
 execution and the [required-check policy](docs/testing/enforcement.md) with actual
 GitHub PR evidence.
 

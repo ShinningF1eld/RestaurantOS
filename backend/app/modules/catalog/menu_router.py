@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
@@ -15,10 +15,16 @@ router = APIRouter(tags=["Menus"])
 async def create_menu(
     restaurant_id: int,
     menu_data: MenuCreate,
+    request: Request,
     principal: AuthenticatedPrincipal = Depends(get_current_principal),
     db: AsyncSession = Depends(get_db),
 ) -> MenuResponse:
-    menu = await CatalogService(db, principal).create_menu(
+    menu = await CatalogService(
+        db,
+        principal,
+        menu_cache=request.app.state.catalog_menu_cache,
+        redis=request.app.state.redis,
+    ).create_menu(
         restaurant_id,
         CreateMenu(name=menu_data.name, description=menu_data.description),
     )
@@ -28,10 +34,16 @@ async def create_menu(
 @router.get("/restaurants/{restaurant_id}/menus", response_model=list[MenuResponse])
 async def get_restaurant_menus(
     restaurant_id: int,
+    request: Request,
     principal: AuthenticatedPrincipal = Depends(get_current_principal),
     db: AsyncSession = Depends(get_db),
 ) -> list[MenuResponse]:
-    menus = await CatalogService(db, principal).list_menus(restaurant_id)
+    menus = await CatalogService(
+        db,
+        principal,
+        menu_cache=request.app.state.catalog_menu_cache,
+        redis=request.app.state.redis,
+    ).list_menus(restaurant_id)
     return [MenuResponse.model_validate(menu) for menu in menus]
 
 
@@ -49,10 +61,16 @@ async def get_menu(
 async def update_menu(
     menu_id: int,
     menu_data: MenuUpdate,
+    request: Request,
     principal: AuthenticatedPrincipal = Depends(get_current_principal),
     db: AsyncSession = Depends(get_db),
 ) -> MenuResponse:
-    menu = await CatalogService(db, principal).update_menu(
+    menu = await CatalogService(
+        db,
+        principal,
+        menu_cache=request.app.state.catalog_menu_cache,
+        redis=request.app.state.redis,
+    ).update_menu(
         menu_id,
         UpdateMenu(name=menu_data.name, description=menu_data.description),
     )
@@ -62,8 +80,14 @@ async def update_menu(
 @router.delete("/menus/{menu_id}")
 async def delete_menu(
     menu_id: int,
+    request: Request,
     principal: AuthenticatedPrincipal = Depends(get_current_principal),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
-    await CatalogService(db, principal).delete_menu(menu_id)
+    await CatalogService(
+        db,
+        principal,
+        menu_cache=request.app.state.catalog_menu_cache,
+        redis=request.app.state.redis,
+    ).delete_menu(menu_id)
     return {"message": "Menu deleted successfully"}

@@ -1,3 +1,8 @@
+from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
+import logging
+from threading import Lock
+
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -7,6 +12,7 @@ from app.core.config import get_settings
 from app.core.errors import DomainError
 from app.core.logging import configure_json_logging
 from app.db.database import get_db
+from app.redis.adapter import RedisAdapter, RedisFailure
 from app.http.error_handlers import domain_error_handler
 from app.http.request_middleware import RequestIdMiddleware
 from app.http.auth_middleware import AuthBoundaryMiddleware
@@ -20,10 +26,12 @@ from app.modules.auth.domain.errors import (
     RateLimitError,
 )
 from app.modules.auth.router import router as auth_router, clear_cookies
+from app.modules.auth.rate_limit import AuthLimiter, install_limiter
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from app.modules.analytics.router import router as analytics_router
 from app.modules.catalog.menu_router import router as menu_router
+from app.modules.catalog.menu_cache import CatalogMenuCache
 from app.modules.catalog.item_router import router as menu_item_router
 from app.modules.tenancy.router import router as tenancy_router
 from app.modules.audit.router import router as audit_router
@@ -36,10 +44,56 @@ from app.modules.restaurants.router import router as restaurant_router
 settings = get_settings()
 configure_json_logging(level=settings.log_level)
 
+
+@asynccontextmanager
+async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+    adapter = RedisAdapter(settings)
+    await adapter.open()
+    # Test clients may nest/overlap lifespans and shut down out of order. Track
+    # active owners rather than restore a possibly already closed predecessor.
+    with application.state.redis_lifecycle_lock:
+        application.state.redis_lifespans.append(adapter)
+        application.state.redis = adapter
+    try:
+        yield
+    finally:
+        try:
+            await adapter.close()
+        except RedisFailure as error:
+            logging.getLogger(__name__).warning(
+                "Redis shutdown failed (%s)", error.kind.value
+            )
+        finally:
+            with application.state.redis_lifecycle_lock:
+                application.state.redis_lifespans.remove(adapter)
+                if application.state.redis_lifespans:
+                    application.state.redis = application.state.redis_lifespans[-1]
+                elif hasattr(application.state, "redis"):
+                    del application.state.redis
+
+
 app = FastAPI(
     title="RestaurantOS API",
     version="0.1.0",
+    lifespan=lifespan,
 )
+app.state.redis_lifespans = []
+app.state.redis_lifecycle_lock = Lock()
+app.state.catalog_menu_cache = CatalogMenuCache()
+app.state.auth_redis_unavailable = RedisAdapter(settings)
+
+
+def auth_redis() -> RedisAdapter:
+    # Pools belong to their lifespan event loop, including overlapping clients.
+    with app.state.redis_lifecycle_lock:
+        for adapter in reversed(app.state.redis_lifespans):
+            if adapter.owns_current_loop():
+                return adapter  # type: ignore[no-any-return]
+    return app.state.auth_redis_unavailable  # type: ignore[no-any-return]
+
+
+app.state.auth_limiter = AuthLimiter(settings, auth_redis)
+install_limiter(app.state.auth_limiter)
 
 app.include_router(auth_router)
 for business_router in (

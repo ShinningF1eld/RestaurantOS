@@ -89,18 +89,26 @@ def workspace(authenticated_client, auth_user):
             .post("/api/restaurants", json={"name": "B branch"})
             .json()["id"]
         )
-        foreign_menu = (
-            clients["other"]
-            .post(f"/restaurants/{foreign_branch}/menus", json={"name": "B menu"})
-            .json()["menu_id"]
-        )
-        foreign_item = (
-            clients["other"]
-            .post(
-                f"/menus/{foreign_menu}/items", json={"name": "B item", "price": "20"}
+        # These additional TestClient objects dispatch through separate event
+        # loops while sharing the application's one Redis adapter. Seed the
+        # foreign catalog rows directly so this authorization fixture doesn't
+        # issue Redis commands from a second loop; endpoint mutation behavior is
+        # covered by the single-client catalog-cache integration tests.
+        with engine.begin() as db:
+            foreign_menu = db.scalar(
+                text(
+                    "INSERT INTO menus (restaurant_id,name) "
+                    "VALUES (:restaurant,'B menu') RETURNING menu_id"
+                ),
+                {"restaurant": foreign_branch},
             )
-            .json()["menu_item_id"]
-        )
+            foreign_item = db.scalar(
+                text(
+                    "INSERT INTO menu_items (menu_id,name,price,is_available) "
+                    "VALUES (:menu,'B item',20,true) RETURNING menu_item_id"
+                ),
+                {"menu": foreign_menu},
+            )
         foreign_order = (
             clients["other"]
             .post(
@@ -115,6 +123,13 @@ def workspace(authenticated_client, auth_user):
         yield {
             "owner": owner,
             **clients,
+            "organization_id": str(auth_user["organization_id"]),
+            "foreign_organization_id": str(org_b),
+            "password": auth_user["password"],
+            "account_emails": {
+                "owner": auth_user["email"],
+                **{name: email for name, (email, _) in accounts.items()},
+            },
             "branch": branch,
             "unassigned": unassigned,
             "menu": menu,
@@ -131,6 +146,135 @@ def workspace(authenticated_client, auth_user):
     finally:
         for client in clients.values():
             client.close()
+
+
+def test_warm_catalog_hits_still_scope_tenants_and_revoked_assignments(
+    workspace, monkeypatch
+):
+    from app.modules.catalog.menu_cache import CatalogMenuCache
+    from app.modules.catalog.repo.queries import CatalogRepository
+
+    w = workspace
+    redis = app.state.redis
+    menu_key = CatalogMenuCache.key(
+        redis,
+        organization_id=w["organization_id"],
+        restaurant_id=w["branch"],
+    )
+    item_key = CatalogMenuCache.menu_items_key(
+        redis, organization_id=w["organization_id"], menu_id=w["menu"]
+    )
+    foreign_item_key = CatalogMenuCache.menu_items_key(
+        redis,
+        organization_id=w["foreign_organization_id"],
+        menu_id=w["foreign_menu"],
+    )
+    source_reads = {"menus": 0, "items": 0}
+    redis_gets = {menu_key: 0, item_key: 0, foreign_item_key: 0}
+    original_menus = CatalogRepository.list_menus_for_restaurant
+    original_items = CatalogRepository.list_menu_items_for_menu
+    original_execute = redis.execute
+
+    async def count_menus(self, restaurant_id):
+        source_reads["menus"] += 1
+        return await original_menus(self, restaurant_id)
+
+    async def count_items(self, menu_id):
+        source_reads["items"] += 1
+        return await original_items(self, menu_id)
+
+    async def count_gets(*arguments):
+        requested_key = arguments[1] if len(arguments) > 1 else None
+        if arguments[0] == "GET" and isinstance(requested_key, str):
+            if requested_key in redis_gets:
+                redis_gets[requested_key] += 1
+        return await original_execute(*arguments)
+
+    monkeypatch.setattr(CatalogRepository, "list_menus_for_restaurant", count_menus)
+    monkeypatch.setattr(CatalogRepository, "list_menu_items_for_menu", count_items)
+    monkeypatch.setattr(redis, "execute", count_gets)
+    try:
+        client = w["owner"]
+        owner_menus = client.get(f"/restaurants/{w['branch']}/menus")
+        owner_items = client.get(f"/menus/{w['menu']}/items")
+        assert owner_menus.status_code == owner_items.status_code == 200
+
+        assert (
+            client.post(
+                "/auth/login",
+                json={
+                    "email": w["account_emails"]["manager"],
+                    "password": w["password"],
+                },
+            ).status_code
+            == 200
+        )
+        manager_menus = client.get(f"/restaurants/{w['branch']}/menus")
+        manager_items = client.get(f"/menus/{w['menu']}/items")
+        assert manager_menus.json() == owner_menus.json()
+        assert manager_items.json() == owner_items.json()
+        assert source_reads == {"menus": 1, "items": 1}
+        assert redis_gets == {menu_key: 2, item_key: 2, foreign_item_key: 0}
+        assert item_key != foreign_item_key
+
+        # A second organization first warms its own tenant-scoped item entry.
+        assert (
+            client.post(
+                "/auth/login",
+                json={
+                    "email": w["account_emails"]["other"],
+                    "password": w["password"],
+                },
+            ).status_code
+            == 200
+        )
+        foreign_warm = client.get(f"/menus/{w['foreign_menu']}/items")
+        assert foreign_warm.status_code == 200, foreign_warm.text
+        assert foreign_warm.json()[0]["menu_item_id"] == w["foreign_item"]
+        assert source_reads == {"menus": 1, "items": 2}
+        assert redis_gets[foreign_item_key] == 1
+        assert (
+            client.post(
+                "/auth/login",
+                json={
+                    "email": w["account_emails"]["owner"],
+                    "password": w["password"],
+                },
+            ).status_code
+            == 200
+        )
+        foreign_denied = client.get(f"/menus/{w['foreign_menu']}/items")
+        assert foreign_denied.status_code == 404
+        assert redis_gets[foreign_item_key] == 1
+
+        # Removing the manager's branch assignment takes effect even though
+        # both cached responses remain present and had just produced warm hits.
+        with engine.begin() as db:
+            db.execute(
+                text(
+                    "DELETE FROM restaurant_assignments "
+                    "WHERE membership_id=:membership AND restaurant_id=:restaurant"
+                ),
+                {"membership": w["memberships"]["manager"], "restaurant": w["branch"]},
+            )
+        after_revocation = dict(redis_gets)
+        assert (
+            client.post(
+                "/auth/login",
+                json={
+                    "email": w["account_emails"]["manager"],
+                    "password": w["password"],
+                },
+            ).status_code
+            == 200
+        )
+        assert client.get(f"/restaurants/{w['branch']}/menus").status_code == 404
+        assert client.get(f"/menus/{w['menu']}/items").status_code == 404
+        assert redis_gets == after_revocation
+    finally:
+        client.portal.call(
+            original_execute, "DEL", menu_key, item_key, foreign_item_key
+        )
 
 
 @pytest.mark.parametrize(
