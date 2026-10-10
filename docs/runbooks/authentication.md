@@ -84,6 +84,10 @@ recovery. Multi-process outage quotas are independent; restart loses history.
 
 ### Limiter outage and recovery operations
 
+The [Redis operations guide](redis-cache.md) combines catalog/limiter tuning,
+quotas, failure diagnostics and accepted limitations. Dated measured performance
+and completion evidence is tracked in [issue #27](../milestone7/verification-milestone7-issue27.md).
+
 The request discovering a Redis failure immediately uses local admission. Later
 requests bypass Redis until the five-second probe cooldown expires. One request
 owns the bounded atomic admission/release probe; concurrent requests keep using

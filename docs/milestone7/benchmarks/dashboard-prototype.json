@@ -1,0 +1,836 @@
+{
+  "benchmark": "restaurantos-dashboard-evaluation",
+  "cache_mode": "warm",
+  "metadata": {
+    "benchmark_configuration": {
+      "cache_state": "warm",
+      "concurrency_levels": [
+        1,
+        10,
+        25,
+        50
+      ],
+      "measured_requests_per_scenario_level_repetition": 1000,
+      "percentile_method": "nearest-rank",
+      "repetitions": 3,
+      "scenarios": [
+        "dashboard"
+      ],
+      "warmup_requests_per_scenario_level_repetition": 50
+    },
+    "benchmark_script_sha256": "f6a3c87ad50e11063b5bec312b698dc99b34cb92a84b3d47a7d3a7c5bda60353",
+    "benchmark_script_version": "2.3.0",
+    "dashboard_experiment": {
+      "limitations": "benchmark-only four aggregate Redis entries, 10-second absolute age, no write invalidation; not a production design or freshness approval",
+      "production_behavior": "dashboard remains uncached",
+      "prototype_enabled": true,
+      "report_date": "2026-10-10",
+      "response_assertions": "each response: 100 today orders, 2400 sales, 24 average, 700 orders over seven days",
+      "script_sha256": "7a0bde92549f05d71b0cbf7a14ba74a097ed5e749fdd3b78a940199bacd3995e",
+      "server_timezone": "SE Asia Standard Time",
+      "version": "1.0.0"
+    },
+    "dataset": {
+      "dashboard_history": "700 completed paid orders over seven days, two immutable item snapshots per order",
+      "inventory_ingredients": 4,
+      "inventory_tracked_items": 40,
+      "items_per_menu": 40,
+      "memberships": {
+        "branch_assignments": 1,
+        "manager": 1,
+        "owner": 1
+      },
+      "menu_items": 160,
+      "menus": 4,
+      "organizations": 1,
+      "recipe_components": 40,
+      "restaurants": 1,
+      "seed_definition": "fixed catalog, recipe and stock values; one Owner and one assigned Manager; generated auth credentials remain runtime-only",
+      "stock_per_ingredient": "5000.000 g",
+      "tracked_item_fraction": 0.25
+    },
+    "git_commit": "4ff9aee89588952dd381db6bc1589506f8ebe967",
+    "git_worktree_dirty": true,
+    "host": {
+      "available_memory_bytes": 788381696,
+      "logical_cpu_count": 12,
+      "os": "Windows-11-10.0.26200-SP0",
+      "processor": "Intel64 Family 6 Model 151 Stepping 5, GenuineIntel"
+    },
+    "measurement": {
+      "api_log_level": "WARNING",
+      "cache_hit_ratio": "request-local validated cache lookup, cleared if source list reloads; denominator catalog GETs only",
+      "latency": "client-side HTTP request duration, including auth middleware, authorization and response serialization",
+      "postgres_queries": "SQLAlchemy before_cursor_execute events scoped by request-local context and returned in X-Benchmark-Postgres-Queries; setup/migration/seed/login are excluded",
+      "sql_phase_costs": "nonoverlapping before/after cursor execution counts and durations; includes database wait/driver time, excludes DTO/Python/HTTP time; not additive latency percentiles"
+    },
+    "runtime": {
+      "api_execution": "separate API subprocess and HTTP load-generator process; no shared Python interpreter/GIL",
+      "application_environment": "development",
+      "auth_access_lifetime_seconds": 600,
+      "auth_refresh_strategy": "POST /auth/refresh between batches at 80% of access lifetime",
+      "catalog_absolute_age_seconds": 10,
+      "configuration_source": "explicit Settings defaults and benchmark overrides; dotenv and ambient settings ignored",
+      "database_pool": "SQLAlchemy default pool for the long-lived API process",
+      "effective_settings": {
+        "auth_access_seconds": 600,
+        "auth_cookie_secure": false,
+        "auth_jwt_audience": "restaurantos-browser",
+        "auth_jwt_issuer": "restaurantos",
+        "auth_login_email_limit": 5,
+        "auth_login_ip_limit": 30,
+        "auth_login_window_seconds": 60,
+        "auth_refresh_family_limit": 10,
+        "auth_refresh_ip_limit": 100,
+        "auth_refresh_window_seconds": 60,
+        "auth_session_seconds": 604800,
+        "auth_trusted_origins": [
+          "http://localhost:3000"
+        ],
+        "database_echo": false,
+        "environment": "development",
+        "log_level": "WARNING"
+      },
+      "expired_windows_socket_poll_count": 0,
+      "fastapi": "0.141.1",
+      "http_request_timeout_seconds": 30,
+      "httpx": "0.28.1",
+      "postgresql": "16.15 (Debian 16.15-1.pgdg13+2)",
+      "python": "3.12.13",
+      "redis": "Redis server v=7.4.11 sha=00000000:0 malloc=jemalloc-5.3.0 bits=64 build=40ff01a501d8e4b6",
+      "redis_max_connections": 20,
+      "redis_operation_budget_ms": 100,
+      "sqlalchemy": "2.0.52",
+      "uvicorn": "0.52.4",
+      "uvicorn_keep_alive_seconds": 5,
+      "windows_socket_poll_guard": "WinError 10038 during idle pool check means expired; no request replay"
+    },
+    "timestamp_utc": "2026-10-10T11:04:54.753795+00:00",
+    "workloads": {
+      "dashboard": "100% authenticated GET dashboard; benchmark-only aggregate prototype on/off; no writes"
+    }
+  },
+  "results": [
+    {
+      "cache_hit_count": 998,
+      "cache_hit_ratio": 0.998,
+      "cache_hit_ratio_label": "all four aggregate results reused / dashboard GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 1,
+      "first_wave_latency_ms": {
+        "p50": 22.806300003139768,
+        "p95": 22.806300003139768,
+        "p99": 22.806300003139768
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 17.678600001090672,
+        "p95": 21.996600000420585,
+        "p99": 25.110799997491995
+      },
+      "postgres_query_count": 6004,
+      "queries_per_request": 6.004,
+      "query_denominator": "instrumented HTTP responses; lost-response server work unknown",
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "dashboard",
+      "sql_observed_response_count": 1000,
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.00428509999619564,
+          "queries_per_request": 0.004
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.077632600085053,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 2.9656682000022556,
+          "queries_per_request": 4.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "sql_unknown_request_count": 0,
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 998,
+      "cache_hit_ratio": 0.998,
+      "cache_hit_ratio_label": "all four aggregate results reused / dashboard GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 10,
+      "first_wave_latency_ms": {
+        "p50": 521.0681999997178,
+        "p95": 550.0481000017317,
+        "p99": 550.0481000017317
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 119.10090000310447,
+        "p95": 282.048200002464,
+        "p99": 440.4026000011072
+      },
+      "postgres_query_count": 6004,
+      "queries_per_request": 6.004,
+      "query_denominator": "instrumented HTTP responses; lost-response server work unknown",
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "dashboard",
+      "sql_observed_response_count": 1000,
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.011906999996426748,
+          "queries_per_request": 0.004
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.794094399865571,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 4.587181000053533,
+          "queries_per_request": 4.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "sql_unknown_request_count": 0,
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 995,
+      "cache_hit_ratio": 0.995,
+      "cache_hit_ratio_label": "all four aggregate results reused / dashboard GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 25,
+      "first_wave_latency_ms": {
+        "p50": 318.75960000252235,
+        "p95": 723.5465000012482,
+        "p99": 1025.4507999998168
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 325.59369999944465,
+        "p95": 988.0478000013682,
+        "p99": 1645.3356000019994
+      },
+      "postgres_query_count": 6009,
+      "queries_per_request": 6.009,
+      "query_denominator": "instrumented HTTP responses; lost-response server work unknown",
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "dashboard",
+      "sql_observed_response_count": 1000,
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.018426499995257473,
+          "queries_per_request": 0.009
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.61072640004204,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 4.026696600103605,
+          "queries_per_request": 4.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "sql_unknown_request_count": 0,
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 990,
+      "cache_hit_ratio": 0.99,
+      "cache_hit_ratio_label": "all four aggregate results reused / dashboard GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 49,
+      "first_wave_latency_ms": {
+        "p50": 1167.0385999968858,
+        "p95": 2438.5672000025806,
+        "p99": 3016.038899997511
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 611.0670999987633,
+        "p95": 2493.402200001583,
+        "p99": 3753.1961999993655
+      },
+      "postgres_query_count": 6010,
+      "queries_per_request": 6.01,
+      "query_denominator": "instrumented HTTP responses; lost-response server work unknown",
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "dashboard",
+      "sql_observed_response_count": 1000,
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.2837148999933561,
+          "queries_per_request": 0.01
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 8.194519600016065,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 15.815836800000397,
+          "queries_per_request": 4.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "sql_unknown_request_count": 0,
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 992,
+      "cache_hit_ratio": 0.992,
+      "cache_hit_ratio_label": "all four aggregate results reused / dashboard GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 1,
+      "first_wave_latency_ms": {
+        "p50": 22.56689999921946,
+        "p95": 22.56689999921946,
+        "p99": 22.56689999921946
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 18.769399997836445,
+        "p95": 23.61679999739863,
+        "p99": 27.570900001592236
+      },
+      "postgres_query_count": 6008,
+      "queries_per_request": 6.008,
+      "query_denominator": "instrumented HTTP responses; lost-response server work unknown",
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "dashboard",
+      "sql_observed_response_count": 1000,
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.013067400006548269,
+          "queries_per_request": 0.008
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.203249300018797,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 3.1965478999336483,
+          "queries_per_request": 4.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "sql_unknown_request_count": 0,
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 993,
+      "cache_hit_ratio": 0.993,
+      "cache_hit_ratio_label": "all four aggregate results reused / dashboard GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 10,
+      "first_wave_latency_ms": {
+        "p50": 267.46170000114944,
+        "p95": 313.7507999999798,
+        "p99": 313.7507999999798
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 113.84530000214,
+        "p95": 259.2633999993268,
+        "p99": 354.7277000034228
+      },
+      "postgres_query_count": 6007,
+      "queries_per_request": 6.007,
+      "query_denominator": "instrumented HTTP responses; lost-response server work unknown",
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "dashboard",
+      "sql_observed_response_count": 1000,
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.016971500001091044,
+          "queries_per_request": 0.007
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.767972299905523,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 4.322463499920559,
+          "queries_per_request": 4.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "sql_unknown_request_count": 0,
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 993,
+      "cache_hit_ratio": 0.993,
+      "cache_hit_ratio_label": "all four aggregate results reused / dashboard GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 25,
+      "first_wave_latency_ms": {
+        "p50": 431.4185000002908,
+        "p95": 931.1301000016101,
+        "p99": 1534.7634999998263
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 306.3220000003639,
+        "p95": 1042.9220999976678,
+        "p99": 1504.2613000005076
+      },
+      "postgres_query_count": 6007,
+      "queries_per_request": 6.007,
+      "query_denominator": "instrumented HTTP responses; lost-response server work unknown",
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "dashboard",
+      "sql_observed_response_count": 1000,
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.018420799999148585,
+          "queries_per_request": 0.007
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.547960399846488,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 3.8420165999959863,
+          "queries_per_request": 4.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "sql_unknown_request_count": 0,
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 993,
+      "cache_hit_ratio": 0.993,
+      "cache_hit_ratio_label": "all four aggregate results reused / dashboard GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 50,
+      "first_wave_latency_ms": {
+        "p50": 743.5457999999926,
+        "p95": 3805.0765999978466,
+        "p99": 5068.646399999125
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 616.3453000008303,
+        "p95": 2551.960799999506,
+        "p99": 4509.670399998868
+      },
+      "postgres_query_count": 6007,
+      "queries_per_request": 6.007,
+      "query_denominator": "instrumented HTTP responses; lost-response server work unknown",
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "dashboard",
+      "sql_observed_response_count": 1000,
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.011540499999682652,
+          "queries_per_request": 0.007
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.7713518000418844,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 4.260196899947914,
+          "queries_per_request": 4.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "sql_unknown_request_count": 0,
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 993,
+      "cache_hit_ratio": 0.993,
+      "cache_hit_ratio_label": "all four aggregate results reused / dashboard GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 1,
+      "first_wave_latency_ms": {
+        "p50": 21.89399999770103,
+        "p95": 21.89399999770103,
+        "p99": 21.89399999770103
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 17.549600001075305,
+        "p95": 22.974499999691034,
+        "p99": 29.7500000015134
+      },
+      "postgres_query_count": 6007,
+      "queries_per_request": 6.007,
+      "query_denominator": "instrumented HTTP responses; lost-response server work unknown",
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "dashboard",
+      "sql_observed_response_count": 1000,
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.009433399998670211,
+          "queries_per_request": 0.007
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.2229754000181856,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 3.20575390002341,
+          "queries_per_request": 4.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "sql_unknown_request_count": 0,
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 994,
+      "cache_hit_ratio": 0.994,
+      "cache_hit_ratio_label": "all four aggregate results reused / dashboard GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 8,
+      "first_wave_latency_ms": {
+        "p50": 246.98709999938728,
+        "p95": 314.40659999861964,
+        "p99": 314.40659999861964
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 90.41230000002543,
+        "p95": 200.82230000116397,
+        "p99": 261.9245999994746
+      },
+      "postgres_query_count": 6006,
+      "queries_per_request": 6.006,
+      "query_denominator": "instrumented HTTP responses; lost-response server work unknown",
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "dashboard",
+      "sql_observed_response_count": 1000,
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.019093800001428463,
+          "queries_per_request": 0.006
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 2.4064326999578043,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 4.058032100001583,
+          "queries_per_request": 4.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "sql_unknown_request_count": 0,
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 990,
+      "cache_hit_ratio": 0.99,
+      "cache_hit_ratio_label": "all four aggregate results reused / dashboard GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 23,
+      "first_wave_latency_ms": {
+        "p50": 283.48799999730545,
+        "p95": 1064.9374000022362,
+        "p99": 1065.9683000012592
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 272.9823999979999,
+        "p95": 880.5431000000681,
+        "p99": 1289.5920000009937
+      },
+      "postgres_query_count": 6010,
+      "queries_per_request": 6.01,
+      "query_denominator": "instrumented HTTP responses; lost-response server work unknown",
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "dashboard",
+      "sql_observed_response_count": 1000,
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.1141224000020884,
+          "queries_per_request": 0.01
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 3.623060399942915,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 5.836257499981002,
+          "queries_per_request": 4.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "sql_unknown_request_count": 0,
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_count": 994,
+      "cache_hit_ratio": 0.994,
+      "cache_hit_ratio_label": "all four aggregate results reused / dashboard GETs",
+      "cache_lookup_count": 1000,
+      "cache_state": "warm",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "first_wave_hit_count": 50,
+      "first_wave_latency_ms": {
+        "p50": 680.3025000008347,
+        "p95": 1630.1542000001064,
+        "p99": 1713.6470999976154
+      },
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 563.8156999993953,
+        "p95": 2107.513699997071,
+        "p99": 3090.0531000006595
+      },
+      "postgres_query_count": 6006,
+      "queries_per_request": 6.006,
+      "query_denominator": "instrumented HTTP responses; lost-response server work unknown",
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "dashboard",
+      "sql_observed_response_count": 1000,
+      "sql_phase_costs": {
+        "analytics": {
+          "mean_execution_ms_per_request": 0.012868400001025293,
+          "queries_per_request": 0.006
+        },
+        "authentication": {
+          "mean_execution_ms_per_request": 5.266597299898422,
+          "queries_per_request": 2.0
+        },
+        "authorization": {
+          "mean_execution_ms_per_request": 6.663815800049633,
+          "queries_per_request": 4.0
+        },
+        "catalog_source": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "live_stock": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        },
+        "other": {
+          "mean_execution_ms_per_request": 0.0,
+          "queries_per_request": 0.0
+        }
+      },
+      "sql_unknown_request_count": 0,
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    }
+  ],
+  "schema_version": 2
+}

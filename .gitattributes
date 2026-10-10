@@ -1,1 +1,5 @@
 * text=auto eol=lf
+
+# Benchmark provenance hashes cover exact captured bytes, including newlines.
+docs/milestone7/benchmarks/*.json -text
+docs/milestone7/benchmarks/*.py.txt -text

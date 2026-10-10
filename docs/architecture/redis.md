@@ -1,5 +1,10 @@
 # Shared Redis infrastructure
 
+Current contracts: [catalog caching](../api/catalog-cache.md) and
+[authentication](../api/authentication.md). Operational sizing/failure procedures
+are in [the Redis runbook](../runbooks/redis-cache.md), with measured workload and
+dashboard evaluation in [issue #27 evidence](../milestone7/verification-milestone7-issue27.md).
+
 Milestone 7 T3 implements transport only, following approved design revision 12.
 `app/redis/adapter.py` owns a redis-py asyncio client/pool. FastAPI lifespan
 allocates it once as `app.state.redis`, reuses it across requests, and closes it

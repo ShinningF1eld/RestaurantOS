@@ -17,13 +17,12 @@ import threading
 import time
 import traceback
 import uuid
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack
 from datetime import UTC, datetime
 from decimal import Decimal
 from functools import wraps
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
 
 import httpx
 import psycopg
@@ -34,7 +33,7 @@ from test_support.disposable_postgres import TestDatabase, disposable_database
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
-SCRIPT_VERSION = "2.3.0"
+SCRIPT_VERSION = "2.0.0"
 DEFAULT_OUTPUT = ROOT / "artifacts" / "benchmarks"
 SCENARIOS = ("menu-list", "menu-items", "mixed-read", "mixed-write")
 DEFAULT_CONCURRENCY = (1, 10, 25, 50)
@@ -55,32 +54,6 @@ PHASES = (
     "analytics",
     "other",
 )
-
-
-@contextmanager
-def socket_poll_guard():
-    """Treat Windows' concurrently closed pooled socket as expired, not retryable."""
-    count = [0]
-    if sys.platform != "win32":
-        yield count
-        return
-    import httpcore._backends.anyio as backend
-
-    original = backend.is_socket_readable
-
-    def readable(sock):
-        try:
-            return original(sock)
-        except OSError as error:
-            if getattr(error, "winerror", None) != 10038:
-                raise
-            # HTTPcore already treats missing/negative descriptors as readable
-            # (expired). Windows select can instead raise after its fd check.
-            count[0] += 1
-            return True
-
-    with patch.object(backend, "is_socket_readable", readable):
-        yield count
 
 
 def install_instrumentation(stack: ExitStack, cache_state: str) -> None:
@@ -379,10 +352,10 @@ def seed_data(database: TestDatabase) -> dict[str, Any]:
     return asyncio.run(seed())
 
 
-async def wait_for_server(url: str, server: subprocess.Popen[str]) -> None:
+async def wait_for_server(url: str, server: uvicorn.Server) -> None:
     async with httpx.AsyncClient() as client:
         for _ in range(150):
-            if server.poll() is not None:
+            if server.should_exit:
                 raise RuntimeError("API server stopped before startup")
             try:
                 response = await client.get(f"{url}/health", timeout=1)
@@ -470,12 +443,12 @@ async def measure_scenario(
             if sum(details["counts"].values()) != query_count:
                 raise RuntimeError("SQL phase totals do not match query count")
             return duration, query_count, success, str(response.status_code), details
-        except httpx.HTTPError as error:
+        except httpx.HTTPError:
             return (
                 (time.perf_counter() - started) * 1000,
                 0,
                 False,
-                f"transport_error:{type(error).__name__}",
+                "transport_error",
                 {},
             )
 
@@ -503,19 +476,18 @@ async def measure_scenario(
     for outcome in outcomes:
         status_counts[outcome[3]] = status_counts.get(outcome[3], 0) + 1
     if success_count != requests:
+        # A response lost in transport has an unknown SQL count. Never publish
+        # its placeholder zero as a valid baseline measurement.
         print(
             f"Measured failure: scenario={scenario}; concurrency={concurrency}; unsuccessful={requests - success_count}; statuses={status_counts}",
             file=sys.stderr,
             flush=True,
         )
-        if inject_request_failure:
-            raise RuntimeError("Intentional measured request failure")
-    observed = [value for value in outcomes if value[4]]
-    if not observed:
-        raise RuntimeError("No responses with observable SQL/cache measurements")
-    # Lost responses have unknown server SQL/cache work, not zero queries.
-    # Preserve all request latencies/errors but normalize SQL over observed responses.
-    lookups = [value[4]["hit"] for value in observed if value[4]["hit"] is not None]
+        raise RuntimeError(
+            f"Measured workload failed: {requests - success_count}/{requests} "
+            f"requests unsuccessful in {scenario}; statuses={status_counts}"
+        )
+    lookups = [value[4]["hit"] for value in outcomes if value[4]["hit"] is not None]
     hits = sum(lookups)
     return {
         "scenario": scenario,
@@ -533,10 +505,7 @@ async def measure_scenario(
             "p99": percentile(latencies, 99),
         },
         "postgres_query_count": query_count,
-        "sql_observed_response_count": len(observed),
-        "sql_unknown_request_count": requests - len(observed),
-        "queries_per_request": query_count / len(observed),
-        "query_denominator": "instrumented HTTP responses; lost-response server work unknown",
+        "queries_per_request": query_count / requests,
         "cache_lookup_count": len(lookups),
         "cache_hit_count": hits,
         "cache_hit_ratio": hits / len(lookups)
@@ -548,13 +517,13 @@ async def measure_scenario(
         "sql_phase_costs": {
             phase: {
                 "queries_per_request": sum(
-                    value[4]["counts"][phase] for value in observed
+                    value[4]["counts"][phase] for value in outcomes
                 )
-                / len(observed),
+                / requests,
                 "mean_execution_ms_per_request": sum(
-                    value[4]["sql_ms"][phase] for value in observed
+                    value[4]["sql_ms"][phase] for value in outcomes
                 )
-                / len(observed),
+                / requests,
             }
             for phase in PHASES
         },
@@ -564,7 +533,7 @@ async def measure_scenario(
             "p99": percentile(latencies[:concurrency], 99),
         },
         "first_wave_hit_count": sum(
-            value[4].get("hit") is True for value in outcomes[:concurrency]
+            value[4]["hit"] is True for value in outcomes[:concurrency]
         ),
     }
 
@@ -640,13 +609,6 @@ def environment_metadata(
         "runtime": {
             "application_environment": settings.environment,
             "database_pool": "SQLAlchemy default pool for the long-lived API process",
-            "api_execution": "separate API subprocess and HTTP load-generator process; no shared Python interpreter/GIL",
-            "http_request_timeout_seconds": 30,
-            "uvicorn_keep_alive_seconds": 5,
-            "windows_socket_poll_guard": "WinError 10038 during idle pool check means expired; no request replay",
-            "expired_windows_socket_poll_count": getattr(
-                args, "expired_socket_poll_count", [0]
-            )[0],
             "auth_access_lifetime_seconds": settings.auth_access_seconds,
             "effective_settings": {
                 key: getattr(settings, key)
@@ -749,8 +711,8 @@ def seed_dashboard_history(database: TestDatabase, seeded: dict[str, Any]) -> No
                 )
 
 
-def frozen_settings(values: dict[str, Any]) -> Any:
-    """Validate explicit inputs without reading any ambient settings source."""
+def isolated_settings(database: TestDatabase, redis_port: str) -> Any:
+    """Supply every field explicitly so neither dotenv nor ambient env wins."""
     sys.path.insert(0, str(BACKEND))
     from app.core.config import Settings
 
@@ -767,14 +729,6 @@ def frozen_settings(values: dict[str, Any]) -> Any:
             # Skip ambient sources entirely, including their JSON parsing. Keep
             # the application's normal field and model validators unchanged.
             return (init_settings,)
-
-    return BenchmarkSettings(_env_file=None, **values)
-
-
-def isolated_settings(database: TestDatabase, redis_port: str) -> Any:
-    """Supply every field explicitly so neither dotenv nor ambient env wins."""
-    sys.path.insert(0, str(BACKEND))
-    from app.core.config import Settings
 
     generated = database.environment(base={})
     values = {
@@ -793,59 +747,7 @@ def isolated_settings(database: TestDatabase, redis_port: str) -> Any:
         auth_trusted_origins=["http://localhost:3000"],
         redis_url=f"redis://127.0.0.1:{redis_port}/0",
     )
-    return frozen_settings(values)
-
-
-def serve_api_worker() -> int:
-    """Private subprocess bootstrap; settings/secrets stay in runtime IPC only."""
-    configuration = json.loads(os.environ.pop("_RESTAURANTOS_BENCHMARK_CONFIG"))
-    settings = frozen_settings(configuration["settings"])
-    import app.core.config as application_config
-
-    application_config.get_settings = lambda: settings
-    from app.db.database import engine
-    from app.main import app
-
-    with ExitStack() as stack:
-        install_instrumentation(stack, configuration["cache_state"])
-        if configuration.get("dashboard"):
-            import importlib.util
-
-            spec = importlib.util.spec_from_file_location(
-                "dashboard_extension", ROOT / "scripts/benchmark-dashboard-cache.py"
-            )
-            extension = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(extension)
-            extension.install_dashboard_queries(
-                stack, sys.modules[__name__], configuration["dashboard"] == "prototype"
-            )
-        app.add_middleware(QueryCountMiddleware)
-        event.listen(engine.sync_engine, "before_cursor_execute", count_statement)
-        event.listen(engine.sync_engine, "after_cursor_execute", time_statement)
-        server = uvicorn.Server(
-            uvicorn.Config(
-                app,
-                host="127.0.0.1",
-                port=configuration["port"],
-                log_level="error",
-                access_log=False,
-            )
-        )
-
-        def stop_on_input() -> None:
-            sys.stdin.readline()
-            server.should_exit = True
-
-        threading.Thread(target=stop_on_input, daemon=True).start()
-
-        async def serve() -> None:
-            try:
-                await server.serve()
-            finally:
-                await engine.dispose()
-
-        asyncio.run(serve())
-    return 0
+    return BenchmarkSettings(_env_file=None, **values)
 
 
 def run_alembic() -> None:
@@ -870,33 +772,34 @@ def run_benchmark(database: TestDatabase, args: argparse.Namespace) -> dict[str,
     if args.inject_failure_after == "seed":
         raise RuntimeError("Intentional failure injected after deterministic seed")
 
+    # Ensure application settings and its global SQLAlchemy engine can only see
+    # the allocated database, even when the caller has a developer DATABASE_URL.
+    sys.path.insert(0, str(BACKEND))
+    from app.db.database import engine
+    from app.main import app
+
+    app.add_middleware(QueryCountMiddleware)
+    event.listen(engine.sync_engine, "before_cursor_execute", count_statement)
+    event.listen(engine.sync_engine, "after_cursor_execute", time_statement)
     import socket
 
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
-    explicit = settings.model_dump(mode="json")
-    for name in ("auth_jwt_secret", "auth_rate_limit_secret", "redis_url"):
-        explicit[name] = getattr(settings, name).get_secret_value()
-    environment = {
-        **os.environ,
-        "_RESTAURANTOS_BENCHMARK_CONFIG": json.dumps(
-            {
-                "settings": explicit,
-                "port": port,
-                "cache_state": args.cache_state,
-                "dashboard": getattr(args, "dashboard_mode", None),
-            }
-        ),
-    }
-    server = subprocess.Popen(
-        [sys.executable, str(Path(__file__).resolve()), "--serve"],
-        cwd=ROOT,
-        env=environment,
-        stdin=subprocess.PIPE,
-        text=True,
-        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+    config = uvicorn.Config(
+        app, host="127.0.0.1", port=port, log_level="error", access_log=False
     )
+    server = uvicorn.Server(config)
+
+    async def serve_api() -> None:
+        try:
+            await server.serve()
+        finally:
+            # Async connections must be disposed on the event loop that used them.
+            await engine.dispose()
+
+    thread = threading.Thread(target=lambda: asyncio.run(serve_api()), daemon=True)
+    thread.start()
     base_url = f"http://127.0.0.1:{port}"
 
     async def execute() -> list[dict[str, Any]]:
@@ -1021,14 +924,15 @@ def run_benchmark(database: TestDatabase, args: argparse.Namespace) -> dict[str,
     try:
         results = asyncio.run(execute())
     finally:
-        try:
-            server.communicate(input="stop\n", timeout=15)
-        except subprocess.TimeoutExpired:
-            server.kill()
-            server.wait(timeout=5)
-            raise RuntimeError("Benchmark API required forced termination") from None
-        if server.returncode != 0:
-            raise RuntimeError("Benchmark API subprocess exited unsuccessfully")
+        server.should_exit = True
+        thread.join(timeout=10)
+        if thread.is_alive():
+            server.force_exit = True
+            thread.join(timeout=5)
+        event.remove(engine.sync_engine, "before_cursor_execute", count_statement)
+        event.remove(engine.sync_engine, "after_cursor_execute", time_statement)
+        if thread.is_alive():
+            raise RuntimeError("API server process thread did not terminate")
     return {
         "schema_version": 2,
         "benchmark": "restaurantos-menu-read-comparison",
@@ -1075,7 +979,6 @@ def main() -> int:
         "--scenarios", type=lambda value: tuple(value.split(",")), default=SCENARIOS
     )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
-    parser.add_argument("--serve", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument(
         "--cache-state",
         choices=("disabled", "cold", "warm", "outage", "restart"),
@@ -1092,8 +995,6 @@ def main() -> int:
         help=argparse.SUPPRESS,
     )
     args = parser.parse_args()
-    if args.serve:
-        return serve_api_worker()
     if min(args.requests, args.repetitions) < 1 or args.warmup < 0:
         parser.error(
             "requests and repetitions must be positive; warmup cannot be negative"
@@ -1108,7 +1009,6 @@ def main() -> int:
         from tests.support.owned_redis import docker, owned_redis
 
         with ExitStack() as stack:
-            args.expired_socket_poll_count = stack.enter_context(socket_poll_guard())
             if args.isolated:
                 from validate import services
 
@@ -1125,6 +1025,7 @@ def main() -> int:
                     test_url=environment.get("TEST_DATABASE_URL"),
                 )
             )
+            install_instrumentation(stack, args.cache_state)
             result = run_benchmark(database, args)
         # Publish only after API, database, Redis and Compose cleanup succeed.
         artifact = write_artifact(result, args.output_dir)
@@ -1132,11 +1033,6 @@ def main() -> int:
         if artifact is not None:
             artifact.unlink(missing_ok=True)
         print(f"Benchmark failed: {type(error).__name__}", file=sys.stderr)
-        if isinstance(error, OSError):
-            print(
-                f"OS error codes: errno={error.errno}; winerror={getattr(error, 'winerror', None)}",
-                file=sys.stderr,
-            )
         traceback.print_tb(error.__traceback__, limit=20, file=sys.stderr)
         return 1
     print(f"\nResults written to {artifact}")

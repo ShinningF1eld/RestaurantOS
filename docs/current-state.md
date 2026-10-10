@@ -1,5 +1,10 @@
 # RestaurantOS current state
 
+Milestone 7 measurements and operational/failure evidence are dated 2026-10-10
+in [issue #27 verification](milestone7/verification-milestone7-issue27.md).
+Catalog/dashboard experiments and full ten-gate local validation passed;
+final PR CI remains required. Full milestone acceptance is not yet claimed.
+
 Milestone 6 verification is dated 2026-10-06 in
 [the acceptance review](milestone6/milestone-6-verification.md). The complete local command
 passed, and all three roadmap exit criteria were verified with full GitHub CI and
@@ -122,6 +127,36 @@ Injected service/browser failure cleanup passed. No production/API/schema change
 or application database migration were made. Remote PR CI on the final changes
 remains required; issue #26 and full Milestone 7 acceptance are not complete.
 See [issue 26 evidence](milestone7/verification-milestone7-issue26.md).
+
+Issue #27 measurement evidence (2026-10-10) reuses the corrected original
+uncached artifact and records complete cold/warm/current-control captures
+(48,000 attempts each), plus physical outage/restart captures (18,000 each).
+Cold has one transport error/unknown SQL observation; the other catalog captures
+have zero request errors. Warm SQL rates fall by approximately 8.3–16.6%, while
+historical-baseline median P95s regress 14.0–90.2%. The matched current control
+shows mixed differences and substantial repetition variation, so a consistent
+latency speedup is not established. All raw data, observer changes and failed
+attempts are disclosed in [issue 27 evidence](milestone7/verification-milestone7-issue27.md),
+[measurements](milestone7/performance-milestone7.md) and
+[current control](milestone7/performance-milestone7-control.md).
+The [catalog contract](api/catalog-cache.md) and [Redis runbook](runbooks/redis-cache.md)
+document lookup age, post-commit invalidation, live stock/access, fallback,
+limiter accounting/recovery, memory and process/restart limitations.
+
+GitHub #26 is closed and its starting revision `4ff9aee` passed all ten push-CI
+jobs and `Milestone 6 acceptance` in [run 38034397930](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/38034397930).
+Its explicit PR-CI verification remains pending; a closed issue/passing push
+does not establish that requirement. Issue #27 dashboard live/prototype captures
+passed (12,000 attempts each, zero errors), with approximately 40% fewer prototype
+queries but mixed latency results. The real Owner-authorized delete probe proved
+immediate live visibility versus stale prototype values until expiry, with Manager
+denial, unchanged stock and a transactional audit; production caching is deferred.
+Failure-cleanup probes passed. Full ten-gate local validation with locked
+installation passed: 225 backend unit, 223 PostgreSQL/Redis integration, 22
+frontend and 26 Chromium tests, static/build, migrations and image checks.
+Final PR evidence remains pending, so full milestone acceptance is not claimed.
+No production behavior, schema, dependencies or
+application database migration change for these measurements.
 
 ## Database schema and migrations
 

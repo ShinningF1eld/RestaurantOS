@@ -17,13 +17,12 @@ import threading
 import time
 import traceback
 import uuid
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack
 from datetime import UTC, datetime
 from decimal import Decimal
 from functools import wraps
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
 
 import httpx
 import psycopg
@@ -34,7 +33,7 @@ from test_support.disposable_postgres import TestDatabase, disposable_database
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend"
-SCRIPT_VERSION = "2.3.0"
+SCRIPT_VERSION = "2.2.0"
 DEFAULT_OUTPUT = ROOT / "artifacts" / "benchmarks"
 SCENARIOS = ("menu-list", "menu-items", "mixed-read", "mixed-write")
 DEFAULT_CONCURRENCY = (1, 10, 25, 50)
@@ -55,32 +54,6 @@ PHASES = (
     "analytics",
     "other",
 )
-
-
-@contextmanager
-def socket_poll_guard():
-    """Treat Windows' concurrently closed pooled socket as expired, not retryable."""
-    count = [0]
-    if sys.platform != "win32":
-        yield count
-        return
-    import httpcore._backends.anyio as backend
-
-    original = backend.is_socket_readable
-
-    def readable(sock):
-        try:
-            return original(sock)
-        except OSError as error:
-            if getattr(error, "winerror", None) != 10038:
-                raise
-            # HTTPcore already treats missing/negative descriptors as readable
-            # (expired). Windows select can instead raise after its fd check.
-            count[0] += 1
-            return True
-
-    with patch.object(backend, "is_socket_readable", readable):
-        yield count
 
 
 def install_instrumentation(stack: ExitStack, cache_state: str) -> None:
@@ -643,10 +616,6 @@ def environment_metadata(
             "api_execution": "separate API subprocess and HTTP load-generator process; no shared Python interpreter/GIL",
             "http_request_timeout_seconds": 30,
             "uvicorn_keep_alive_seconds": 5,
-            "windows_socket_poll_guard": "WinError 10038 during idle pool check means expired; no request replay",
-            "expired_windows_socket_poll_count": getattr(
-                args, "expired_socket_poll_count", [0]
-            )[0],
             "auth_access_lifetime_seconds": settings.auth_access_seconds,
             "effective_settings": {
                 key: getattr(settings, key)
@@ -1108,7 +1077,6 @@ def main() -> int:
         from tests.support.owned_redis import docker, owned_redis
 
         with ExitStack() as stack:
-            args.expired_socket_poll_count = stack.enter_context(socket_poll_guard())
             if args.isolated:
                 from validate import services
 
@@ -1132,11 +1100,6 @@ def main() -> int:
         if artifact is not None:
             artifact.unlink(missing_ok=True)
         print(f"Benchmark failed: {type(error).__name__}", file=sys.stderr)
-        if isinstance(error, OSError):
-            print(
-                f"OS error codes: errno={error.errno}; winerror={getattr(error, 'winerror', None)}",
-                file=sys.stderr,
-            )
         traceback.print_tb(error.__traceback__, limit=20, file=sys.stderr)
         return 1
     print(f"\nResults written to {artifact}")

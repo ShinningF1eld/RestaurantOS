@@ -795,6 +795,26 @@ See [pre-commit evidence](docs/milestone7/verification-milestone7-issue26.md).
 Remote PR CI on the final changes remains pending; issue #26 and milestone
 acceptance are not complete. Performance evidence remains issue #27.
 
+Progress evidence (2026-10-10): issue #27 reuses the corrected uncached baseline
+and retains full cold/warm/current-control data (48,000 attempts each), plus
+physical outage/restart data (18,000 each). Warm query rates improve about
+8.3–16.6%, but historical-baseline median P95s regress 14.0–90.2%; the current
+control shows mixed differences and substantial repetition variation.
+No consistent latency speedup is claimed. [Measured evidence](docs/milestone7/performance-milestone7.md),
+[current control](docs/milestone7/performance-milestone7-control.md) and
+[verification/exit mapping](docs/milestone7/verification-milestone7-issue27.md)
+retain observer changes, request errors and failed attempts. Cache/auth contracts
+and runbooks document actual tuning and limitations. Dashboard live/prototype
+captures and real committed-delete freshness/stock/audit checks passed; production
+dashboard caching is deferred despite approximately 40% fewer prototype queries.
+Failure cleanup and full ten-gate local validation with locked installation
+passed: 225 backend unit, 223 PostgreSQL/Redis integration, 22 frontend and
+26 Chromium tests, static/build, migrations and image. Final PR verification remains pending;
+milestone completion is not claimed.
+Starting revision `4ff9aee` passed all ten push-CI jobs and the unchanged aggregate
+in [run 38034397930](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/38034397930),
+which does not replace the required final PR run.
+
 ### Objective
 
 Use Redis for measured performance and ephemeral coordination needs.

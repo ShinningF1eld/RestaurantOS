@@ -61,6 +61,12 @@ expiry and the operator's expired-session cleanup also cover those families.
 Uncertain commits produce safe structured events without account identifiers or
 credentials. Cookie construction and ASGI header delivery both enforce expiry.
 
+See the [Redis operations guide](../runbooks/redis-cache.md) for the quota matrix,
+capacity sizing, safe transition diagnostics and recovery checks, and
+[issue #27 evidence](../milestone7/verification-milestone7-issue27.md) for measured
+catalog performance and milestone acceptance status. Catalog health and cache
+hits never establish authentication limiter recovery.
+
 Local counters are bounded, independent per process and lost on restart. They do
 not inherit pre-outage Redis history. Recovery probes run at most once per five
 seconds per process and require three successes; surviving local buckets remain

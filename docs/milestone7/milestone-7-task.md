@@ -1,7 +1,7 @@
 # Milestone 7 task plan
 
 Status: Published
-Source: docs/milestone7/milestone-7-design.md, approved revision 12 (2026-10-07); RestaurantOS_Master_Roadmap.md, Milestone 7.
+Source: docs/milestone7/milestone-7-design.md, accepted revision 13 (2026-10-09), superseding the original task plan's revision 12 (2026-10-07); RestaurantOS_Master_Roadmap.md, Milestone 7. Individual historical task references remain dated below.
 Inspected revision: 6a528f4826796991d8c5cfe2ad9f6cffb480981e; working tree initially clean.
 Updated: 2026-10-07
 Target: ShinningF1eld/RestaurantOS
@@ -320,7 +320,7 @@ acceptance and issue #27 performance evidence are not claimed.
 
 ## Purpose and references
 
-Publish measured performance and Milestone 7 operational evidence. Source: `docs/milestone7/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R4–R7, R10; roadmap exit criteria.
+Publish measured performance and Milestone 7 operational evidence. Source: `docs/milestone7/milestone-7-design.md`, accepted revision 13, 2026-10-09 (superseding this task's original revision 12 and GitHub's historical revision 5); `RestaurantOS_Master_Roadmap.md`, Milestone 7, originally inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R4–R7, R10; roadmap exit criteria.
 
 ## Scope
 
@@ -332,15 +332,29 @@ Run before/after workloads and update README, docs/current-state.md, auth/cache 
 
 ## Acceptance criteria
 
-- [ ] Compare the identical baseline workload with cold/warm caches and mixed writes; record P50/P95/P99, query counts, hit ratio, error rate, dataset, hardware/environment, versions and revision.
-- [ ] Include Redis outage/restart scenarios and separate authorization/live-stock costs; report regressions and actual improvements without invented targets or unsupported claims.
-- [ ] Document stale-window guarantee, tuning, cache failure fallback, limiter failure accounting/admission, recovery events, memory overload and multi-process/restart/distributed-guessing limitations.
-- [ ] Evaluate optional dashboard caching using measurements and record implement/defer recommendation; implementation requires a reviewed follow-up scope. AI endpoints and workers remain deferred.
+- [x] Compare the identical baseline workload with cold/warm caches and mixed writes; record P50/P95/P99, query counts, hit ratio, error rate, dataset, hardware/environment, versions and revision.
+- [x] Include Redis outage/restart scenarios and separate authorization/live-stock costs; report regressions and actual improvements without invented targets or unsupported claims.
+- [x] Document stale-window guarantee, tuning, cache failure fallback, limiter failure accounting/admission, recovery events, memory overload and multi-process/restart/distributed-guessing limitations.
+- [x] Evaluate optional dashboard caching using measurements and record implement/defer recommendation; implementation requires a reviewed follow-up scope. AI endpoints and workers remain deferred.
 - [ ] Map roadmap exit criteria to reproducible scripts and passing correctness/invalidation/full-gate evidence; mark milestone complete only after all evidence exists. Keep application database revision distinct from repository head.
 
 ## Verification
 
 Re-run documented benchmark commands, review evidence against all R1–R10 and roadmap exit criteria, and verify README claims directly against saved measurements.
+
+Local measurement evidence on 2026-10-10 reuses the corrected original baseline;
+full cold/warm/current-control and selected physical outage/restart captures are
+retained with individual repetitions and hashes. SQL savings coexist with
+historical P95 regressions and substantial current-control variation. Source
+observer changes and failed attempts are disclosed, and operational contracts
+document actual current behavior. Dashboard live/prototype measurements and the
+committed-delete freshness/stock/audit probe passed; production dashboard caching
+is deferred despite approximately 40% fewer prototype queries. All injected-failure
+cleanup checks and full ten-gate local validation with locked installation passed:
+225 unit, 223 PostgreSQL/Redis integration, 22 frontend and 26 Chromium tests,
+static/build, migrations and image. Final PR verification remains pending; milestone
+acceptance is not claimed. See [issue #27 evidence](verification-milestone7-issue27.md),
+[measurements](performance-milestone7.md) and [current control](performance-milestone7-control.md).
 
 <!-- github-plan: docs/milestone7/milestone-7-design.md | T9 -->
 

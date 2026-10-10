@@ -1,0 +1,1205 @@
+{
+  "benchmark": "restaurantos-menu-read-baseline",
+  "cache_mode": "disabled",
+  "metadata": {
+    "benchmark_configuration": {
+      "concurrency_levels": [
+        1,
+        10,
+        25,
+        50
+      ],
+      "measured_requests_per_scenario_level_repetition": 1000,
+      "percentile_method": "nearest-rank",
+      "repetitions": 3,
+      "scenarios": [
+        "menu-list",
+        "menu-items",
+        "mixed-read",
+        "mixed-write"
+      ],
+      "warmup_requests_per_scenario_level_repetition": 50
+    },
+    "benchmark_script_sha256": "a2ece698fbfdc2e9dea184c44feea5fcfde42de0af2e136dcd20c51d439216fe",
+    "benchmark_script_version": "1.1.0",
+    "dataset": {
+      "inventory_ingredients": 4,
+      "inventory_tracked_items": 40,
+      "items_per_menu": 40,
+      "memberships": {
+        "branch_assignments": 1,
+        "manager": 1,
+        "owner": 1
+      },
+      "menu_items": 160,
+      "menus": 4,
+      "organizations": 1,
+      "recipe_components": 40,
+      "restaurants": 1,
+      "seed_definition": "fixed catalog, recipe and stock values; one Owner and one assigned Manager; generated auth credentials remain runtime-only",
+      "stock_per_ingredient": "5000.000 g",
+      "tracked_item_fraction": 0.25
+    },
+    "git_commit": "aa01cde845ba5b780f6875abdca274fc452ad70c",
+    "git_worktree_dirty": false,
+    "host": {
+      "available_memory_bytes": 817758208,
+      "logical_cpu_count": 12,
+      "os": "Windows-11-10.0.26200-SP0",
+      "processor": "Intel64 Family 6 Model 151 Stepping 5, GenuineIntel"
+    },
+    "measurement": {
+      "api_log_level": "WARNING",
+      "cache_hit_ratio": "N/A for this uncached baseline",
+      "latency": "client-side HTTP request duration, including auth middleware, authorization and response serialization",
+      "postgres_queries": "SQLAlchemy before_cursor_execute events scoped by request-local context and returned in X-Benchmark-Postgres-Queries; setup/migration/seed/login are excluded"
+    },
+    "runtime": {
+      "application_environment": "development",
+      "auth_access_lifetime_seconds": 600,
+      "auth_refresh_strategy": "POST /auth/refresh between batches at 80% of access lifetime",
+      "configuration_source": "explicit Settings defaults and benchmark overrides; dotenv and ambient settings ignored",
+      "database_pool": "SQLAlchemy default pool for the long-lived API process",
+      "effective_settings": {
+        "auth_access_seconds": 600,
+        "auth_cookie_secure": false,
+        "auth_jwt_audience": "restaurantos-browser",
+        "auth_jwt_issuer": "restaurantos",
+        "auth_login_email_limit": 5,
+        "auth_login_ip_limit": 30,
+        "auth_login_window_seconds": 900,
+        "auth_refresh_family_limit": 30,
+        "auth_refresh_ip_limit": 120,
+        "auth_refresh_window_seconds": 60,
+        "auth_session_seconds": 604800,
+        "auth_trusted_origins": [
+          "http://localhost:3000"
+        ],
+        "database_echo": false,
+        "environment": "development",
+        "log_level": "WARNING"
+      },
+      "fastapi": "0.141.1",
+      "httpx": "0.28.1",
+      "postgresql": "16.15 (Debian 16.15-1.pgdg13+2)",
+      "python": "3.12.13",
+      "sqlalchemy": "2.0.52",
+      "uvicorn": "0.52.4"
+    },
+    "timestamp_utc": "2026-10-07T13:04:16.107257+00:00",
+    "workloads": {
+      "menu-items": "100% GET /menus/{menu_id}/items; menus round-robin",
+      "menu-list": "100% GET /restaurants/{restaurant_id}/menus",
+      "mixed-read": "20% menu-list + 80% menu-items",
+      "mixed-write": "20% catalog PUT updates (10% item, 10% menu) + 80% menu-item GETs",
+      "writes_are_enabled": true
+    }
+  },
+  "results": [
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 15.597099998558406,
+        "p95": 19.41900000019814,
+        "p99": 22.574700000404846
+      },
+      "postgres_query_count": 6000,
+      "queries_per_request": 6.0,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 150.716400003148,
+        "p95": 304.02239999966696,
+        "p99": 367.6570999996329
+      },
+      "postgres_query_count": 6000,
+      "queries_per_request": 6.0,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 421.57140000199433,
+        "p95": 1350.355499998841,
+        "p99": 1945.5292000020563
+      },
+      "postgres_query_count": 6000,
+      "queries_per_request": 6.0,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 722.1542000006593,
+        "p95": 3008.775300000707,
+        "p99": 4392.762999999832
+      },
+      "postgres_query_count": 6000,
+      "queries_per_request": 6.0,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 18.613300002471078,
+        "p95": 22.831499998574145,
+        "p99": 26.59000000130618
+      },
+      "postgres_query_count": 7000,
+      "queries_per_request": 7.0,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 166.02019999845652,
+        "p95": 305.21549999684794,
+        "p99": 350.55999999894993
+      },
+      "postgres_query_count": 7000,
+      "queries_per_request": 7.0,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 438.64640000174404,
+        "p95": 1441.2077000015415,
+        "p99": 2330.5799000008847
+      },
+      "postgres_query_count": 7000,
+      "queries_per_request": 7.0,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 796.2234999977227,
+        "p95": 3243.1887999991886,
+        "p99": 5339.962099998957
+      },
+      "postgres_query_count": 7000,
+      "queries_per_request": 7.0,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 18.65709999765386,
+        "p95": 23.942300002090633,
+        "p99": 26.953900000080466
+      },
+      "postgres_query_count": 6800,
+      "queries_per_request": 6.8,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 162.65610000118613,
+        "p95": 303.3684000001813,
+        "p99": 415.12560000046506
+      },
+      "postgres_query_count": 6800,
+      "queries_per_request": 6.8,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 417.1751000030781,
+        "p95": 1337.4136999991606,
+        "p99": 1959.5542999995814
+      },
+      "postgres_query_count": 6800,
+      "queries_per_request": 6.8,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 792.0548000001872,
+        "p95": 3214.824899998348,
+        "p99": 4815.956200000073
+      },
+      "postgres_query_count": 6800,
+      "queries_per_request": 6.8,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 18.73390000037034,
+        "p95": 25.43320000040694,
+        "p99": 28.930399999808287
+      },
+      "postgres_query_count": 7511,
+      "queries_per_request": 7.511,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 170.17240000132006,
+        "p95": 384.97669999924256,
+        "p99": 534.5887000003131
+      },
+      "postgres_query_count": 7500,
+      "queries_per_request": 7.5,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 440.8038999972632,
+        "p95": 1450.7450000019162,
+        "p99": 2099.952900000062
+      },
+      "postgres_query_count": 7500,
+      "queries_per_request": 7.5,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 829.5040000011795,
+        "p95": 3383.1553000018175,
+        "p99": 5623.127200000454
+      },
+      "postgres_query_count": 7500,
+      "queries_per_request": 7.5,
+      "repetition": 1,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 15.683699999499368,
+        "p95": 19.1255000027013,
+        "p99": 22.766399997635745
+      },
+      "postgres_query_count": 6000,
+      "queries_per_request": 6.0,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 144.84969999830355,
+        "p95": 370.4656999980216,
+        "p99": 450.193799999397
+      },
+      "postgres_query_count": 6000,
+      "queries_per_request": 6.0,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 322.4664000008488,
+        "p95": 990.4994999997143,
+        "p99": 1593.2018999992579
+      },
+      "postgres_query_count": 6000,
+      "queries_per_request": 6.0,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 616.1131999979261,
+        "p95": 2378.708199998073,
+        "p99": 3817.5760000012815
+      },
+      "postgres_query_count": 6000,
+      "queries_per_request": 6.0,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 16.363300001103198,
+        "p95": 20.63360000101966,
+        "p99": 24.98600000035367
+      },
+      "postgres_query_count": 7000,
+      "queries_per_request": 7.0,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 157.7276999996684,
+        "p95": 335.8691000030376,
+        "p99": 486.7337999967276
+      },
+      "postgres_query_count": 7000,
+      "queries_per_request": 7.0,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 361.4061000007496,
+        "p95": 1250.8453999980702,
+        "p99": 1692.3370999975305
+      },
+      "postgres_query_count": 7000,
+      "queries_per_request": 7.0,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 675.7931000029203,
+        "p95": 2936.870199999248,
+        "p99": 4483.444600002258
+      },
+      "postgres_query_count": 7000,
+      "queries_per_request": 7.0,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 18.34979999694042,
+        "p95": 29.325499999686144,
+        "p99": 36.2557000007655
+      },
+      "postgres_query_count": 6800,
+      "queries_per_request": 6.8,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 146.89160000125412,
+        "p95": 356.37839999981225,
+        "p99": 419.5560999978625
+      },
+      "postgres_query_count": 6800,
+      "queries_per_request": 6.8,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 379.19699999838485,
+        "p95": 1257.5218999991193,
+        "p99": 1898.4994000020379
+      },
+      "postgres_query_count": 6800,
+      "queries_per_request": 6.8,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 719.3735000000743,
+        "p95": 2801.3673999994353,
+        "p99": 4516.451499999675
+      },
+      "postgres_query_count": 6800,
+      "queries_per_request": 6.8,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 17.242400001123315,
+        "p95": 22.65610000176821,
+        "p99": 25.596299998142058
+      },
+      "postgres_query_count": 7500,
+      "queries_per_request": 7.5,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 153.2439999973576,
+        "p95": 350.9693000014522,
+        "p99": 479.20130000056815
+      },
+      "postgres_query_count": 7500,
+      "queries_per_request": 7.5,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 394.0379000014218,
+        "p95": 1235.8253999991575,
+        "p99": 1869.2756999989797
+      },
+      "postgres_query_count": 7500,
+      "queries_per_request": 7.5,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 730.72449999745,
+        "p95": 3224.9699999993027,
+        "p99": 4676.6265999976895
+      },
+      "postgres_query_count": 7500,
+      "queries_per_request": 7.5,
+      "repetition": 2,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 14.41999999951804,
+        "p95": 17.41029999902821,
+        "p99": 21.0229000003892
+      },
+      "postgres_query_count": 6000,
+      "queries_per_request": 6.0,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 131.10760000199662,
+        "p95": 352.58560000147554,
+        "p99": 396.89609999913955
+      },
+      "postgres_query_count": 6000,
+      "queries_per_request": 6.0,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 342.63949999876786,
+        "p95": 1153.575300002558,
+        "p99": 1565.7874000025913
+      },
+      "postgres_query_count": 6000,
+      "queries_per_request": 6.0,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 678.8533999970241,
+        "p95": 2805.442699998821,
+        "p99": 4546.137599998474
+      },
+      "postgres_query_count": 6000,
+      "queries_per_request": 6.0,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-list",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 17.4998999973468,
+        "p95": 21.7147000003024,
+        "p99": 25.995699998020427
+      },
+      "postgres_query_count": 7000,
+      "queries_per_request": 7.0,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 169.0987000001769,
+        "p95": 359.4053000015265,
+        "p99": 405.90789999987464
+      },
+      "postgres_query_count": 7000,
+      "queries_per_request": 7.0,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 414.4419000003836,
+        "p95": 1387.2948000025644,
+        "p99": 2040.935900000477
+      },
+      "postgres_query_count": 7000,
+      "queries_per_request": 7.0,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 818.5544000007212,
+        "p95": 3307.1023000011337,
+        "p99": 5028.693500000372
+      },
+      "postgres_query_count": 7000,
+      "queries_per_request": 7.0,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "menu-items",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 19.058899997617118,
+        "p95": 23.029800002404954,
+        "p99": 26.19350000168197
+      },
+      "postgres_query_count": 6800,
+      "queries_per_request": 6.8,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 126.85989999954472,
+        "p95": 329.7458999986702,
+        "p99": 406.32819999882486
+      },
+      "postgres_query_count": 6800,
+      "queries_per_request": 6.8,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 421.5513999988616,
+        "p95": 1413.982500002021,
+        "p99": 2102.323899998737
+      },
+      "postgres_query_count": 6800,
+      "queries_per_request": 6.8,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 683.2209999993211,
+        "p95": 2873.7820999995165,
+        "p99": 4229.310299997451
+      },
+      "postgres_query_count": 6800,
+      "queries_per_request": 6.8,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-read",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 1,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 20.53929999965476,
+        "p95": 31.283000000257744,
+        "p99": 45.37799999889103
+      },
+      "postgres_query_count": 7500,
+      "queries_per_request": 7.5,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 10,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 173.63409999961732,
+        "p95": 408.53689999858034,
+        "p99": 570.5108999973163
+      },
+      "postgres_query_count": 7500,
+      "queries_per_request": 7.5,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 25,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 439.93890000274405,
+        "p95": 1522.7748999968753,
+        "p99": 2280.1466999990225
+      },
+      "postgres_query_count": 7500,
+      "queries_per_request": 7.5,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    },
+    {
+      "cache_hit_ratio": null,
+      "cache_hit_ratio_label": "N/A (uncached PostgreSQL baseline)",
+      "cache_state": "not_applicable",
+      "concurrency": 50,
+      "error_count": 0,
+      "error_rate": 0.0,
+      "http_status_counts": {
+        "200": 1000
+      },
+      "latency_ms": {
+        "p50": 825.5406999996922,
+        "p95": 3479.917500000738,
+        "p99": 5074.396999996679
+      },
+      "postgres_query_count": 7500,
+      "queries_per_request": 7.5,
+      "repetition": 3,
+      "request_count": 1000,
+      "scenario": "mixed-write",
+      "successful_request_count": 1000,
+      "warmup_request_count": 50
+    }
+  ],
+  "schema_version": 1
+}

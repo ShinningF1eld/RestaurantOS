@@ -29,6 +29,25 @@ See the [role/API contract](docs/api/tenancy.md) and
 cutover completed on 2026-10-02: restaurant 1 belongs to organization 1, and the
 sole existing user is its Owner. See [verification evidence](docs/current-state.md#milestone-4-completion-evidence).
 
+Milestone 7 caches scoped menu fields for at most ten seconds of source age at
+lookup, while permissions and stock remain live. Authentication uses Redis
+admission with stricter process-local outage limits. See the
+[cache contract](docs/api/catalog-cache.md) and [Redis operations](docs/runbooks/redis-cache.md).
+
+The retained local benchmark (four menus/160 items, 1,000 attempts per cell,
+three repetitions, concurrency 1/10/25/50) shows warm SQL rates about 8.3–16.6%
+below the corrected historical uncached baseline. Warm median P95s were
+14.0–90.2% higher. A current uncached control shows mixed latency changes and
+substantial repetition variation; these serial observations do not establish a
+consistent speedup. Cold, warm, mixed-write, Redis outage/restart, query/hit/error
+metrics and exact environment/revisions are in the
+[measured report](docs/milestone7/performance-milestone7.md) and
+[current control](docs/milestone7/performance-milestone7-control.md).
+Dashboard caching remains deferred: its [measured prototype](docs/milestone7/performance-milestone7-dashboard.md)
+saves about 40% of queries but retains old aggregates after a permitted order
+delete until expiry. Milestone acceptance awaits the remaining
+verification evidence recorded in [issue #27](docs/milestone7/verification-milestone7-issue27.md).
+
 ## Prerequisites
 
 - Python 3.12 (the supported documentation and CI version)
