@@ -39,6 +39,14 @@ application and `test_order_flow_integration.py` exercises a full authenticated
 business journey. `test_redis_infrastructure.py` exercises the shared async
 adapter against disposable Redis, outage liveness, deadline and owned cleanup.
 
+`integration/test_catalog_menu_cache.py` holds each list's old PostgreSQL source
+read across a successful mutation and post-commit invalidation using event
+barriers. The late fill writes to real Redis with only 500 ms remaining, retains
+the original source timestamp, and reloads committed data after the absolute
+ten-second deadline. Only catalog clocks are controlled; authentication and
+transport clocks remain real. Existing unit races and the integration stock,
+authorization, audit/commit rollback and invalidation-failure cases are reused.
+
 `integration/auth/test_outage_processes.py` additionally starts an owned
 nonpersistent Redis container with a random loopback port and two real Uvicorn
 API processes against the gate's migrated disposable database. Docker is required

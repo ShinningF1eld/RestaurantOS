@@ -1,8 +1,103 @@
 import json
+import asyncio
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
+
+import pytest
 
 from sqlalchemy import text
 
 from conftest import engine
+
+
+@pytest.mark.parametrize("item_list", [False, True])
+def test_real_old_fill_racing_committed_invalidation_retains_absolute_deadline(
+    authenticated_client, auth_user, monkeypatch, item_list
+):
+    from app.main import app
+    from app.modules.catalog.menu_cache import CatalogMenuCache
+    from app.modules.catalog.repo.queries import CatalogRepository
+
+    client = authenticated_client
+    restaurant = client.post("/api/restaurants", json={"name": "Real fill race"}).json()
+    menu = client.post(
+        f"/restaurants/{restaurant['id']}/menus", json={"name": "Old menu"}
+    ).json()
+    item = client.post(
+        f"/menus/{menu['menu_id']}/items", json={"name": "Old item", "price": "12.50"}
+    ).json()
+    elapsed = [0.0]
+    cache = CatalogMenuCache(
+        monotonic=lambda: elapsed[0], wall_time=lambda: 1000 + elapsed[0]
+    )
+    monkeypatch.setattr(app.state, "catalog_menu_cache", cache)
+    # Replace only the catalog service's clock, leaving auth/driver clocks real.
+    monkeypatch.setattr(
+        "app.modules.catalog.service.time",
+        SimpleNamespace(time=lambda: 1000 + elapsed[0], monotonic=lambda: elapsed[0]),
+    )
+    waiting = threading.Event()
+    release = asyncio.Event()
+    method = "list_menu_items_for_menu" if item_list else "list_menus_for_restaurant"
+    original = getattr(CatalogRepository, method)
+    source_reads = 0
+
+    async def held_source(repository, identifier):
+        nonlocal source_reads
+        rows = await original(repository, identifier)
+        source_reads += 1
+        if source_reads == 1:
+            waiting.set()
+            await release.wait()
+        return rows
+
+    monkeypatch.setattr(CatalogRepository, method, held_source)
+    redis = app.state.redis
+    scope = dict(organization_id=auth_user["organization_id"])
+    key = (
+        cache.menu_items_key(redis, menu_id=menu["menu_id"], **scope)
+        if item_list
+        else cache.key(redis, restaurant_id=restaurant["id"], **scope)
+    )
+    endpoint = (
+        f"/menus/{menu['menu_id']}/items"
+        if item_list
+        else f"/restaurants/{restaurant['id']}/menus"
+    )
+    mutation = (
+        f"/menu-items/{item['menu_item_id']}"
+        if item_list
+        else f"/menus/{menu['menu_id']}"
+    )
+    with ThreadPoolExecutor(max_workers=1) as workers:
+        old_fill = workers.submit(client.get, endpoint)
+        try:
+            assert waiting.wait(timeout=10), "Source read did not overlap the mutation"
+            assert (
+                client.put(mutation, json={"name": "Committed new name"}).status_code
+                == 200
+            )
+            assert client.portal.call(redis.execute, "GET", key) is None
+            elapsed[0] = 9.5
+            client.portal.call(release.set)
+            old_response = old_fill.result(timeout=10)
+            assert old_response.status_code == 200
+            assert old_response.json()[0]["name"] == (
+                "Old item" if item_list else "Old menu"
+            )
+            raw = client.portal.call(redis.execute, "GET", key)
+            assert raw is not None
+            assert json.loads(raw)["source_started_at"] == 1000
+            assert 0 < client.portal.call(redis.execute, "PTTL", key) <= 500
+            elapsed[0] = 10.01
+            fresh = client.get(endpoint)
+            assert fresh.status_code == 200
+            assert fresh.json()[0]["name"] == "Committed new name"
+            assert source_reads == 2
+        finally:
+            client.portal.call(release.set)
+            client.portal.call(redis.execute, "DEL", key)
 
 
 def test_menu_list_warm_hit_keeps_membership_authorization_fresh(

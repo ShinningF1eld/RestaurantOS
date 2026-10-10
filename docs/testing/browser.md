@@ -16,6 +16,8 @@ excluded from Playwright discovery. Retries are disabled so failures remain visi
 | Lost order response, duplicate submission and original idempotent result | `order-inventory.spec.ts` committed-write retry case |
 | Recipe validation, saving and stock calculations | `recipes.spec.ts` recipe case |
 | Inventory edits/history, waste/count/refresh/archive/restore and idempotent lost-response retries | `auth.spec.ts` inventory cases |
+| Proven warm catalog hits, live stock and committed menu/item edits | `milestone7.spec.ts` inspects the owned Redis payload, reads through Chromium and checks the rendered stock/menu UI |
+| Normal/degraded login throttles, physical Redis loss/restart and recovery with surviving local history | `milestone7.spec.ts` uses the login UI, existing session/refresh cookies and actual API transition events |
 
 ## Isolated execution
 
@@ -24,6 +26,15 @@ CI host, then run `python scripts/run-browser-tests.py` using the backend test
 environment. The supplied database is only a template. The runner allocates and
 migrates a random database, copies frontend source without `.env` files, uses
 random API/web ports, and sets the same API address at build time and runtime.
+The browser runner also allocates its own nonpersistent Redis container with a
+random loopback port pinned across stop/start. It reuses the backend physical
+outage helper; browser tests cannot stop the gate's Redis or developer services.
+The container is removed in `finally`, including assertion and injected failures.
+Only the generated browser database and Redis namespace may be inspected by the
+test helper. Transition inspection returns event names from the temporary API log;
+it adds no production endpoint or authentication bypass. Fixed-window login tests
+start away from the minute boundary and wait for real recovery events rather than
+changing production deadlines, probe intervals or quotas.
 The API starts from the temporary workspace with the backend on `PYTHONPATH`,
 so application settings cannot fall back to the developer's backend `.env`.
 The original `.next` output and developer servers are untouched.

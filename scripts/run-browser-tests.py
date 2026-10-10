@@ -3,6 +3,7 @@
 import argparse
 import os
 import re
+import runpy
 import shutil
 import socket
 import subprocess
@@ -152,8 +153,20 @@ def main():
     origin, api = f"http://localhost:{web_port}", f"http://localhost:{api_port}"
     artifacts = ROOT / "test-results" / "browser"
     artifacts.mkdir(parents=True, exist_ok=True)
-    with disposable_database(prefix="restaurantos_browser") as database:
-        env = redis_environment(database.environment())
+    owned_redis = runpy.run_path(str(BACKEND / "tests/support/owned_redis.py"))[
+        "owned_redis"
+    ]
+    with (
+        disposable_database(prefix="restaurantos_browser") as database,
+        owned_redis() as (redis_container, redis_port),
+    ):
+        env = redis_environment(
+            {
+                **database.environment(),
+                "TEST_REDIS_HOST": "127.0.0.1",
+                "TEST_REDIS_PORT": redis_port,
+            }
+        )
         env.update(
             {
                 "NEXT_PUBLIC_API_URL": api,
@@ -168,6 +181,7 @@ def main():
                 "AUTH_REFRESH_IP_LIMIT": "100",
                 "AUTH_REFRESH_WINDOW_SECONDS": "60",
                 "AUTH_LOCAL_MAX_ENTRIES": "10000",
+                "PLAYWRIGHT_REDIS_CONTAINER": redis_container,
                 "PLAYWRIGHT_BASE_URL": origin,
                 "PLAYWRIGHT_WEB_PORT": str(web_port),
                 "PLAYWRIGHT_PYTHON": sys.executable,
@@ -194,7 +208,8 @@ def main():
                     'await page.goto("/login"); expect(true).toBe(false); });\n',
                     encoding="utf-8",
                 )
-            with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as log:
+            env["PLAYWRIGHT_API_LOG"] = str(frontend.parent / "browser-api.log")
+            with open(env["PLAYWRIGHT_API_LOG"], "w+", encoding="utf-8") as log:
                 server = subprocess.Popen(
                     [
                         sys.executable,

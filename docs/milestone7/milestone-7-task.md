@@ -280,7 +280,7 @@ verification; T8/T9 still own full milestone acceptance and performance evidence
 
 ## Purpose and references
 
-Verify cache and limiter workflows in full repository gates. Source: `docs/milestone7/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1–R10.
+Verify cache and limiter workflows in full repository gates. Source: `docs/milestone7/milestone-7-design.md`, approved revision 13, 2026-10-09; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R1–R10.
 
 ## Scope
 
@@ -292,15 +292,27 @@ Integrate cross-feature service and browser regressions into scripts/validate.py
 
 ## Acceptance criteria
 
-- [ ] Real PostgreSQL/Redis tests cover hit authorization, stock freshness, rollback, invalidation failure, absolute-age races, admission overlap, ambiguity, outage/restart, memory capacity and recovery flapping.
-- [ ] Chromium exercises catalog updates with warm cache, current stock, login throttling and Redis outage/recovery against a real API and production frontend; cookies and bounded uncertain-refresh behavior remain intact.
-- [ ] Isolated validation provisions Redis for application behavior, retains guarded _test databases, random ports and cleanup on injected failures; auth traces stay disabled.
+- [x] Real PostgreSQL/Redis tests cover hit authorization, stock freshness, rollback, invalidation failure, absolute-age races, admission overlap, ambiguity, outage/restart, memory capacity and recovery flapping.
+- [x] Chromium exercises catalog updates with warm cache, current stock, login throttling and Redis outage/recovery against a real API and production frontend; cookies and bounded uncertain-refresh behavior remain intact.
+- [x] Isolated validation provisions Redis for application behavior, retains guarded _test databases, random ports and cleanup on injected failures; auth traces stay disabled.
 - [ ] Full ten-gate local validation and remote CI succeed on Python 3.12/Node 24; preserve the required Milestone 6 acceptance aggregate and complete gate enforcement.
-- [ ] Any necessary schema change uses a new single-head Alembic revision and clean/seeded-legacy migrations gate; validation never migrates the application database.
+- [x] Any necessary schema change uses a new single-head Alembic revision and clean/seeded-legacy migrations gate; validation never migrates the application database.
 
 ## Verification
 
-Run ./scripts/validate.ps1 and a complete remote PR CI run; record exact commands/outcomes/omissions and deterministic race evidence. Follow docs/testing/enforcement.md if gate policy changes.
+Locally verified on 2026-10-10 using authoritative design revision 13: the
+full ten-gate command with locked installation passed, including 210 unit,
+223 PostgreSQL/Redis integration, 22 frontend and 26 Chromium tests, migrations
+and image smoke. Existing regressions were reused; missing Chromium workflows
+and two real cache fill/invalidation races were added, and the existing catalog
+single-flight regression now proves twenty overlapping requests bypass the probe.
+Injected service/browser failure cleanup passed. No production/API/schema or gate
+policy change was needed. See [dated evidence](verification-milestone7-issue26.md).
+
+The fourth criterion remains unchecked: PR-triggered CI on the final commit is
+still required after pre-commit review and authorized publication. The starting
+commit's successful push CI does not verify these local changes. Full milestone
+acceptance and issue #27 performance evidence are not claimed.
 
 <!-- github-plan: docs/milestone7/milestone-7-design.md | T8 -->
 

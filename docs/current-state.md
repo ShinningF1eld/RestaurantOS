@@ -113,6 +113,16 @@ integration tests, image smoke and 24 browser journeys; owned cleanup passed on
 success and injected failure. See [issue 21 evidence](milestone7/verification-milestone7-issue21.md).
 This does not establish full Milestone 7 acceptance.
 
+Issue #26 pre-commit verification on 2026-10-10 passed the complete ten-gate
+local command with locked installation: 210 backend unit, 223 PostgreSQL/Redis
+integration, 22 frontend and 26 Chromium tests, static checks, both production
+build gates, clean/legacy migrations and image startup without migrations.
+Existing regressions were reused and missing browser/race coverage was added.
+Injected service/browser failure cleanup passed. No production/API/schema changes
+or application database migration were made. Remote PR CI on the final changes
+remains required; issue #26 and full Milestone 7 acceptance are not complete.
+See [issue 26 evidence](milestone7/verification-milestone7-issue26.md).
+
 ## Database schema and migrations
 
 The current models and tables are:
@@ -129,7 +139,7 @@ The current models and tables are:
 | User | UUID `id` | Normalized unique email, Argon2id hash, active/disabled status |
 | AuthSession | UUID `id` | User, absolute expiry, family revocation |
 | RefreshToken | UUID `id` | Token digest, family, consumed history and successor |
-| RateLimitBucket | Key digest + window start | Atomic shared counters and expiry |
+| RateLimitBucket | Key digest + window start | Retained PostgreSQL limiter history; runtime limits use Redis/local state |
 | Organization | UUID `id` | Unique generated display number and slug; active/archived status |
 | Membership | UUID `id` | Unique user; one organization; OWNER/MANAGER/EMPLOYEE; active/revoked |
 | RestaurantAssignment | `membership_id` + `restaurant_id` | Membership and restaurant must belong to the same organization |

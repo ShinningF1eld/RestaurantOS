@@ -787,6 +787,14 @@ memory bounds and flapping evidence in
 Baseline, backend unit/integration/static and browser gates passed. Full milestone acceptance
 and performance evidence remain tasks #26 and #27.
 
+Progress evidence (2026-10-10): issue #26's full ten-gate local command passed,
+including 210 backend unit, 223 PostgreSQL/Redis integration, 22 frontend and
+26 Chromium tests. Missing cache/limiter browser workflows and real fill races
+were added while reusing existing regressions. Failure cleanup was verified.
+See [pre-commit evidence](docs/milestone7/verification-milestone7-issue26.md).
+Remote PR CI on the final changes remains pending; issue #26 and milestone
+acceptance are not complete. Performance evidence remains issue #27.
+
 ### Objective
 
 Use Redis for measured performance and ephemeral coordination needs.

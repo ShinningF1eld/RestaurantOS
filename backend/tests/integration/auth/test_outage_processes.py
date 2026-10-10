@@ -3,11 +3,9 @@
 import json
 import os
 import queue
-import socket
 import subprocess
 import sys
 import threading
-from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
 
@@ -15,45 +13,10 @@ import httpx
 from sqlalchemy import text
 
 from conftest import engine
+from support.owned_redis import docker, owned_redis
 
 BACKEND = Path(__file__).resolve().parents[3]
 HEADERS = {"Origin": "http://localhost:3000", "X-CSRF-Protection": "1"}
-
-
-def docker(*arguments):
-    return subprocess.check_output(
-        ["docker", *arguments], text=True, timeout=45
-    ).strip()
-
-
-@contextmanager
-def owned_redis():
-    name = "restaurantos-auth-outage-" + uuid4().hex[:12]
-    # Docker reassigns an automatically published port on container restart.
-    # Select a free random port, then pin it so both APIs retain the endpoint.
-    with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 0))
-        port = listener.getsockname()[1]
-    try:
-        docker(
-            "run",
-            "-d",
-            "--name",
-            name,
-            "-p",
-            f"127.0.0.1:{port}:6379",
-            "redis:7-alpine",
-            "redis-server",
-            "--save",
-            "",
-            "--appendonly",
-            "no",
-        )
-        assert int(docker("port", name, "6379/tcp").rsplit(":", 1)[1]) == port
-        assert docker("exec", name, "redis-cli", "ping") == "PONG"
-        yield name, str(port)
-    finally:
-        docker("rm", "-f", name)
 
 
 class Api:

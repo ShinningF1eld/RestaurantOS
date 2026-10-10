@@ -473,7 +473,17 @@ async def test_transport_failure_bypasses_redis_until_single_recovery_probe(
     caplog.set_level("INFO", logger="app.modules.catalog.menu_cache")
     monotonic = [5.0]
     cache = CatalogMenuCache(monotonic=lambda: monotonic[0], cooldown_seconds=5)
-    redis = FakeRedis()
+    probe_started = asyncio.Event()
+    release_probe = asyncio.Event()
+
+    class HeldProbeRedis(FakeRedis):
+        async def execute(self, *arguments: object) -> object:
+            if asyncio.current_task().get_name() == "catalog-recovery-probe":
+                probe_started.set()
+                await release_probe.wait()
+            return await super().execute(*arguments)
+
+    redis = HeldProbeRedis()
     redis.failure = RedisFailure(FailureKind.CONNECTION)
 
     failed = await cache.lookup(redis, "menu-list", restaurant_id=42)
@@ -484,7 +494,25 @@ async def test_transport_failure_bypasses_redis_until_single_recovery_probe(
 
     monotonic[0] = 10.0
     redis.failure = None
-    recovered = await cache.lookup(redis, "menu-list", restaurant_id=42)
+    probe = asyncio.create_task(
+        cache.lookup(redis, "menu-list", restaurant_id=42),
+        name="catalog-recovery-probe",
+    )
+    await probe_started.wait()
+    # The held real-operation probe overlaps twenty requests. Both list types
+    # must immediately bypass Redis through the same catalog-only circuit.
+    bypassed = await asyncio.gather(
+        *(cache.lookup(redis, "menu-list", restaurant_id=42) for _ in range(10)),
+        *(
+            cache.lookup_menu_items(redis, "item-list", menu_id=17, restaurant_id=42)
+            for _ in range(10)
+        ),
+    )
+    assert all(not result.redis_available for result in bypassed[:10])
+    assert all(result == (None, False) for result in bypassed[10:])
+    assert len(redis.commands) == 1
+    release_probe.set()
+    recovered = await probe
     after_recovery = await cache.lookup(redis, "menu-list", restaurant_id=42)
 
     assert recovered.redis_available is True
