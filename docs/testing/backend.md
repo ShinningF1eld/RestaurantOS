@@ -39,6 +39,20 @@ application and `test_order_flow_integration.py` exercises a full authenticated
 business journey. `test_redis_infrastructure.py` exercises the shared async
 adapter against disposable Redis, outage liveness, deadline and owned cleanup.
 
+`integration/auth/test_outage_processes.py` additionally starts an owned
+nonpersistent Redis container with a random loopback port and two real Uvicorn
+API processes against the gate's migrated disposable database. Docker is required
+even with `--external-services`; the CI runner already provides it. The test stops
+and starts only its named container, restarts one API, and always removes its
+processes/container. A stdin control channel in `tests/support/` advances test
+limiter clocks and reads aggregate state; it adds no production HTTP endpoints or
+authentication bypass. HTTP calls still use real auth/session storage and cookies.
+Command counts prove open-circuit requests bypass Redis. Unit event barriers
+prove single-flight probe overlap and stale-probe invalidation without sleeps.
+`unit/auth/test_outage_recovery.py` covers memory pressure, monotonic expiry,
+refresh quotas and transition privacy. Production memory sizing is documented
+in the [authentication runbook](../runbooks/authentication.md).
+
 ## Fixture lifecycle and isolation
 
 The root `tests/conftest.py` recognizes an explicitly selected `tests/unit`

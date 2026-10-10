@@ -14,7 +14,7 @@ from uuid import uuid4
 
 from app.core.config import Settings
 from app.modules.auth.domain.errors import AuthStorageError, RateLimitError
-from app.redis.adapter import RedisFailure
+from app.redis.adapter import FailureKind, RedisFailure
 
 LEASE_SECONDS = 10
 
@@ -108,6 +108,7 @@ class AuthLimiter:
         self._next_probe = 0.0
         self._probing = False
         self._successes = 0
+        self._generation = 0
 
     def _key(self, kind: str, *identifiers: str) -> str:
         # Length framing prevents email/IP separator ambiguity.
@@ -171,7 +172,17 @@ class AuthLimiter:
             now = self._monotonic()
             self._clean(now)
             # During recovery only surviving local buckets need dual admission.
-            tracked = tuple(b for b in buckets if not guard or b.key in self._entries)
+            tracked = tuple(
+                b
+                for b in buckets
+                if (not guard or b.key in self._entries)
+                # Conservative finalization may already have counted a guarded
+                # bucket. Reserve only the still-unaccounted buckets, once.
+                and not (
+                    b.key in self._entries
+                    and identifier in self._entries[b.key].failures
+                )
+            )
             retry = 0.0
             for bucket in tracked:
                 entry = self._entries.get(bucket.key)
@@ -227,8 +238,11 @@ class AuthLimiter:
 
     def _degrade(self, reason: str) -> None:
         with self._lock:
+            self._generation += 1
             if self._degraded_at is None:
                 self._degraded_at = self._monotonic()
+                self._event("auth_limiter_degraded", reason)
+            elif self._successes:
                 self._event("auth_limiter_degraded", reason)
             self._successes = 0
             self._next_probe = self._monotonic() + 5
@@ -242,13 +256,14 @@ class AuthLimiter:
             if probe:
                 self._probing = True
                 self._next_probe = self._monotonic() + 5
+                generation = self._generation
         if not probe:
             return degraded
         try:
             # Exercise reads, strict admission and lease writes on an owned
             # probe bucket, then release it within the SAME operation budget.
             # Concurrent requests remain local without waiting for this probe.
-            await redis.execute(
+            result = await redis.execute(
                 "EVAL",
                 ADMIT,
                 1,
@@ -258,6 +273,8 @@ class AuthLimiter:
                 60,
                 "probe",
             )
+            if type(result) is not int or result != 0:
+                raise RedisFailure(FailureKind.COMMAND)
         except RedisFailure as error:
             self._degrade(error.kind.value)
             self._event("auth_limiter_probe_failed", error.kind.value)
@@ -266,11 +283,15 @@ class AuthLimiter:
             raise
         else:
             with self._lock:
-                self._successes += 1
-                self._event("auth_limiter_recovering", "probe_success")
-                if self._successes == 3:
-                    self._event("auth_limiter_healthy", "stable_recovery")
-                    self._degraded_at = None
+                # A concurrent in-flight finalization may fail while this probe
+                # waits. Its failure invalidates the probe's stability evidence.
+                if generation == self._generation:
+                    self._successes += 1
+                    if self._successes == 1:
+                        self._event("auth_limiter_recovering", "probe_success")
+                    if self._successes == 3:
+                        self._event("auth_limiter_healthy", "stable_recovery")
+                        self._degraded_at = None
         finally:
             with self._lock:
                 self._probing = False
@@ -296,8 +317,8 @@ class AuthLimiter:
                 *(redis.namespace("auth", 1) + b.key for b in buckets),
                 *args,
             )
-            if not isinstance(retry, int):
-                raise ValueError("Invalid limiter result")
+            if type(retry) is not int or retry < 0:
+                raise RedisFailure(FailureKind.COMMAND)
             if retry:
                 raise RateLimitError(retry)
             return admission
@@ -330,7 +351,7 @@ class AuthLimiter:
             )
         except RedisFailure as error:
             self._degrade(error.kind.value)
-            if count and not admission.local:
+            if count:
                 # Never replay an ambiguous Redis finalization. Track a local
                 # failure conservatively, subject to the bounded capacity guard.
                 try:

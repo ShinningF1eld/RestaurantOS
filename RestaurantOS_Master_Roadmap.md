@@ -780,6 +780,12 @@ Progress evidence (2026-10-09): issue #24's Redis auth admission, failure/refres
 accounting and bounded deadline are recorded in
 [its verification report](docs/milestone7/verification-milestone7-issue24.md).
 This does not establish full Milestone 7 acceptance; issue #24 remains open.
+Progress evidence (2026-10-10): issue #25 hardens limiter recovery and conservative
+finalization, with real Redis stop/start, two API processes, process restart,
+memory bounds and flapping evidence in
+[its verification report](docs/milestone7/verification-milestone7-issue25.md).
+Baseline, backend unit/integration/static and browser gates passed. Full milestone acceptance
+and performance evidence remain tasks #26 and #27.
 
 ### Objective
 

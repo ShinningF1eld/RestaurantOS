@@ -381,6 +381,9 @@ def test_concurrent_login_account_counter_never_exceeds_limit(auth_user, monkeyp
 
         monkeypatch.setattr(service, "verify_password", blocked)
         async with app.router.lifespan_context(app):
+            from tests.support.redis_ready import warm_redis
+
+            await warm_redis(app.state.auth_limiter._redis())
             async with httpx.AsyncClient(
                 transport=httpx.ASGITransport(app=app), base_url="http://testserver"
             ) as client:

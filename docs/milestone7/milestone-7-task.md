@@ -242,7 +242,7 @@ included to honor T1's ambiguity policy; T7's broader verification remains open.
 
 ## Purpose and references
 
-Enforce stricter local limits through Redis outages and recovery. Source: `docs/milestone7/milestone-7-design.md`, approved revision 12, 2026-10-07; `RestaurantOS_Master_Roadmap.md`, Milestone 7, inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R5, R6, R10.
+Enforce stricter local limits through Redis outages and recovery. Source: `docs/milestone7/milestone-7-design.md`, approved revision 13, 2026-10-09 (superseding the GitHub issue's revision 5); `RestaurantOS_Master_Roadmap.md`, Milestone 7, originally inspected at `6a528f4826796991d8c5cfe2ad9f6cffb480981e`. Requirements: R5, R6, R10.
 
 ## Scope
 
@@ -254,16 +254,25 @@ Add per-process degraded limiter state and controlled recovery, integrating both
 
 ## Acceptance criteria
 
-- [ ] First Redis failure immediately enforces local limits on the same request; degraded requests skip Redis without a rejection waiting period or PostgreSQL counter writes.
-- [ ] Use atomic local admission/finalization, monotonic expiry, stricter approved quotas and bounded memory/cleanup; reject untrackable new keys with a retryable service error rather than evict active counters.
-- [ ] An ambiguous Redis increment/admission/finalization follows T1's conservative accounting; bounded leases prevent unlimited in-flight capacity or permanent leaks.
-- [ ] Use one nonblocking limiter-operation recovery probe per process every 5 seconds and require three consecutive successes; failures reset stability, with existing local history retained across flapping.
-- [ ] Apply the approved recovery guard to surviving local buckets; explicitly demonstrate independent process quotas and loss on process restart as accepted limitations.
-- [ ] Emit healthy/degraded/recovering transition events with process identity, safe reasons and duration; report probe failures/flapping without raw email/IP/password/cookie/token or per-request skipped-Redis logs.
+- [x] First Redis failure immediately enforces local limits on the same request; degraded requests skip Redis without a rejection waiting period or PostgreSQL counter writes.
+- [x] Use atomic local admission/finalization, monotonic expiry, stricter approved quotas and bounded memory/cleanup; reject untrackable new keys with the accepted generic 429/Retry-After rather than evict active counters.
+- [x] An ambiguous Redis increment/admission/finalization follows T1's conservative accounting; bounded leases prevent unlimited in-flight capacity or permanent leaks.
+- [x] Use one nonblocking limiter-operation recovery probe per process every 5 seconds and require three consecutive successes; failures reset stability, with existing local history retained across flapping.
+- [x] Apply the approved recovery guard to surviving local buckets; explicitly demonstrate independent process quotas and loss on process restart as accepted limitations.
+- [x] Emit healthy/degraded/recovering transition events with process identity, safe reasons and duration; report probe failures/flapping without raw email/IP/password/cookie/token or per-request skipped-Redis logs.
 
 ## Verification
 
 Run backend-unit, backend-integration and backend-static; use deterministic clocks/barriers plus real Redis outage/restart, two API processes, memory pressure and process restart; assert Redis is untouched during open-circuit requests.
+
+Verified locally on 2026-10-10: baseline, 210 unit tests, 221 PostgreSQL/Redis
+integration tests, backend lint/format/mypy and model drift checks passed. All
+24 Chromium journeys and their isolated production frontend build also passed. The
+test-owned Redis/API processes were cleaned up. Revision 13's thresholds,
+fixed windows, 8-second deadline and 10-second leases remain unchanged. See
+[issue 25 evidence](verification-milestone7-issue25.md). No schema migration,
+GitHub issue change, commit or push was performed. This is partial issue
+verification; T8/T9 still own full milestone acceptance and performance evidence.
 
 <!-- github-plan: docs/milestone7/milestone-7-design.md | T7 -->
 

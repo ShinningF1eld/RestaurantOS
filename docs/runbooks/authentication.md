@@ -82,6 +82,51 @@ limiter fallback. Probes occur every five seconds, requiring three successful
 atomic limiter probes for recovery. Live local history remains enforced through
 recovery. Multi-process outage quotas are independent; restart loses history.
 
+### Limiter outage and recovery operations
+
+The request discovering a Redis failure immediately uses local admission. Later
+requests bypass Redis until the five-second probe cooldown expires. One request
+owns the bounded atomic admission/release probe; concurrent requests keep using
+local limits without waiting for it. Three consecutive successful probes restore
+shared mode. An overlapping failure invalidates a probe started before that
+failure. A failed probe resets stability without clearing local history. Recovery
+uses an owned limiter operation, not `PING`; catalog health is independent.
+
+Watch structured `auth_limiter_degraded`, `auth_limiter_recovering`,
+`auth_limiter_healthy` and `auth_limiter_probe_failed` events. Each includes
+`process_id`, a safe `reason` and `duration_seconds` since the outage began.
+Recovering is logged on the first stable probe, and a subsequent failure records
+the transition back to degraded. Repeated skipped requests produce no limiter
+logs. Inspect events by process to identify flapping; never collect identifiers,
+credentials or raw driver exceptions. Redis command/probe rejection cannot prove
+recovery and uses the same local policy as a transport failure.
+
+At `AUTH_LOCAL_MAX_ENTRIES`, new keys receive generic 429 with Retry-After; live
+entries are never evicted. Login needs up to two entries, while refresh uses IP
+and known-family entries. Expired failures and ten-second reservations are
+cleaned during admission/finalization, including extended outages. Recovery keeps
+surviving local buckets enforced alongside Redis; new keys use Redis, and normal
+expiry frees local capacity. Restarting an API to clear limits deliberately loses
+that process's history. Adding processes multiplies outage quotas. Redis's
+nonpersistent restart loses its own shared history. These are accepted limits,
+not a global outage security guarantee; PostgreSQL counters are never a fallback.
+
+Reproduce local bucket allocation measurements without services:
+
+```powershell
+backend/.venv-m6-dev/Scripts/python.exe scripts/measure-auth-local-memory.py --entries 10000
+```
+
+Python 3.12.13 on Windows measured 760.1, 953.8, 1526.8 and 6718.8 retained Python
+bytes per full bucket at quotas 3, 5, 10 and 50, respectively (2026-10-10).
+Ten thousand fully occupied 50-attempt buckets retained 67,188,352 bytes (about
+64.1 MiB). This is allocation evidence, not total process RSS or a recommended
+production cap: allow additional runtime, temporary cleanup, in-flight request
+and allocator overhead. Measure on the deployment runtime, budget RAM per API
+process, account for expected distinct outage pairs/IPs/families and process
+count, then explicitly configure a finite cap. Keep the development default
+until deployment sizing is performed; no deployed environment exists here.
+
 If refresh fails after a lost network response, sign in again. Never replay an
 old refresh token to "recover" a response. If auth storage is unavailable, issuance
 fails with 503; restore PostgreSQL rather than bypassing auth or throttling.

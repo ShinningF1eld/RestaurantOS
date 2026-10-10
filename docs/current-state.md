@@ -97,7 +97,14 @@ replaces runtime PostgreSQL limiter writes with atomic Redis login admission and
 failure accounting plus separately accepted refresh accounting. The limiter
 table/history and PostgreSQL sessions remain in place. Stricter bounded local
 fallback and controlled recovery are wired without database shadow counters;
-the broader issue #25 outage/restart/multi-process verification remains separate.
+issue #25 now hardens recovery/finalization and verifies physical Redis
+outage/restart, two API processes, flapping, bounded memory and process restart
+loss under approved revision 13. On 2026-10-10, baseline, 210 unit tests,
+221 PostgreSQL/Redis integration tests, Ruff, format and mypy passed; model drift
+was absent. The isolated production frontend build and all 24 Chromium journeys
+also passed. These are partial repository gates, not full Milestone 7 acceptance.
+See [issue 25 evidence](milestone7/verification-milestone7-issue25.md), including
+the reproducible local allocation measurement and deployment-sizing limits.
 See [issue 23 verification](milestone7/verification-milestone7-issue23.md) and
 [issue 24 evidence](milestone7/verification-milestone7-issue24.md).
 See [Redis infrastructure](architecture/redis.md).

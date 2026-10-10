@@ -66,6 +66,9 @@ not inherit pre-outage Redis history. Recovery probes run at most once per five
 seconds per process and require three successes; surviving local buckets remain
 enforced alongside Redis until natural expiry. These weaker outage guarantees and
 weaker distributed guessing protection without an email-global limit are accepted.
+Concurrent requests do not wait for the single probe owner. Failed operations
+invalidate overlapping probe results and reset recovery stability without clearing
+local history. Active entries are never evicted to make room for new identities.
 
 Refresh reuse revokes the family, including its current access token. Independent
 logins create independent families. Disabling an account rejects all of its

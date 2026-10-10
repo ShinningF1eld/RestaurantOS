@@ -50,6 +50,9 @@ def test_real_redis_ip_admission_across_distinct_pairs():
     async def scenario():
         async with app.router.lifespan_context(app):
             subject = app.state.auth_limiter
+            from tests.support.redis_ready import warm_redis
+
+            await warm_redis(subject._redis())
             pairs = [
                 (Bucket("pair-" + str(i), 5, 3, 60), Bucket("shared-ip", 3, 2, 900))
                 for i in range(8)
