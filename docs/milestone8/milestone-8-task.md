@@ -7,9 +7,10 @@ Updated: 2026-10-11 (Asia/Bangkok)
 Target: ShinningF1eld/RestaurantOS
 GitHub milestone: [Milestone 8 Reliable background jobs and domain events](https://github.com/ShinningF1eld/RestaurantOS/milestone/3) (GitHub milestone number 3; product milestone 8).
 Publication authorization: user requested creation of milestone-8-task.md and GitHub issues with acceptance criteria, all assigned to GitHub Milestone 8.
-Task-plan revision: 1. T1 implementation is complete; its full backend-unit gate
-remains unverified because the unit-only Windows socket guard stalls at startup.
-Later task criteria remain planned and unverified.
+Task-plan revision: 1. T1 and T2 implementation evidence is recorded below and
+in `docs/current-state.md`. T2's full backend-unit gate remains unverified
+because the unit-only Windows socket guard stalls at startup. Later task
+criteria remain planned and unverified.
 
 ## Ordered tasks
 
@@ -114,15 +115,23 @@ Extend inventory domain/service/repository and expose a public transition/state 
 
 ## Acceptance criteria
 
-- [ ] Under the existing restaurant lock, assign monotonic state revisions for actual balance, threshold and active-state changes and persist stable episode IDs plus opening/closing facts. State is low exactly when active and quantity <= reorder_threshold, including zero at a zero threshold.
-- [ ] Creation with low opening stock opens one episode; further changes while low do not open another. Recovery above threshold, threshold reevaluation and archive resolve with explicit stock-recovery/threshold-change/archive reasons. Restoration while low opens a new episode.
-- [ ] Capture immutable ingredient name/unit, opening quantity/threshold, timestamps and resolution facts sufficient for history even when close events arrive first. Producer facts, not worker arrival order, determine episode identity.
-- [ ] Manual stock changes and order consumption use the same public inventory transition interface and retain restaurant/order/ascending ingredient locks, ledger/balance/audit atomicity and unchanged physical-count conflicts.
-- [ ] No-op updates, stock command idempotent replays and rollback do not advance state or emit transitions; cancellation neither restores stock nor resolves an episode. Baseline initialization has a supported suppression/provenance path rather than invented historical transitions.
+- [x] Under the existing restaurant lock, assign monotonic state revisions for actual balance, threshold and active-state changes and persist stable episode IDs plus opening/closing facts. State is low exactly when active and quantity <= reorder_threshold, including zero at a zero threshold.
+- [x] Creation with low opening stock opens one episode; further changes while low do not open another. Recovery above threshold, threshold reevaluation and archive resolve with explicit `stock_recovered`/`threshold_changed`/`archived` reasons. Restoration while low opens a new episode.
+- [x] Capture immutable ingredient name/unit, opening quantity/threshold, timestamps and resolution facts sufficient for history even when close events arrive first. Producer facts, not worker arrival order, determine episode identity.
+- [x] Manual stock changes and order consumption use the same public inventory transition interface and retain restaurant/order/ascending ingredient locks, ledger/balance/audit atomicity and unchanged physical-count conflicts.
+- [x] No-op updates, stock command idempotent replays and rollback do not advance state or emit transitions; cancellation neither restores stock nor resolves an episode. Baseline initialization has a supported suppression/provenance path rather than invented historical transitions.
 
 ## Verification
 
 Run backend-unit, backend-integration, backend-static and migrations. Cover every transition boundary and threshold/archive/restore case, idempotency conflicts and deterministic overlapping stock/acceptance writes.
+
+T2 evidence (2026-10-11): `backend-integration` passed 234 tests with model
+drift check, `backend-static` passed Ruff lint/format and mypy, and `migrations`
+passed clean/seeded upgrades and retained-fact downgrade guards. The focused
+transition/event unit modules passed 18 tests. The full `backend-unit` gate
+stalled in the existing Windows Proactor socket guard and is not claimed as
+passed. See `docs/milestone8/verification-milestone8-issue32.md` for commands,
+scope, and the limitation.
 
 <!-- github-plan: docs/milestone8/milestone-8-design.md | T2 -->
 

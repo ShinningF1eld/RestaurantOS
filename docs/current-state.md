@@ -20,6 +20,29 @@ the first asynchronous auth test. This is a validation limitation, not a claim
 that the full unit gate passed. M8 remains in progress; see
 [`docs/api/events.md`](api/events.md) for the implemented contract.
 
+## Milestone 8 Issue #32 T2 implementation evidence
+
+On 2026-10-11, T2 added monotonic inventory state revisions and durable low-stock
+episode facts. Manual stock commands and order acceptance call the same
+transaction-bound transition writer; episode opening snapshots and one-time
+resolution facts are retained independently of ingredient deletion. A partial
+unique index prevents multiple open episodes per ingredient, and a database
+trigger protects recorded history. The baseline interface records observation
+time and notification suppression for later Issue #38 maintenance. No event is
+emitted by T2.
+
+The `backend-static` gate passed. The disposable `backend-integration` gate
+passed all 234 tests with Alembic model-drift check, and `migrations` passed
+clean/seeded upgrades, legacy inventory preservation, and the retained-episode
+downgrade guard. The focused transition/event unit modules passed 18 tests. The
+full `backend-unit` gate was attempted but remains unverified because the
+existing unit-only socket guard stalls at Python's Windows Proactor
+`socketpair()` path in the first asynchronous auth test. This is not a full
+backend-unit pass. The host ran Python 3.13.15; the supported baseline is Python
+3.12. These partial runs do not establish Milestone 8 acceptance. The
+application database was not migrated. See the [Issue #32 verification record](milestone8/verification-milestone8-issue32.md) and
+[`docs/api/inventory.md`](api/inventory.md).
+
 Milestone 6 verification is dated 2026-10-06 in
 [the acceptance review](milestone6/milestone-6-verification.md). The complete local command
 passed, and all three roadmap exit criteria were verified with full GitHub CI and
@@ -194,14 +217,15 @@ The current models and tables are:
 | Membership | UUID `id` | Unique user; one organization; OWNER/MANAGER/EMPLOYEE; active/revoked |
 | RestaurantAssignment | `membership_id` + `restaurant_id` | Membership and restaurant must belong to the same organization |
 | AuditEntry | UUID `id` | Organization-scoped safe mutation facts; Owner-only inspection |
-| InventoryIngredient | `id` | Restaurant-scoped name, base unit, reorder threshold and active/archive state |
+| InventoryIngredient | `id` | Restaurant-scoped name, base unit, reorder threshold, active/archive state, and monotonic `state_revision` |
 | InventoryBalance | `ingredient_id` | Current nonnegative quantity and optimistic stock version |
 | InventoryMovement | `id` | Opening, receipt, waste, count or consumption delta; balance snapshot, actor, reason; manual idempotency or order reference |
+| InventoryLowStockEpisode | UUID `episode_id` | Immutable opening snapshot and one-time resolution facts, including organization/restaurant scope and operation provenance; retained across ingredient deletion |
 
 Alembic has one linear chain:
 
 ```text
-9007636220c5 -> 694f7189fe51 -> 2d7747d9f5b1 -> 4a1e9a2dc8e4 -> 72bd03a1f901 -> 83c7e1b4a902 -> 94d8f2c5b013 -> b37a6d91e204 -> c48b7e02f315 -> d57c8f13a426 -> e68d9a24b537 (repository head)
+9007636220c5 -> 694f7189fe51 -> 2d7747d9f5b1 -> 4a1e9a2dc8e4 -> 72bd03a1f901 -> 83c7e1b4a902 -> 94d8f2c5b013 -> b37a6d91e204 -> c48b7e02f315 -> d57c8f13a426 -> e68d9a24b537 -> c61a0f3d9e42 -> b8f34c2a91de (repository head)
 ```
 
 The existing application database is currently verified at

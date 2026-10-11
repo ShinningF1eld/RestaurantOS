@@ -20,6 +20,10 @@ from app.modules.inventory.repo.models import (
     InventoryBalance,
     InventoryMovement,
 )
+from app.modules.inventory.service import (
+    inventory_state_snapshot,
+    record_inventory_transition,
+)
 from app.modules.inventory.repo.queries import InventoryRepository
 from app.modules.orders.domain.commands import (
     CreateOrder as CreateOrder,
@@ -317,8 +321,21 @@ class OrderService:
         )
         for ingredient, balance, required in rows:
             after = balance.quantity - required
+            before = inventory_state_snapshot(
+                context.organization_id, ingredient, balance
+            )
             balance.quantity = after
             balance.version += 1
+            await record_inventory_transition(
+                self._session,
+                context.organization_id,
+                ingredient,
+                balance,
+                before,
+                source="order_acceptance",
+                actor_user_id=context.user_id,
+                order_id=order.order_id,
+            )
             self._session.add(
                 InventoryMovement(
                     ingredient_id=ingredient.id,

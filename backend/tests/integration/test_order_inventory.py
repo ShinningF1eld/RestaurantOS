@@ -111,6 +111,30 @@ def movement_rows(order_id: int) -> list[dict]:
         return [dict(row) for row in rows]
 
 
+def inventory_state_revision(ingredient_id: int) -> int:
+    with engine.connect() as db:
+        return db.scalar(
+            text(
+                "SELECT state_revision FROM inventory_ingredients WHERE id=:ingredient"
+            ),
+            {"ingredient": ingredient_id},
+        )
+
+
+def inventory_episodes(ingredient_id: int) -> list[dict]:
+    with engine.connect() as db:
+        rows = db.execute(
+            text(
+                "SELECT episode_id,opening_revision,opening_source,opening_order_id,"
+                "resolved_at,resolution_reason,resolution_revision,resolution_source "
+                "FROM inventory_low_stock_episodes WHERE ingredient_id=:ingredient "
+                "ORDER BY opening_revision"
+            ),
+            {"ingredient": ingredient_id},
+        ).mappings()
+        return [dict(row) for row in rows]
+
+
 def add_role_clients(auth_user, restaurant_id: int, roles: tuple[str, ...]):
     """Provision distinct, assigned staff sessions for real concurrent requests."""
     accounts = []
@@ -480,6 +504,17 @@ def test_acceptance_flush_failures_roll_back_balance_movement_order_and_audit(
     ingredient = create_ingredient(
         client, restaurant, name=f"Fail {failure_point}", quantity="10"
     )
+    changed_threshold = client.put(
+        f"/api/restaurants/{restaurant}/inventory/ingredients/{ingredient['id']}",
+        json={
+            "name": ingredient["name"],
+            "unit": ingredient["unit"],
+            "reorder_threshold": "4",
+            "is_active": True,
+        },
+    )
+    assert changed_threshold.status_code == 200, changed_threshold.text
+    revision_before_acceptance = inventory_state_revision(ingredient["id"])
     assert (
         set_recipe(
             client, item, [{"ingredient_id": ingredient["id"], "quantity": "3"}]
@@ -533,6 +568,8 @@ def test_acceptance_flush_failures_roll_back_balance_movement_order_and_audit(
     assert current.json()["status"] == "SUBMITTED"
     assert balance(client, restaurant, ingredient["id"]) == Decimal("10")
     assert movement_rows(order_id) == []
+    assert inventory_state_revision(ingredient["id"]) == revision_before_acceptance
+    assert inventory_episodes(ingredient["id"]) == []
     assert client.get("/api/audit?limit=100").json() == audit_before
 
 
@@ -599,6 +636,16 @@ def test_cancellation_never_returns_stock_after_recipe_edit_and_history_is_retai
 ):
     client, restaurant, item = tracked_setup
     ingredient = create_ingredient(client, restaurant, name="Rice", quantity="10")
+    threshold = client.put(
+        f"/api/restaurants/{restaurant}/inventory/ingredients/{ingredient['id']}",
+        json={
+            "name": ingredient["name"],
+            "unit": ingredient["unit"],
+            "reorder_threshold": "6",
+            "is_active": True,
+        },
+    )
+    assert threshold.status_code == 200, threshold.text
     assert (
         set_recipe(
             client, item, [{"ingredient_id": ingredient["id"], "quantity": "2"}]
@@ -611,6 +658,12 @@ def test_cancellation_never_returns_stock_after_recipe_edit_and_history_is_retai
     assert update_order(client, order_id, "SUBMITTED").status_code == 200
     assert update_order(client, order_id, "ACCEPTED").status_code == 200
     assert balance(client, restaurant, ingredient["id"]) == Decimal("6")
+    episode = inventory_episodes(ingredient["id"])[0]
+    assert episode["opening_source"] == "order_acceptance"
+    assert episode["opening_order_id"] == order_id
+    assert episode["opening_revision"] == 3
+    revision_after_acceptance = inventory_state_revision(ingredient["id"])
+    assert revision_after_acceptance == 3
 
     assert update_order(client, order_id, "CANCELLED").status_code == 200
     edited = set_recipe(
@@ -620,6 +673,8 @@ def test_cancellation_never_returns_stock_after_recipe_edit_and_history_is_retai
     repeated_cancel = update_order(client, order_id, "CANCELLED")
     assert repeated_cancel.status_code == 200, repeated_cancel.text
     assert balance(client, restaurant, ingredient["id"]) == Decimal("6")
+    assert inventory_state_revision(ingredient["id"]) == revision_after_acceptance
+    assert inventory_episodes(ingredient["id"])[0]["resolved_at"] is None
     rows = movement_rows(order_id)
     assert len(rows) == 1
     assert rows[0]["kind"] == "consumption"
@@ -681,6 +736,16 @@ def test_two_distinct_managers_accepting_competing_orders_cannot_overdraw(
         ingredient = create_ingredient(
             owner, restaurant, name="Limited rice", quantity="10"
         )
+        threshold = owner.put(
+            f"/api/restaurants/{restaurant}/inventory/ingredients/{ingredient['id']}",
+            json={
+                "name": ingredient["name"],
+                "unit": ingredient["unit"],
+                "reorder_threshold": "3",
+                "is_active": True,
+            },
+        )
+        assert threshold.status_code == 200, threshold.text
         assert (
             set_recipe(
                 owner, item, [{"ingredient_id": ingredient["id"], "quantity": "7"}]
@@ -705,6 +770,12 @@ def test_two_distinct_managers_accepting_competing_orders_cannot_overdraw(
         winner_index = 0 if first.status_code == 200 else 1
         loser_index = 1 - winner_index
         assert balance(owner, restaurant, ingredient["id"]) == Decimal("3")
+        episodes = inventory_episodes(ingredient["id"])
+        assert len(episodes) == 1
+        assert episodes[0]["opening_source"] == "order_acceptance"
+        assert episodes[0]["opening_order_id"] == order_ids[winner_index]
+        assert episodes[0]["resolved_at"] is None
+        assert inventory_state_revision(ingredient["id"]) == 3
         assert len(movement_rows(order_ids[winner_index])) == 1
         assert movement_rows(order_ids[loser_index]) == []
         with engine.connect() as db:
@@ -779,6 +850,19 @@ def test_manual_receipt_waste_and_count_serialize_with_acceptance(
     assert manual.status_code == expected_manual_status, manual.text
     assert balance(client, restaurant, ingredient["id"]) == expected_balance
     assert len(movement_rows(order_id)) == 1
+    if kind == "receipt":
+        episodes = inventory_episodes(ingredient["id"])
+        assert len(episodes) == 1
+        assert episodes[0]["opening_source"] == "order_acceptance"
+        assert episodes[0]["opening_order_id"] == order_id
+        assert episodes[0]["opening_revision"] == 2
+        assert episodes[0]["resolution_reason"] == "stock_recovered"
+        assert episodes[0]["resolution_source"] == "stock_command"
+        assert episodes[0]["resolution_revision"] == 3
+        assert inventory_state_revision(ingredient["id"]) == 3
+    else:
+        assert inventory_episodes(ingredient["id"]) == []
+        assert inventory_state_revision(ingredient["id"]) == 2
     for role_client, _ in managers:
         role_client.close()
 

@@ -121,6 +121,7 @@ def test_order_revision_helper_and_inventory_transition_contract() -> None:
 
     episode_id = uuid4()
     transition = InventoryTransition(
+        organization_id=uuid4(),
         restaurant_id=1,
         ingredient_id=8,
         state_revision=4,

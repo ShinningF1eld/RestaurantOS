@@ -8,6 +8,14 @@ and an inventory opening movement, then verifies that those rows survive the
 upgrade. It also asserts that the newly introduced inventory flags leave legacy
 menu items untracked and legacy orders unprocessed.
 
+The T2 inventory migration gives existing ingredients state revision 1 without
+creating historical low-stock episodes. The seeded path checks both facts. It
+also inserts a representative initialization episode, attempts to downgrade
+past the T2 migration, and verifies that retained episode facts and schema stay
+unchanged when the downgrade guard rejects the operation. Episode opening facts
+are protected by a PostgreSQL trigger; the history table has no cascading
+ingredient foreign key.
+
 The selected legacy baseline is after tenancy ownership, order item snapshots,
 and the inventory ledger were introduced, and immediately before recipe tracking
 and order inventory processing. That makes the fixture representative of data
