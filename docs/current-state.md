@@ -5,6 +5,21 @@ in [issue #27 verification](milestone7/verification-milestone7-issue27.md).
 Catalog/dashboard experiments and full ten-gate local validation passed;
 final PR CI remains required. Full milestone acceptance is not yet claimed.
 
+## Milestone 8 Issue #31 T1 implementation evidence
+
+On 2026-10-11, T1 added the eight typed event contracts, fixed subscription
+registry, transaction-bound PostgreSQL outbox and delivery/history tables, and
+order revision metadata. The API does not emit these events yet; inventory
+transition production, Redis publication, and consumers remain later M8 tasks.
+`backend-static` passed, the event contract unit module passed (6 tests), the
+PostgreSQL integration gate passed (228 tests) with model drift check, and the
+clean/seeded `migrations` gate passed, including both downgrade guards. The full
+`backend-unit` gate could not complete on this Windows host: its existing
+unit-only socket guard blocks in Python's Windows Proactor `socketpair()` during
+the first asynchronous auth test. This is a validation limitation, not a claim
+that the full unit gate passed. M8 remains in progress; see
+[`docs/api/events.md`](api/events.md) for the implemented contract.
+
 Milestone 6 verification is dated 2026-10-06 in
 [the acceptance review](milestone6/milestone-6-verification.md). The complete local command
 passed, and all three roadmap exit criteria were verified with full GitHub CI and

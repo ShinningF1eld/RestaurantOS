@@ -10,6 +10,7 @@ import app.db.models  # noqa: F401 - register every model with Base.metadata
 import app.modules.auth.repo.models  # noqa: F401 - register feature models
 import app.modules.tenancy.repo.models  # noqa: F401 - register feature models
 import app.modules.audit.repo.models  # noqa: F401 - register feature models
+import app.modules.events.repo.models  # noqa: F401 - register feature models
 from app.core.config import get_settings
 from app.db.models.base import Base
 

@@ -7,7 +7,9 @@ Updated: 2026-10-11 (Asia/Bangkok)
 Target: ShinningF1eld/RestaurantOS
 GitHub milestone: [Milestone 8 Reliable background jobs and domain events](https://github.com/ShinningF1eld/RestaurantOS/milestone/3) (GitHub milestone number 3; product milestone 8).
 Publication authorization: user requested creation of milestone-8-task.md and GitHub issues with acceptance criteria, all assigned to GitHub Milestone 8.
-Task-plan revision: 1. All criteria below are planned and unverified.
+Task-plan revision: 1. T1 implementation is complete; its full backend-unit gate
+remains unverified because the unit-only Windows socket guard stalls at startup.
+Later task criteria remain planned and unverified.
 
 ## Ordered tasks
 
@@ -24,6 +26,14 @@ Task-plan revision: 1. All criteria below are planned and unverified.
 | T9 | Expose scoped inventory alerts and history with resilient refresh | R10, R12 | T7, T8 | [#39](https://github.com/ShinningF1eld/RestaurantOS/issues/39) |
 | T10 | Enforce worker failure and workflow regressions in shared validation gates | R1–R14 | T6, T7, T8, T9 | [#40](https://github.com/ShinningF1eld/RestaurantOS/issues/40) |
 | T11 | Measure processing freshness and publish Milestone 8 operational evidence | R3, R6, R11–R14; roadmap exit criteria | T10 | [#41](https://github.com/ShinningF1eld/RestaurantOS/issues/41) |
+
+T1 implementation evidence (2026-10-11): backend-static passed; the event
+contract unit module passed (6 tests); backend-integration passed (228 tests)
+with `alembic check`; clean and seeded `migrations` verification passed,
+including the retained-event downgrade guard. The full backend-unit gate was
+attempted but stalls in the existing unit-only socket guard on this Windows
+host; see `docs/current-state.md` for the stack location and limitation. This
+does not establish full Milestone 8 acceptance.
 
 ## Coverage and sequencing
 
@@ -76,11 +86,11 @@ None.
 
 ## Acceptance criteria
 
-- [ ] Define all eight approved contracts: order.submitted.v1, order.accepted.v1, order.completed.v1, order.cancelled.v1, order.deleted.v1, menu.updated.v1, inventory.state_changed.v1, inventory.low.v1. Record typed fields, trigger/no-op matrix, and the fixed event-to-consumer subscription matrix in docs/api/.
-- [ ] Envelopes carry stable UUID, consistent type/version, verified organization/restaurant, aggregate identity/revision, UTC occurrence time and request correlation. Serialize decimal money/quantities losslessly; explicitly interpret naive order creation timestamps as UTC while retaining creation-date grouping. Exclude customer names/notes, credentials, cookies, headers and arbitrary request bodies.
-- [ ] Persist immutable events, per-consumer delivery state, unique (consumer,event_id) receipts, retained attempt/replay history and claim ownership. Required delivery rows are inserted alongside the event through a public service interface using the caller's transaction; repositories never commit.
-- [ ] Constraints enforce applicable scope/identity relationships; deleting orders/menu items/ingredients cannot cascade-delete durable event or history facts. Redis metadata cannot select handlers or override authoritative payloads.
-- [ ] Add order revision metadata with safe populated-database defaults; preserve immutable snapshots and existing history. Review migration SQL/indexes and downgrade guards against discarding retained work; maintain one Alembic head and no implicit startup migration.
+- [x] Define all eight approved contracts: order.submitted.v1, order.accepted.v1, order.completed.v1, order.cancelled.v1, order.deleted.v1, menu.updated.v1, inventory.state_changed.v1, inventory.low.v1. Record typed fields, trigger/no-op matrix, and the fixed event-to-consumer subscription matrix in docs/api/.
+- [x] Envelopes carry stable UUID, consistent type/version, verified organization/restaurant, aggregate identity/revision, UTC occurrence time and request correlation. Serialize decimal money/quantities losslessly; explicitly interpret naive order creation timestamps as UTC while retaining creation-date grouping. Exclude customer names/notes, credentials, cookies, headers and arbitrary request bodies.
+- [x] Persist immutable events, per-consumer delivery state, unique (consumer,event_id) receipts, retained attempt/replay history and claim ownership. Required delivery rows are inserted alongside the event through a public service interface using the caller's transaction; repositories never commit.
+- [x] Constraints enforce applicable scope/identity relationships; deleting orders/menu items/ingredients cannot cascade-delete durable event or history facts. Redis metadata cannot select handlers or override authoritative payloads.
+- [x] Add order revision metadata with safe populated-database defaults; preserve immutable snapshots and existing history. Review migration SQL/indexes and downgrade guards against discarding retained work; maintain one Alembic head and no implicit startup migration.
 
 ## Verification
 

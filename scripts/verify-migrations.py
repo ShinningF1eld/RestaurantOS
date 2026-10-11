@@ -242,16 +242,17 @@ def verify_untracked_legacy_rows(database: TestDatabase) -> None:
             (MENU_ITEM_ID,),
         ).fetchone()
         processed = connection.execute(
-            "SELECT order_id,inventory_processed FROM orders "
+            "SELECT order_id,inventory_processed,revision FROM orders "
             "WHERE order_id IN (%s,%s) ORDER BY order_id",
             (ACCEPTED_ORDER_ID, COMPLETED_ORDER_ID),
         ).fetchall()
         assert tracking == (False,), (
             f"Legacy menu item became inventory tracked: {tracking}"
         )
-        assert processed == [(ACCEPTED_ORDER_ID, False), (COMPLETED_ORDER_ID, False)], (
-            f"Legacy orders became inventory processed: {processed}"
-        )
+        assert processed == [
+            (ACCEPTED_ORDER_ID, False, 1),
+            (COMPLETED_ORDER_ID, False, 1),
+        ], f"Legacy orders became inventory processed: {processed}"
 
 
 def verify_history_downgrade_guard(
@@ -307,6 +308,93 @@ def verify_history_downgrade_guard(
     run_alembic("check", env=env)
     print(
         "PASS: prohibited order-history downgrade left schema and data unchanged",
+        flush=True,
+    )
+
+
+def verify_event_history_downgrade_guard(
+    database: TestDatabase, env: Mapping[str, str], head: str
+) -> None:
+    """Prove retained outbox data prevents destructive M8 schema downgrade."""
+    event_id = uuid4()
+    delivery_id = uuid4()
+    attempt_id = uuid4()
+    replay_id = uuid4()
+    with psycopg.connect(database.sync_url) as connection:
+        connection.execute(
+            "INSERT INTO outbox_events(event_id,event_type,schema_version,organization_id,"
+            "restaurant_id,aggregate_type,aggregate_id,aggregate_revision,occurred_at,"
+            "correlation_id,payload) SELECT %s,'order.completed.v1',1,organization_id,%s,"
+            "'order',%s,1,now(),'migration-correlation',"
+            '\'{"order_id":102,"total":"50.00","created_at":"2026-10-11T00:00:00+00:00"}\'::jsonb '
+            "FROM restaurants WHERE id=%s",
+            (event_id, RESTAURANT_ID, str(COMPLETED_ORDER_ID), RESTAURANT_ID),
+        )
+        connection.execute(
+            "INSERT INTO event_deliveries(id,event_id,consumer_name) "
+            "VALUES(%s,%s,'analytics')",
+            (delivery_id, event_id),
+        )
+        connection.execute(
+            "INSERT INTO event_receipts(consumer_name,event_id,outcome) "
+            "VALUES('analytics',%s,'processed')",
+            (event_id,),
+        )
+        connection.execute(
+            "INSERT INTO event_delivery_attempts(id,delivery_id,retry_cycle,attempt_number,status) "
+            "VALUES(%s,%s,0,1,'succeeded')",
+            (attempt_id, delivery_id),
+        )
+        connection.execute(
+            "INSERT INTO event_delivery_replays(replay_id,delivery_id,from_cycle,to_cycle,operator,reason,correlation_id) "
+            "VALUES(%s,%s,0,1,'migration-check','retention guard check','migration-replay')",
+            (replay_id, delivery_id),
+        )
+        before_schema = schema_snapshot(connection)
+        before_facts = connection.execute(
+            "SELECT event_id,event_type,schema_version,organization_id,restaurant_id,"
+            "aggregate_type,aggregate_id,aggregate_revision,occurred_at,correlation_id,payload "
+            "FROM outbox_events WHERE event_id=%s",
+            (event_id,),
+        ).fetchall()
+
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "downgrade", "e68d9a24b537"],
+        cwd=BACKEND,
+        env=dict(env),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    diagnostics = result.stdout + result.stderr
+    if result.returncode == 0 or "retained event/delivery history" not in diagnostics:
+        raise AssertionError(
+            "The retained-event downgrade guard did not reject history loss"
+        )
+
+    with psycopg.connect(database.sync_url) as connection:
+        after_schema = schema_snapshot(connection)
+        after_facts = connection.execute(
+            "SELECT event_id,event_type,schema_version,organization_id,restaurant_id,"
+            "aggregate_type,aggregate_id,aggregate_revision,occurred_at,correlation_id,payload "
+            "FROM outbox_events WHERE event_id=%s",
+            (event_id,),
+        ).fetchall()
+    if current_revision(database) != head:
+        raise AssertionError(
+            "Rejected event-history downgrade changed Alembic revision"
+        )
+    if after_schema != before_schema:
+        raise AssertionError(
+            "Rejected event-history downgrade left partial schema changes"
+        )
+    if after_facts != before_facts:
+        raise AssertionError(
+            "Rejected event-history downgrade changed retained event facts"
+        )
+    run_alembic("check", env=env)
+    print(
+        "PASS: retained event/delivery downgrade left schema and facts unchanged",
         flush=True,
     )
 
@@ -378,6 +466,7 @@ def verify_legacy(head: str, script: ScriptDirectory, fail_after: str | None) ->
                     "Order-inventory revision is present without its recipe predecessor"
                 )
             verify_history_downgrade_guard(database, env, head)
+            verify_event_history_downgrade_guard(database, env, head)
         else:
             print(
                 "SKIP: current migration graph has no order-inventory downgrade guard",
