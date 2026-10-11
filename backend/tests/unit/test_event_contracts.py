@@ -8,6 +8,9 @@ import pytest
 from pydantic import ValidationError
 
 from app.modules.events.domain.contracts import (
+    InventoryLowPayload,
+    InventoryStateChangedEvent,
+    InventoryStateChangedPayload,
     OrderCompletedEvent,
     OrderCompletedPayload,
     UnsupportedEventVersion,
@@ -139,3 +142,109 @@ def test_order_revision_helper_and_inventory_transition_contract() -> None:
     )
     assert transition.state_revision == 4
     assert transition.is_low is True
+
+
+@pytest.mark.parametrize(
+    "quantity,active,is_low,transition,reason",
+    [
+        ("10.000", True, False, "opened", None),
+        ("2.000", False, False, "opened", None),
+        ("2.000", True, True, "resolved", "stock_recovered"),
+    ],
+)
+def test_inventory_event_rejects_contradictory_episode_state(
+    quantity, active, is_low, transition, reason
+) -> None:
+    payload = {
+        "ingredient_id": 8,
+        "ingredient_name": "Rice",
+        "unit": "g",
+        "quantity": quantity,
+        "reorder_threshold": "5.000",
+        "is_active": active,
+        "is_low": is_low,
+        "episode_id": str(uuid4()),
+        "episode_transition": transition,
+        "resolution_reason": reason,
+    }
+    with pytest.raises(ValidationError, match="resulting state"):
+        InventoryStateChangedPayload.model_validate(payload)
+    raw = {
+        "event_type": "inventory.state_changed.v1",
+        "schema_version": 1,
+        "organization_id": str(uuid4()),
+        "restaurant_id": 1,
+        "aggregate_type": "ingredient",
+        "aggregate_id": "8",
+        "aggregate_revision": 4,
+        "occurred_at": "2026-10-11T06:00:00Z",
+        "correlation_id": "inventory-review",
+        "payload": payload,
+    }
+    with pytest.raises(ValueError, match="contract validation"):
+        deserialize_event(raw)
+
+
+@pytest.mark.parametrize(
+    "quantity,threshold,active,transition,reason",
+    [
+        ("0.000", "0.000", True, "opened", None),
+        ("5.000", "5.000", True, "opened", None),
+        ("2.000", "5.000", True, None, None),
+        ("6.000", "5.000", True, "resolved", "stock_recovered"),
+        ("5.000", "4.000", True, "resolved", "threshold_changed"),
+        ("2.000", "5.000", False, "resolved", "archived"),
+    ],
+)
+def test_inventory_event_preserves_valid_episode_boundaries(
+    quantity, threshold, active, transition, reason
+) -> None:
+    payload = InventoryStateChangedPayload(
+        ingredient_id=8,
+        ingredient_name="Rice",
+        unit="g",
+        quantity=quantity,
+        reorder_threshold=threshold,
+        is_active=active,
+        is_low=active and Decimal(quantity) <= Decimal(threshold),
+        episode_id=uuid4(),
+        episode_transition=transition,
+        resolution_reason=reason,
+    )
+    event = InventoryStateChangedEvent(
+        organization_id=uuid4(),
+        restaurant_id=1,
+        aggregate_id="8",
+        aggregate_revision=4,
+        occurred_at=datetime.now(UTC),
+        correlation_id="inventory-review",
+        payload=payload,
+    )
+    assert deserialize_event(serialize_event(event)) == event
+
+
+@pytest.mark.parametrize("quantity,threshold", [("0.000", "0.000"), ("5.000", "5.000")])
+def test_low_episode_accepts_quantity_at_threshold(quantity, threshold) -> None:
+    payload = InventoryLowPayload(
+        ingredient_id=8,
+        episode_id=uuid4(),
+        ingredient_name="Rice",
+        unit="g",
+        opening_quantity=quantity,
+        reorder_threshold=threshold,
+        opened_at=datetime.now(UTC),
+    )
+    assert payload.opening_quantity == Decimal(quantity)
+
+
+def test_low_episode_rejects_opening_quantity_above_threshold() -> None:
+    with pytest.raises(ValidationError, match="opening quantity"):
+        InventoryLowPayload(
+            ingredient_id=8,
+            episode_id=uuid4(),
+            ingredient_name="Rice",
+            unit="g",
+            opening_quantity="5.001",
+            reorder_threshold="5.000",
+            opened_at=datetime.now(UTC),
+        )

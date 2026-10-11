@@ -145,6 +145,13 @@ class InventoryTransition:
             self.episode_facts.episode_id
         ):
             raise ValueError("episode facts ID must match the current episode ID")
+        if self.episode_transition is not None:
+            if self.episode_transition.kind == "opened" and not self.is_low:
+                raise ValueError("an opened episode requires a low resulting state")
+            if self.episode_transition.kind == "resolved" and self.is_low:
+                raise ValueError(
+                    "a resolved episode requires a non-low resulting state"
+                )
 
     @property
     def is_low(self) -> bool:

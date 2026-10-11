@@ -20,6 +20,18 @@ the first asynchronous auth test. This is a validation limitation, not a claim
 that the full unit gate passed. M8 remains in progress; see
 [`docs/api/events.md`](api/events.md) for the implemented contract.
 
+Follow-up on 2026-10-11 fixes the Issue #31 P2 contract finding: event payloads
+and producer boundaries reject contradictory episode opening/resolution states,
+and low-stock opening quantities cannot exceed their thresholds. Legacy low
+producer snapshots remain valid without an episode until initialization. The
+focused suites passed 34 tests; full `backend-unit` passed 259 tests and
+`backend-static` passed using Python 3.12.13 outside the sandbox. Integration
+passed 234 tests with no Alembic model drift. The earlier Windows stall is sandbox-dependent in
+this run, rather than proof of a current socket-guard defect. See the
+[updated Issue #31 report](milestone8/verification-milestone8-issue31.md) for
+pre-fix evidence and follow-up results. No schema or application migration is
+needed by this fix; full M8 acceptance remains open.
+
 ## Milestone 8 Issue #32 T2 implementation evidence
 
 On 2026-10-11, T2 added monotonic inventory state revisions and durable low-stock

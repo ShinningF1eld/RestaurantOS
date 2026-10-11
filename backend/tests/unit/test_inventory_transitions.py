@@ -8,6 +8,7 @@ from app.modules.inventory.domain.transitions import (
     InventoryEpisodeFacts,
     InventoryEpisodeTransition,
     InventoryStateSnapshot,
+    InventoryTransition,
     episode_resolution_reason,
     inventory_state_changed,
     low_episode_transition,
@@ -145,3 +146,55 @@ def test_open_episode_transition_cannot_claim_a_resolution_reason() -> None:
             occurred_at=datetime.now(UTC),
             resolution_reason="stock_recovered",
         )
+
+
+@pytest.mark.parametrize(
+    "quantity,active,kind,reason",
+    [
+        ("6", True, "opened", None),
+        ("2", False, "opened", None),
+        ("2", True, "resolved", "stock_recovered"),
+    ],
+)
+def test_producer_transition_rejects_contradictory_episode_state(
+    quantity, active, kind, reason
+) -> None:
+    episode_id = uuid4()
+    snapshot = state(quantity=quantity, active=active)
+    with pytest.raises(ValueError, match="resulting state"):
+        InventoryTransition(
+            organization_id=snapshot.organization_id,
+            restaurant_id=snapshot.restaurant_id,
+            ingredient_id=snapshot.ingredient_id,
+            state_revision=snapshot.state_revision,
+            ingredient_name=snapshot.ingredient_name,
+            unit=snapshot.unit,
+            quantity=snapshot.quantity,
+            reorder_threshold=snapshot.reorder_threshold,
+            is_active=snapshot.is_active,
+            episode_id=episode_id,
+            episode_transition=InventoryEpisodeTransition(
+                episode_id=episode_id,
+                kind=kind,
+                occurred_at=datetime.now(UTC),
+                resolution_reason=reason,
+            ),
+        )
+
+
+def test_legacy_low_producer_snapshot_can_wait_for_episode_initialization() -> None:
+    snapshot = state(quantity="0", threshold="0")
+    transition = InventoryTransition(
+        organization_id=snapshot.organization_id,
+        restaurant_id=snapshot.restaurant_id,
+        ingredient_id=snapshot.ingredient_id,
+        state_revision=snapshot.state_revision,
+        ingredient_name=snapshot.ingredient_name,
+        unit=snapshot.unit,
+        quantity=snapshot.quantity,
+        reorder_threshold=snapshot.reorder_threshold,
+        is_active=snapshot.is_active,
+    )
+    assert transition.is_low
+    assert transition.episode_id is None
+    assert transition.episode_transition is None

@@ -64,6 +64,15 @@ Multiple events produced by one command use the same correlation ID. This issue
 defines contracts and persistence only; business event emission and inventory
 transition persistence land in later M8 tasks.
 
+Inventory episode contracts reject contradictory boundary facts: an `opened`
+transition requires a low resulting state and episode identity; a `resolved`
+transition requires a non-low resulting state, episode identity and resolution
+reason. A low-stock opening quantity must be at or below its threshold,
+including zero at a zero threshold. The public inventory producer transition
+type also checks opened/resolved boundaries. A legacy producer snapshot without
+a boundary may remain low without an episode ID until maintenance initialization;
+it is not an emitted low-state payload.
+
 ## Fixed subscription matrix
 
 The registry is code-owned and immutable. Consumer names here identify future

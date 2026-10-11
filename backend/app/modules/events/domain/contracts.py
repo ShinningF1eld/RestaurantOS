@@ -169,7 +169,13 @@ class InventoryStateChangedPayload(ContractModel):
             raise ValueError("is_low must match active quantity and threshold")
         if self.is_low and self.episode_id is None:
             raise ValueError("low inventory state requires an episode ID")
+        if self.episode_transition == "opened" and not self.is_low:
+            raise ValueError("an opened episode requires a low resulting state")
         if self.episode_transition == "resolved":
+            if self.is_low:
+                raise ValueError(
+                    "a resolved episode requires a non-low resulting state"
+                )
             if self.episode_id is None or self.resolution_reason is None:
                 raise ValueError("episode resolution requires its ID and reason")
         elif self.resolution_reason is not None:
@@ -190,6 +196,14 @@ class InventoryLowPayload(ContractModel):
     @classmethod
     def require_utc_open_time(cls, value: datetime) -> datetime:
         return _utc_timestamp(value)
+
+    @model_validator(mode="after")
+    def validate_opening_state(self) -> InventoryLowPayload:
+        if self.opening_quantity > self.reorder_threshold:
+            raise ValueError(
+                "low episode opening quantity must be at or below threshold"
+            )
+        return self
 
 
 class EventEnvelopeBase(ContractModel):
