@@ -5,6 +5,28 @@ in [issue #27 verification](milestone7/verification-milestone7-issue27.md).
 Catalog/dashboard experiments and full ten-gate local validation passed;
 final PR CI remains required. Full milestone acceptance is not yet claimed.
 
+## Milestone 8 Issue #33 T3 implementation evidence
+
+On 2026-10-12, T3 integrated order lifecycle/deletion, catalog change and
+inventory state/episode event producers into existing business transactions.
+Business state, stock ledger, audit, events and fixed delivery fan-out commit
+atomically. No-op/status retries and idempotent replays emit no additional event.
+Completion and deletion capture authoritative totals, UTC creation timestamps
+and revisions; acceptance's stock/order events share command correlation.
+Catalog revisions use retained scoped events under the restaurant lock. Legacy
+low rows without initialized episodes emit truthful state changes without false
+low-stock openings. See [event contracts](api/events.md).
+
+Python 3.12.13 validation passed `backend-unit` (262 tests),
+`backend-integration` (257 tests and no Alembic model drift) and `backend-static`
+(Ruff lint/format and mypy). Regressions include twelve rollback injections,
+locked concurrent catalog edits and a real API killed after commit with Redis
+unavailable, leaving complete pending delivery records in PostgreSQL. Earlier
+test-fixture failures were corrected before the final passing run. No schema/API
+changes or application migration were performed. Worker processing and full M8
+acceptance remain later tasks. Exact commands, acceptance mapping and omissions
+are in [Issue #33 verification](milestone8/verification-milestone8-issue33.md).
+
 ## Milestone 8 Issue #31 T1 implementation evidence
 
 On 2026-10-11, T1 added the eight typed event contracts, fixed subscription

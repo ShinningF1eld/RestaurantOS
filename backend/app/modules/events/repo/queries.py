@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.events.repo.models import EventDelivery, OutboxEvent
@@ -35,3 +35,20 @@ class EventRepository:
     async def flush(self) -> None:
         """Flush fan-out with the caller's transaction; never commits or rolls back."""
         await self._session.flush()
+
+    async def next_catalog_revision(
+        self,
+        organization_id: UUID,
+        restaurant_id: int,
+        aggregate_type: str,
+        aggregate_id: str,
+    ) -> int:
+        revision = await self._session.scalar(
+            select(func.max(OutboxEvent.aggregate_revision)).where(
+                OutboxEvent.organization_id == organization_id,
+                OutboxEvent.restaurant_id == restaurant_id,
+                OutboxEvent.aggregate_type == aggregate_type,
+                OutboxEvent.aggregate_id == aggregate_id,
+            )
+        )
+        return (revision or 0) + 1

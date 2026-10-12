@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.modules.events.service import CommandEvents
 from app.core.errors import ConflictError, ValidationError
 from app.modules.auth.domain.principal import AuthenticatedPrincipal
 from app.modules.audit.service import record
@@ -127,6 +128,7 @@ async def record_inventory_transition(
     actor_user_id: UUID | None,
     order_id: int | None = None,
     occurred_at: datetime | None = None,
+    command_events: CommandEvents | None = None,
 ) -> InventoryTransition | None:
     """Persist a state revision and episode boundary in the caller's transaction.
 
@@ -199,7 +201,53 @@ async def record_inventory_transition(
         pass
 
     await session.flush()
-    return _transition_snapshot(after, episode, transition_fact)
+    transition = _transition_snapshot(after, episode, transition_fact)
+    events = command_events or CommandEvents()
+    await events.append(
+        session,
+        event_type="inventory.state_changed.v1",
+        organization_id=organization_id,
+        restaurant_id=item.restaurant_id,
+        aggregate_type="ingredient",
+        aggregate_id=item.id,
+        aggregate_revision=transition.state_revision,
+        payload={
+            "ingredient_id": item.id,
+            "ingredient_name": transition.ingredient_name,
+            "unit": transition.unit,
+            "quantity": transition.quantity,
+            "reorder_threshold": transition.reorder_threshold,
+            "is_active": transition.is_active,
+            "is_low": transition.is_low,
+            "episode_id": transition.episode_id,
+            "episode_transition": transition_fact.kind if transition_fact else None,
+            "resolution_reason": transition_fact.resolution_reason
+            if transition_fact
+            else None,
+        },
+    )
+    if transition_fact is not None and transition_fact.kind == "opened":
+        assert transition.episode_facts is not None
+        facts = transition.episode_facts
+        await events.append(
+            session,
+            event_type="inventory.low.v1",
+            organization_id=organization_id,
+            restaurant_id=item.restaurant_id,
+            aggregate_type="ingredient",
+            aggregate_id=item.id,
+            aggregate_revision=facts.opening_revision,
+            payload={
+                "ingredient_id": item.id,
+                "episode_id": facts.episode_id,
+                "ingredient_name": facts.ingredient_name,
+                "unit": facts.unit,
+                "opening_quantity": facts.opening_quantity,
+                "reorder_threshold": facts.opening_reorder_threshold,
+                "opened_at": facts.opened_at,
+            },
+        )
+    return transition
 
 
 async def load_inventory_state(

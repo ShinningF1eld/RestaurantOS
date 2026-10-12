@@ -85,12 +85,20 @@ are not assigned invented historical episodes.
 Inventory and order services share `record_inventory_transition` within their
 existing transaction and lock order. It returns an immutable
 `InventoryTransition` containing the resulting state and complete episode facts
-for later event producers. `load_inventory_state(..., lock=True)` provides
+and appends state/episode events in that same transaction. `load_inventory_state(..., lock=True)` provides
 trusted consumers a live state check under the same restaurant and ingredient
 locks. `record_baseline_inventory_episode` supports later maintenance setup:
 it records the observation time and `maintenance_initialization` provenance,
 marks notification suppression, and does not advance the inventory revision.
-These internal interfaces do not add HTTP routes or emit events in Issue #32.
+Issue #33 emits `inventory.state_changed.v1` for genuine balance, threshold,
+or active-state changes and `inventory.low.v1` only for new episode openings.
+Further low-state changes retain the episode identity without another low event.
+Name/unit-only edits, zero-delta counts and idempotent replays emit no event;
+physical-count versions and movement history retain their existing behavior.
+Baseline initialization emits no event. Legacy low rows without initialized
+episodes may emit truthful state changes with no episode identity, never a false
+low-stock opening. These internal interfaces add no HTTP routes. Business state,
+ledger, episode facts, audit, events and required deliveries commit together.
 
 There is no supplier, purchase-order, or inter-restaurant transfer workflow. Revision
 `c48b7e02f315` adds the inventory tables after catalog-price revision

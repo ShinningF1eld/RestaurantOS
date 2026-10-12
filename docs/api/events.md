@@ -1,7 +1,7 @@
 # Domain event and delivery contracts
 
 This contract defines the PostgreSQL outbox records introduced for Milestone 8
-Issue #31. Events are immutable facts. Producers append an event and its fixed
+Issues #31–#33. Events are immutable facts. Producers append an event and its fixed
 consumer delivery rows in the business command's existing transaction through
 `app.modules.events.service.append_event`; the events repository never begins,
 commits, or rolls back a transaction. Redis is not authoritative and is not used
@@ -18,7 +18,7 @@ Every envelope contains:
 | `schema_version` | Integer `1`; unsupported types and versions are rejected. |
 | `organization_id`, `restaurant_id` | Organization UUID and restaurant ID verified as a matching persisted scope pair before append. |
 | `aggregate_type`, `aggregate_id` | `order`, `menu`, `menu_item`, or `ingredient`; string identity must agree with the typed payload. No FK points at deletable business entities. |
-| `aggregate_revision` | Positive monotonic producer revision for that aggregate. Order rows now store `revision`; inventory producers use `InventoryTransition.state_revision`. |
+| `aggregate_revision` | Positive monotonic producer revision for that aggregate. Order rows store `revision`; inventory producers use `InventoryTransition.state_revision`. Catalog revisions count emitted changes, allocated from retained scoped aggregate events under the restaurant write lock. |
 | `occurred_at` | A timezone-aware timestamp normalized to UTC. |
 | `correlation_id` | Request correlation identifier (1–128 safe characters); one business command's events share it. |
 | `payload` | Versioned typed object containing only the facts listed below. Decimal quantities and money are serialized as base-10 strings. |
@@ -60,9 +60,18 @@ cannot choose a handler or replace the PostgreSQL payload.
 | `inventory.state_changed.v1` | Actual balance, reorder threshold, or active-state change. Includes resulting state/revision and relevant episode facts. | No-op update, same idempotent command replay, or rollback. |
 | `inventory.low.v1` | Entry into a new low-stock episode (`active AND quantity <= reorder_threshold`). | Further changes during the same episode, zero-effect writes, cancellation, or rollback. |
 
-Multiple events produced by one command use the same correlation ID. This issue
-defines contracts and persistence only; business event emission and inventory
-transition persistence land in later M8 tasks.
+Multiple events produced by one command use the same request correlation ID.
+Trusted service commands outside HTTP generate one fallback correlation per
+command. Issue #33 integrates producers into existing service-owned transactions;
+API startup and commands neither publish transport messages nor launch workers.
+Order revisions advance once per actual changed order command, including
+PREPARING/READY and non-status edits that do not emit lifecycle events. No-op
+commands do not advance the order revision. Deletion emits the next revision
+before removing the row, so its tombstone supersedes prior completion facts.
+Catalog revisions start at one for the first emitted change to each menu/item;
+retained events provide the watermark even after deletion. All catalog writers
+serialize allocation/append with the restaurant lock and refresh locked state
+before no-op comparison. No schema or API response fields were added in T3.
 
 Inventory episode contracts reject contradictory boundary facts: an `opened`
 transition requires a low resulting state and episode identity; a `resolved`
@@ -71,7 +80,10 @@ reason. A low-stock opening quantity must be at or below its threshold,
 including zero at a zero threshold. The public inventory producer transition
 type also checks opened/resolved boundaries. A legacy producer snapshot without
 a boundary may remain low without an episode ID until maintenance initialization;
-it is not an emitted low-state payload.
+an ordinary change may emit a low-state payload with `episode_id: null` and no
+boundary until maintenance initialization. This preserves truthful legacy state
+without inventing an episode or emitting `inventory.low.v1`; an `opened` boundary
+still requires an episode ID. Initialization itself emits no historical event.
 
 ## Fixed subscription matrix
 

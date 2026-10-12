@@ -63,3 +63,17 @@ database write failures, exercise legacy orders, and verify browser shortages.
 Run `backend/.venv/Scripts/python.exe scripts/verify-milestone5.py --tests --browser`
 from the repository root for disposable clean/previous-head migration and full
 backend/browser verification. It does not migrate the application database.
+
+
+## Transactional lifecycle events (Milestone 8 T3)
+
+Genuine submission, acceptance, completion and cancellation transitions append
+[typed events](events.md) inside the order transaction. Acceptance's inventory
+state/episode events share the command correlation. Same-status retries and
+creation replays emit nothing; preparation/ready and non-status edits only
+advance the order revision when state actually changes. Completion carries the
+authoritative snapshotted total and creation timestamp, interpreting existing
+naive timestamps as UTC. Permitted deletion captures the prior status, total,
+creation time and next revision before removal. Audit/event/delivery failures
+roll back the entire command, including stock. API response shapes are unchanged;
+no worker or event transport is required for the write.

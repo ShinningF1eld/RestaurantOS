@@ -3,14 +3,15 @@
 Status: Published
 Source: docs/milestone8/milestone-8-design.md, approved revision 1 (2026-10-11); RestaurantOS_Master_Roadmap.md, Milestone 8.
 Inspected revision: 156badacb0dba913d3548389cb1c08d34316539b; working tree initially clean.
-Updated: 2026-10-11 (Asia/Bangkok)
+Updated: 2026-10-12 (Asia/Bangkok)
 Target: ShinningF1eld/RestaurantOS
 GitHub milestone: [Milestone 8 Reliable background jobs and domain events](https://github.com/ShinningF1eld/RestaurantOS/milestone/3) (GitHub milestone number 3; product milestone 8).
 Publication authorization: user requested creation of milestone-8-task.md and GitHub issues with acceptance criteria, all assigned to GitHub Milestone 8.
-Task-plan revision: 1. T1 and T2 implementation evidence is recorded below and
-in `docs/current-state.md`. T2's full backend-unit gate remains unverified
-because the unit-only Windows socket guard stalls at startup. Later task
-criteria remain planned and unverified.
+Task-plan revision: 1. T1–T3 implementation evidence is recorded below and
+in `docs/current-state.md`. T2's historical Windows sandbox unit limitation is
+retained in its verification; T3's final Python 3.12 run passed all backend-unit,
+backend-integration and backend-static gates. T4 onward remains planned and
+unverified; full Milestone 8 acceptance is open.
 
 ## Ordered tasks
 
@@ -151,15 +152,24 @@ Integrate events' public append interface into backend/app/modules/orders/servic
 
 ## Acceptance criteria
 
-- [ ] Emit order lifecycle events only on genuine approved transitions; completion snapshots include authoritative total, creation timestamp and revision. Permitted deletion captures sufficient identity/revision facts before removal for analytics tombstones.
-- [ ] Emit menu.updated.v1 for actual menu/item creation, edit, deactivation and deletion with operation/affected identities; inventory.state_changed.v1 for actual resulting state changes and inventory.low.v1 only for new episodes. Multiple events in one command share correlation.
-- [ ] Business state, stock ledger, audit facts, immutable event and required consumer deliveries commit together. Inject audit/event/delivery/flush failures and prove complete rollback, including no partially visible fan-out.
-- [ ] Read requests, unchanged status/no-op edits and command retries emit no duplicate business event. Preserve authorization locks, current membership/assignment checks, monetary snapshots, idempotency replay/mismatch and cancellation without restock.
-- [ ] An API process killed after commit and before any transport publication leaves all events/deliveries recoverable by a later worker; API writes require neither Redis nor a running worker. Existing post-commit cache invalidation and API Redis/auth failure policies remain unchanged.
+- [x] Emit order lifecycle events only on genuine approved transitions; completion snapshots include authoritative total, creation timestamp and revision. Permitted deletion captures sufficient identity/revision facts before removal for analytics tombstones.
+- [x] Emit menu.updated.v1 for actual menu/item creation, edit, deactivation and deletion with operation/affected identities; inventory.state_changed.v1 for actual resulting state changes and inventory.low.v1 only for new episodes. Multiple events in one command share correlation.
+- [x] Business state, stock ledger, audit facts, immutable event and required consumer deliveries commit together. Inject audit/event/delivery/flush failures and prove complete rollback, including no partially visible fan-out.
+- [x] Read requests, unchanged status/no-op edits and command retries emit no duplicate business event. Preserve authorization locks, current membership/assignment checks, monetary snapshots, idempotency replay/mismatch and cancellation without restock.
+- [x] An API process killed after commit and before any transport publication leaves all events/deliveries recoverable by a later worker; API writes require neither Redis nor a running worker. Existing post-commit cache invalidation and API Redis/auth failure policies remain unchanged.
 
 ## Verification
 
 Run backend-unit, backend-integration and backend-static. Use real PostgreSQL rollback injection and a controlled actual API-process crash boundary; inspect committed records rather than relying on logs.
+
+T3 evidence (2026-10-12): Python 3.12.13 `backend-unit` passed 262 tests,
+`backend-integration` passed 257 tests with no Alembic drift, and
+`backend-static` passed. Controlled API death with Redis unavailable leaves all
+required subscribed work pending in PostgreSQL; actual worker effects remain
+T4–T7. No schema or HTTP contract changes were introduced. See
+[Issue #33 verification](verification-milestone8-issue33.md) for the acceptance
+review, exact commands, corrected fixture failures and omitted gates. This is
+producer-slice completion, not full M8 acceptance.
 
 <!-- github-plan: docs/milestone8/milestone-8-design.md | T3 -->
 

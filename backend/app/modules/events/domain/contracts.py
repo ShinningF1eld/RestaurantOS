@@ -167,10 +167,12 @@ class InventoryStateChangedPayload(ContractModel):
         expected_low = self.is_active and self.quantity <= self.reorder_threshold
         if self.is_low != expected_low:
             raise ValueError("is_low must match active quantity and threshold")
-        if self.is_low and self.episode_id is None:
-            raise ValueError("low inventory state requires an episode ID")
-        if self.episode_transition == "opened" and not self.is_low:
-            raise ValueError("an opened episode requires a low resulting state")
+        if self.episode_transition == "opened" and (
+            not self.is_low or self.episode_id is None
+        ):
+            raise ValueError(
+                "an opened episode requires a low resulting state and episode identity"
+            )
         if self.episode_transition == "resolved":
             if self.is_low:
                 raise ValueError(

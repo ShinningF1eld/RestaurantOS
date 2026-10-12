@@ -859,6 +859,13 @@ Record before/after for a defined workload:
 
 Decouple non-critical work without losing events or duplicating side effects.
 
+Implementation evidence (2026-10-12): T1–T3 provide durable contracts/storage,
+inventory episode facts and transactional producers. The T3 backend unit,
+integration and static gates pass, including rollback and actual API death
+before publication. [Issue #33 verification](docs/milestone8/verification-milestone8-issue33.md)
+records the slice evidence and omissions. Worker/consumer execution and the
+milestone exit criteria below remain unverified.
+
 ### Recommended evolution
 
 1. PostgreSQL transactional outbox as the source of publishable events.

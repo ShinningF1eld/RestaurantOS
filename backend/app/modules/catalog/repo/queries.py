@@ -25,13 +25,18 @@ class CatalogRepository:
         """Stage a menu for insertion without committing it."""
         self._session.add(menu)
 
-    async def get_menu_by_id(self, menu_id: int) -> Menu | None:
+    async def get_menu_by_id(self, menu_id: int, *, lock: bool = False) -> Menu | None:
         """Return a menu by primary key when it exists."""
-        result = await self._session.execute(
+        statement = (
             select(Menu)
             .join(Restaurant)
             .where(Menu.menu_id == menu_id, restaurant_scope(self._scope))
         )
+        if lock:
+            statement = statement.execution_options(
+                populate_existing=True
+            ).with_for_update(of=Menu)
+        result = await self._session.execute(statement)
         return result.scalar_one_or_none()
 
     async def list_menus_for_restaurant(self, restaurant_id: int) -> Sequence[Menu]:

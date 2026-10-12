@@ -11,6 +11,8 @@ from typing import Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.events.service import CommandEvents
+from app.modules.events.domain.contracts import EventType
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.modules.audit.service import record
 from app.modules.auth.domain.principal import AuthenticatedPrincipal
@@ -30,6 +32,7 @@ from app.modules.orders.domain.commands import (
     OrderItemCommand as OrderItemCommand,
     UpdateOrder as UpdateOrder,
 )
+from app.modules.orders.domain.revisions import next_order_revision
 from app.modules.orders.domain.policies import (
     ensure_order_items_mutable,
     ensure_valid_order_transition,
@@ -231,6 +234,8 @@ class OrderService:
                 context, command.fields, order.status, command.status
             )
 
+            events = CommandEvents()
+            before = _order_state(order)
             previous_status = order.status
             if command.status is not None:
                 requested_status = ensure_valid_order_transition(
@@ -239,7 +244,7 @@ class OrderService:
                 if requested_status == "SUBMITTED":
                     await self._check_stock(order.restaurant_id, order.items)
                 elif previous_status != "ACCEPTED" and requested_status == "ACCEPTED":
-                    await self._consume_order_stock(order, context)
+                    await self._consume_order_stock(order, context, events)
                     # True also records that a deliberately untracked order was
                     # evaluated, separating it from pre-migration accepted rows.
                     order.inventory_processed = True
@@ -264,6 +269,8 @@ class OrderService:
                 order.items = order_items
                 order.subtotal = subtotal
                 order.total = subtotal
+            if _order_state(order) != before:
+                order.revision = next_order_revision(order.revision)
             await self._orders.flush()
             result = await self._get_order_or_error(order_id)
             record(
@@ -280,6 +287,30 @@ class OrderService:
                     "total": str(order.total),
                 },
             )
+            if order.status != previous_status:
+                event_types: dict[str, EventType] = {
+                    "SUBMITTED": "order.submitted.v1",
+                    "ACCEPTED": "order.accepted.v1",
+                    "COMPLETED": "order.completed.v1",
+                    "CANCELLED": "order.cancelled.v1",
+                }
+                event_type = event_types.get(order.status)
+                if event_type is not None:
+                    payload: dict[str, object] = {"order_id": order.order_id}
+                    if order.status == "COMPLETED":
+                        payload.update(total=order.total, created_at=order.created_at)
+                    else:
+                        payload["status"] = order.status
+                    await events.append(
+                        self._session,
+                        event_type=event_type,
+                        organization_id=context.organization_id,
+                        restaurant_id=order.restaurant_id,
+                        aggregate_type="order",
+                        aggregate_id=order.order_id,
+                        aggregate_revision=order.revision,
+                        payload=payload,
+                    )
             return result
 
     async def delete(self, order_id: int) -> None:
@@ -302,6 +333,21 @@ class OrderService:
                 restaurant_id=order.restaurant_id,
                 changes={"status": order.status, "total": str(order.total)},
             )
+            await CommandEvents().append(
+                self._session,
+                event_type="order.deleted.v1",
+                organization_id=context.organization_id,
+                restaurant_id=order.restaurant_id,
+                aggregate_type="order",
+                aggregate_id=order.order_id,
+                aggregate_revision=next_order_revision(order.revision),
+                payload={
+                    "order_id": order.order_id,
+                    "prior_status": order.status,
+                    "total": order.total,
+                    "created_at": order.created_at,
+                },
+            )
             await self._orders.delete(order)
 
     async def _get_order_or_error(self, order_id: int, *, lock: bool = False) -> Order:
@@ -315,7 +361,9 @@ class OrderService:
     ) -> None:
         await self._stock_rows(restaurant_id, order_items, lock_balances=False)
 
-    async def _consume_order_stock(self, order: Order, context: AccessContext) -> None:
+    async def _consume_order_stock(
+        self, order: Order, context: AccessContext, events: CommandEvents
+    ) -> None:
         rows = await self._stock_rows(
             order.restaurant_id, order.items, lock_balances=True
         )
@@ -333,6 +381,7 @@ class OrderService:
                 balance,
                 before,
                 source="order_acceptance",
+                command_events=events,
                 actor_user_id=context.user_id,
                 order_id=order.order_id,
             )
@@ -503,3 +552,27 @@ class OrderService:
                 )
             )
         return order_items, subtotal
+
+
+def _order_state(order: Order) -> tuple[object, ...]:
+    return (
+        order.status,
+        order.payment_status,
+        order.table_number,
+        order.customer_name,
+        order.notes,
+        order.subtotal,
+        order.total,
+        order.inventory_processed,
+        tuple(
+            (
+                item.menu_item_id,
+                item.item_name,
+                item.quantity,
+                item.unit_price,
+                item.line_total,
+                item.notes,
+            )
+            for item in order.items
+        ),
+    )

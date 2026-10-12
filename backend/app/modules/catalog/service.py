@@ -2,6 +2,9 @@
 
 import time
 from collections.abc import Sequence
+from typing import Literal
+
+from app.modules.events.service import CommandEvents, next_catalog_revision
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -53,6 +56,48 @@ class CatalogService:
         context = await self._access.current(lock=lock)
         self._catalog = CatalogRepository(self._session, context)
         return context
+
+    async def _emit_change(
+        self,
+        context: AccessContext,
+        menu: Menu,
+        operation: Literal["created", "edited", "deactivated", "deleted"],
+        item: MenuItem | None = None,
+    ) -> None:
+        target_type: Literal["menu", "menu_item"] = "menu_item" if item else "menu"
+        target_id = item.menu_item_id if item else menu.menu_id
+        revision = await next_catalog_revision(
+            self._session,
+            context.organization_id,
+            menu.restaurant_id,
+            target_type,
+            target_id,
+        )
+        await CommandEvents().append(
+            self._session,
+            event_type="menu.updated.v1",
+            organization_id=context.organization_id,
+            restaurant_id=menu.restaurant_id,
+            aggregate_type=target_type,
+            aggregate_id=target_id,
+            aggregate_revision=revision,
+            payload={
+                "operation": operation,
+                "target_type": target_type,
+                "target_id": target_id,
+                "menu_id": menu.menu_id,
+                "affected_menu_item_ids": (target_id,) if item else (),
+            },
+        )
+
+    async def _lock_menu(self, context: AccessContext, menu: Menu) -> Menu:
+        await InventoryRepository(self._session, context).lock_restaurant(
+            menu.restaurant_id
+        )
+        locked = await self._catalog.get_menu_by_id(menu.menu_id, lock=True)
+        if locked is None:
+            raise NotFoundError("Menu not found")
+        return locked
 
     async def _invalidate_menu_list(
         self, context: AccessContext, restaurant_id: int
@@ -124,6 +169,9 @@ class CatalogService:
         async with self._session.begin():
             context = await self._prepare(lock=True)
             await self._access.restaurant(context, restaurant_id, "menu.manage")
+            await InventoryRepository(self._session, context).lock_restaurant(
+                restaurant_id
+            )
             menu = Menu(
                 restaurant_id=restaurant_id,
                 name=command.name,
@@ -140,6 +188,7 @@ class CatalogService:
                 menu.menu_id,
                 restaurant_id=menu.restaurant_id,
             )
+            await self._emit_change(context, menu, "created")
         await self._invalidate_menu_list(context, restaurant_id)
         return menu
 
@@ -200,6 +249,8 @@ class CatalogService:
             if menu is None:
                 raise NotFoundError("Menu not found")
             context.require("menu.manage")
+            menu = await self._lock_menu(context, menu)
+            before = (menu.name, menu.description)
             if command.name is not None:
                 menu.name = command.name
             if command.description is not None:
@@ -214,6 +265,8 @@ class CatalogService:
                 menu.menu_id,
                 restaurant_id=menu.restaurant_id,
             )
+            if (menu.name, menu.description) != before:
+                await self._emit_change(context, menu, "edited")
             restaurant_id = menu.restaurant_id
         await self._invalidate_menu_list(context, restaurant_id)
         return menu
@@ -226,6 +279,7 @@ class CatalogService:
             if menu is None:
                 raise NotFoundError("Menu not found")
             context.require("menu.manage")
+            menu = await self._lock_menu(context, menu)
             if await self._catalog.menu_has_items(menu_id):
                 raise ConflictError("Remove menu items before deleting the menu")
             record(
@@ -236,6 +290,7 @@ class CatalogService:
                 menu_id,
                 restaurant_id=menu.restaurant_id,
             )
+            await self._emit_change(context, menu, "deleted")
             await self._catalog.delete_menu(menu)
             restaurant_id = menu.restaurant_id
         await self._invalidate_deleted_menu(context, restaurant_id, menu_id)
@@ -248,6 +303,7 @@ class CatalogService:
             if menu is None:
                 raise NotFoundError("Menu not found")
             context.require("menu.manage")
+            menu = await self._lock_menu(context, menu)
             menu_item = MenuItem(
                 menu_id=menu_id,
                 name=command.name,
@@ -272,6 +328,7 @@ class CatalogService:
                     "is_available": menu_item.is_available,
                 },
             )
+            await self._emit_change(context, menu, "created", menu_item)
             await self._attach_menu_item_availability([menu_item])
         await self._invalidate_menu_items(context, menu_id)
         return menu_item
@@ -369,6 +426,12 @@ class CatalogService:
             menu_item = await self._catalog.get_menu_item_by_id(menu_item_id, lock=True)
             if menu_item is None:
                 raise NotFoundError("Menu item not found")
+            before = (
+                menu_item.name,
+                menu_item.description,
+                menu_item.price,
+                menu_item.is_available,
+            )
             if command.name is not None:
                 menu_item.name = command.name
             if command.description is not None:
@@ -393,6 +456,19 @@ class CatalogService:
                     "is_available": menu_item.is_available,
                 },
             )
+            after = (
+                menu_item.name,
+                menu_item.description,
+                menu_item.price,
+                menu_item.is_available,
+            )
+            if after != before:
+                operation: Literal["deactivated", "edited"] = (
+                    "deactivated"
+                    if before[3] and not menu_item.is_available
+                    else "edited"
+                )
+                await self._emit_change(context, menu, operation, menu_item)
             await self._attach_menu_item_availability([menu_item])
             menu_id = menu_item.menu_id
         await self._invalidate_menu_items(context, menu_id)
@@ -415,6 +491,7 @@ class CatalogService:
             if menu_item is None:
                 raise NotFoundError("Menu item not found")
             if await self._catalog.menu_item_has_order_history(menu_item_id):
+                changed = menu_item.is_available
                 menu_item.is_available = False
                 record(
                     self._session,
@@ -425,6 +502,8 @@ class CatalogService:
                     restaurant_id=menu.restaurant_id,
                     changes={"is_available": False},
                 )
+                if changed:
+                    await self._emit_change(context, menu, "deactivated", menu_item)
                 outcome: DeleteMenuItemOutcome = "deactivated"
             else:
                 record(
@@ -435,6 +514,7 @@ class CatalogService:
                     menu_item_id,
                     restaurant_id=menu.restaurant_id,
                 )
+                await self._emit_change(context, menu, "deleted", menu_item)
                 await self._catalog.delete_menu_item(menu_item)
                 outcome = "deleted"
             menu_id = menu_item.menu_id
