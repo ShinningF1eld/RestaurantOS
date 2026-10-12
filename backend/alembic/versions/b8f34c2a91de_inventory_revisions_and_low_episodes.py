@@ -7,7 +7,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 
-revision: str = "b8f34c2a91de"
+revision: str = "b8f34c2a91de"  # pragma: allowlist secret - public Alembic revision ID
 down_revision: Union[str, None] = "c61a0f3d9e42"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

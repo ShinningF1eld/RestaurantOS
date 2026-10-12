@@ -450,7 +450,7 @@ def verify_event_history_downgrade_guard(
         ).fetchall()
 
     result = subprocess.run(
-        [sys.executable, "-m", "alembic", "downgrade", "e68d9a24b537"],
+        [sys.executable, "-m", "alembic", "downgrade", "e68d9a24b537"],  # pragma: allowlist secret - public Alembic revision ID
         cwd=BACKEND,
         env=dict(env),
         capture_output=True,

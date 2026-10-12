@@ -93,3 +93,23 @@ schema or image changes require those slice-specific gates. Integration performs
 clean disposable upgrades and `alembic check`; no application database or
 developer volume is modified. Existing deprecation warnings are retained;
 no dependency upgrades were introduced to silence them.
+
+
+## PR #43 baseline CI follow-up — 2026-10-12
+
+The [initial baseline job](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/38211391721/job/114686133940)
+at PR head `8b6ee748de0558ea67e2f46ca8e0fde71ebf00e7` failed secret scanning:
+the public Alembic revision `b8f34c2a91de` in the T2 migration and public downgrade
+target `e68d9a24b537` in `scripts/verify-migrations.py` were flagged as hex
+high-entropy strings. These are migration identities, not credentials. Added
+only line-scoped `pragma: allowlist secret` annotations documenting that fact,
+following the repository's existing migration convention. Secret scanning,
+its reviewed baseline, the CI workflow and required aggregate are unchanged.
+
+`./scripts/validate.ps1 -PythonExecutable backend/.venv-m6-dev/Scripts/python.exe
+-Gate baseline -NoInstall` passed after the fix: Compose configuration,
+`pip check` and the full tracked/unignored-file secret scan. The sandbox attempt
+could not create its disposable temporary baseline; the same gate passed
+outside the sandbox. No behavioral tests were rerun for comment-only changes.
+Final CI for the follow-up commit remains to be observed; this local partial
+gate does not establish complete PR or Milestone 8 acceptance.
