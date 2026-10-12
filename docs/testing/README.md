@@ -72,10 +72,14 @@ Local Windows uses junctions for isolated frontend dependencies; Linux uses syml
 - [Dated Milestone 6 acceptance review](../milestone6/milestone-6-verification.md)
 
 Prefer filling a demonstrated critical-behavior gap over duplicating existing
-tests or raising counts. Worker/event coverage is deferred to Milestone 8 under
-the approved issue plan: delivery, retry, duplicate handling and failure recovery
-must be tested when worker/outbox behavior exists. No worker coverage is claimed
-today. Redis here verifies infrastructure; Milestone 7 owns caching/rate limiting.
+tests or raising counts. Issue #34 adds worker unit tests and real-process
+PostgreSQL/Redis integration coverage for relay claiming/fencing, group routing,
+crash windows, ambiguous publication, pending reclaim, stream loss, outage
+recovery and bounded backlog. Run them through `backend-unit` and
+`backend-integration`; issue evidence is in
+`docs/milestone8/verification-milestone8-issue34.md`. Consumer effects, receipts,
+event-specific retry policy and replay remain T5 coverage. Redis continues to
+validate Milestone 7 caching/rate limiting independently.
 
 ## Failure and cleanup evidence
 

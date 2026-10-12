@@ -1,11 +1,15 @@
 # Domain event and delivery contracts
 
 This contract defines the PostgreSQL outbox records introduced for Milestone 8
-Issues #31–#33. Events are immutable facts. Producers append an event and its fixed
-consumer delivery rows in the business command's existing transaction through
-`app.modules.events.service.append_event`; the events repository never begins,
-commits, or rolls back a transaction. Redis is not authoritative and is not used
-by this slice.
+Issues #31–#33 and the T4 Redis Streams transport. Events are immutable facts.
+Producers append an event and its fixed consumer delivery rows in the business
+command's existing transaction through `app.modules.events.service.append_event`;
+the events repository never begins, commits, or rolls back a transaction. The
+standalone T4 worker relays stable event UUID references to Redis Streams, while
+PostgreSQL remains authoritative for event facts and unfinished delivery state.
+Consumer effects, receipts, and successful delivery acknowledgement belong to
+T5, so subscribed messages remain unfinished in both PostgreSQL and the Redis
+pending-entry list until that lifecycle exists.
 
 ## Envelope
 
@@ -31,8 +35,9 @@ and inventory episode timestamps must carry a UTC offset.
 Contracts reject extra payload fields. They do not include customer names or
 notes, credentials, cookies, headers, actor authorization claims, or arbitrary
 request bodies. Menu events carry identities and operation names, not mutable
-menu content. Redis messages, when introduced later, may carry routing hints but
-cannot choose a handler or replace the PostgreSQL payload.
+menu content. Redis stream entries contain only event UUID, event type, schema
+version and correlation ID. They cannot choose a handler or replace PostgreSQL
+facts.
 
 ## Typed payloads
 
@@ -87,8 +92,11 @@ still requires an episode ID. Initialization itself emits no historical event.
 
 ## Fixed subscription matrix
 
-The registry is code-owned and immutable. Consumer names here identify future
-worker responsibilities, not worker execution in Issue #31.
+The registry is code-owned and immutable. T4 creates one Redis consumer group for
+each registry consumer: `analytics`, `alerts`, and `notification_sink`. The
+transport checks the PostgreSQL event and fixed registry before routing. T4 does
+not execute consumer business effects; subscribed references stay pending until
+T5 adds effect and receipt transactions.
 
 | Event | Analytics | Alerts | Notification/diagnostic sink |
 |---|:---:|:---:|:---:|
@@ -122,5 +130,7 @@ The restaurant/organization composite FK rejects a mismatched tenant scope.
 The service requires an active caller-owned transaction, verifies the restaurant
 scope, stages the immutable event and every subscribed delivery, and flushes.
 Any fan-out/constraint error propagates so the caller's transaction can roll
-back completely. Repositories do not commit. No automatic pruning or Redis
-publication is introduced.
+back completely. Repositories do not commit. The T4 worker publishes minimal
+references after claiming delivery rows in PostgreSQL; `published_at` is only a
+transport observation, never business completion. No automatic pruning or Redis
+stream trimming is introduced.

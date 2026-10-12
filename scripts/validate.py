@@ -139,6 +139,7 @@ def gate(name, env):
                     "TEST_DATABASE",
                     "AUTH_",
                     "REDIS",
+                    "EVENT_WORKER_",
                     "TEST_REDIS",
                     "TEST_POSTGRES",
                 )

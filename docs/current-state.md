@@ -1,5 +1,28 @@
 # RestaurantOS current state
 
+## Milestone 8 Issue #34 T4 implementation evidence
+
+On 2026-10-12, T4 added `python -m app.worker`, a standalone runtime with a
+dedicated bounded Redis pool, PostgreSQL delivery claiming/fencing, one namespaced
+Redis Stream, and independent analytics, alerts and notification-sink groups.
+The worker validates stream references against typed PostgreSQL facts, keeps
+subscribed work unfinished for T5, and recovers claims, pending messages and lost
+stream state from PostgreSQL. It does not run migrations or start with FastAPI.
+No schema, API, image or dependency changes were made. See the
+[event worker runbook](runbooks/event-worker.md), [Redis architecture](architecture/redis.md),
+and [event contract](api/events.md).
+
+Using the available Python 3.13.15 environment, `backend-unit` passed 270 tests,
+`backend-integration` passed 268 tests with no Alembic model drift, and
+`backend-static` passed. The worker-focused unit module passed 8 tests. The
+integration gate used disposable PostgreSQL 16 and Redis 7 services and cleaned
+up its Compose resources. Python 3.12 was unavailable on this host; the initial
+sandboxed unit run stalled in an existing async auth socket guard, then the gate
+passed outside the restricted process environment. Exact commands, exercised
+failure cases and omitted gates are recorded in
+[Issue #34 verification](milestone8/verification-milestone8-issue34.md).
+Independent review is pending; this is not full Milestone 8 acceptance.
+
 Milestone 7 measurements and operational/failure evidence are dated 2026-10-10
 in [issue #27 verification](milestone7/verification-milestone7-issue27.md).
 Catalog/dashboard experiments and full ten-gate local validation passed;

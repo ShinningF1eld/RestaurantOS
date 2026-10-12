@@ -189,16 +189,31 @@ Add the backend worker entrypoint and shared transport adapters, dedicated bound
 
 ## Acceptance criteria
 
-- [ ] Use Redis 7-compatible commands and minimal messages containing stable event UUID/routing metadata; load typed facts from PostgreSQL. Independently grouped analytics, alerts and sink consumers acknowledge non-subscriptions without effects.
-- [ ] Claim due work in short SKIP LOCKED-style database transactions with expiring leases/ownership fencing. Select and document conservative batch, concurrency, claim, scan/republication, network/read and shutdown budgets; never hold business locks during Redis/network I/O.
-- [ ] Publication observation is not completion. Scan only unfinished subscribed deliveries with bounded rate/leases; recreate lost streams/groups, reclaim abandoned pending messages and republish after stall or Redis restart/content loss using the original UUID.
-- [ ] Ambiguous publication/acknowledgement, relay crash and old-claim completion cannot lose work or overwrite a newer claim; persisted next-attempt times remain authoritative against early stream redelivery and recovery does not flood messages.
-- [ ] API and worker startup do not migrate or start one another. Worker shutdown stops claims with bounded grace; forced termination remains recoverable. Its pool/read budgets do not compete with or change API cache/auth policies, and local Redis persistence stays disabled.
-- [ ] Report stream size and retained PostgreSQL work; introduce no automatic event/receipt/history deletion or stream trimming.
+- [x] Use Redis 7-compatible commands and minimal messages containing stable event UUID/routing metadata; load typed facts from PostgreSQL. Independently grouped analytics, alerts and sink consumers acknowledge non-subscriptions without effects.
+- [x] Claim due work in short SKIP LOCKED-style database transactions with expiring leases/ownership fencing. Select and document conservative batch, concurrency, claim, scan/republication, network/read and shutdown budgets; never hold business locks during Redis/network I/O.
+- [x] Publication observation is not completion. Scan only unfinished subscribed deliveries with bounded rate/leases; recreate lost streams/groups, reclaim abandoned pending messages and republish after stall or Redis restart/content loss using the original UUID.
+- [x] Ambiguous publication/acknowledgement, relay crash and old-claim completion cannot lose work or overwrite a newer claim; persisted next-attempt times remain authoritative against early stream redelivery and recovery does not flood messages.
+- [x] API and worker startup do not migrate or start one another. Worker shutdown stops claims with bounded grace; forced termination remains recoverable. Its pool/read budgets do not compete with or change API cache/auth policies, and local Redis persistence stays disabled.
+- [x] Report stream size and retained PostgreSQL work; introduce no automatic event/receipt/history deletion or stream trimming.
 
 ## Verification
 
 Run backend-unit, backend-integration, backend-static and image if the runtime image is extended. Exercise real worker/Redis processes, ambiguous publish, pending reclaim, two relay workers, expired claims, restart/content loss and graceful/forced shutdown.
+
+T4 implementation evidence (2026-10-12): `backend-integration` passed 268
+tests against disposable PostgreSQL 16 and Redis 7, including real worker
+processes, two-claimant fencing, both publication crash windows, ambiguous XADD,
+independent consumer groups, pending reclaim, physical Redis restart/content
+loss, due-time enforcement, outage recovery, and a bounded 25-event backlog.
+`backend-unit` passed 270 tests and `backend-static` passed Ruff lint/format and
+mypy. The host used Python 3.13.15 because Python 3.12 is not installed; the
+initial sandboxed unit run stalled in the existing async auth socket guard, then
+passed outside that restricted process environment. There are no schema, API,
+image, or dependency changes; integration's clean disposable upgrades and
+`alembic check` found no model drift. See
+[`Issue #34 verification`](verification-milestone8-issue34.md) for exact
+commands, review mapping and omissions. These are T4 implementation results;
+independent verification and full M8 acceptance remain open.
 
 <!-- github-plan: docs/milestone8/milestone-8-design.md | T4 -->
 
