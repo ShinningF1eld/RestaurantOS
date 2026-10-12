@@ -106,6 +106,12 @@ events to hold and observe the first transaction's lock, then assert that the
 second request is blocked at that same lock before release. These tests use
 bounded timeouts only as deadlock guards, not as evidence that overlap occurred.
 
-Workers and events do not exist in this milestone. Milestone 8 owns future tests
-for delivery, retry, duplicate handling, and failure recovery; no worker/event
-coverage is claimed here.
+Milestone 8 T3 event producers are covered by `unit/test_event_producers.py`,
+`integration/test_event_producers.py` and
+`integration/test_event_producer_process.py`. They verify request/direct-command
+correlation, lifecycle/tombstone snapshots, catalog revisions and overlapping
+no-op edits, episode boundaries/retries, legacy low state, actual PostgreSQL
+insertion/flush rollback and an API killed after commit with Redis unavailable.
+The crash test inspects durable pending fan-out using a fresh connection; it
+claims no worker effects. Worker delivery/retry/receipt/recovery execution remains
+in later Milestone 8 tasks.

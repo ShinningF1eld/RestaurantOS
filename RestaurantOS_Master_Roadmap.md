@@ -859,6 +859,13 @@ Record before/after for a defined workload:
 
 Decouple non-critical work without losing events or duplicating side effects.
 
+Implementation evidence (2026-10-12): T1–T3 provide durable contracts/storage,
+inventory episode facts and transactional producers. The T3 backend unit,
+integration and static gates pass, including rollback and actual API death
+before publication. [Issue #33 verification](docs/milestone8/verification-milestone8-issue33.md)
+records the slice evidence and omissions. Worker/consumer execution and the
+milestone exit criteria below remain unverified.
+
 ### Recommended evolution
 
 1. PostgreSQL transactional outbox as the source of publishable events.
@@ -1510,7 +1517,7 @@ After Milestone 0, give Sol only one milestone or vertical slice at a time. A st
 | 5. Transactional ordering and inventory | Complete — recipes, stock availability, acceptance consumption and retry safety; cancellation never restores stock | [`docs/current-state.md`](docs/current-state.md#milestone-5-completion-evidence); 309 backend tests, 21 Chromium tests, clean/previous-head migrations and concurrency checks passed |
 | 6. Test architecture and quality gates | Not verified | |
 | 7. Redis caching and rate limiting | Not started/verify | |
-| 8. Background jobs and events | Not started/verify | |
+| 8. Background jobs and events | In progress — Issues #31 T1 and #32 T2 implemented; T2 full backend-unit verification remains incomplete; full M8 acceptance remains open | [`docs/current-state.md`](docs/current-state.md#milestone-8-issue-32-t2-implementation-evidence); [`docs/api/events.md`](docs/api/events.md); [`docs/api/inventory.md`](docs/api/inventory.md) |
 | 9. Containers, CI/CD, deployment | Not verified | |
 | 10. Observability | Not started/verify | |
 | 11. Analytics model | Early work/verify | |

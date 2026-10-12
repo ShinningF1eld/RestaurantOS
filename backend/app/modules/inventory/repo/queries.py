@@ -1,9 +1,12 @@
+from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import NotFoundError
 from app.modules.inventory.repo.models import (
     Ingredient,
     InventoryBalance,
+    InventoryLowStockEpisode,
     InventoryMovement,
 )
 from app.modules.restaurants.repo.models import Restaurant
@@ -12,9 +15,71 @@ from app.modules.tenancy.access import restaurant_scope
 from app.modules.tenancy.domain.policies import AccessContext
 
 
-class InventoryRepository:
-    def __init__(self, session: AsyncSession, context: AccessContext) -> None:
+class InventoryTransitionRepository:
+    """Persistence for trusted inventory state transitions inside caller transactions."""
+
+    def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def lock_restaurant_for_organization(
+        self, organization_id: UUID, restaurant_id: int
+    ) -> None:
+        row = await self.session.scalar(
+            select(Restaurant.id)
+            .where(
+                Restaurant.id == restaurant_id,
+                Restaurant.organization_id == organization_id,
+            )
+            .with_for_update()
+        )
+        if row is None:
+            raise NotFoundError("Restaurant not found")
+
+    async def ingredient_state(
+        self,
+        organization_id: UUID,
+        restaurant_id: int,
+        ingredient_id: int,
+        *,
+        lock: bool = False,
+    ) -> tuple[Ingredient, InventoryBalance]:
+        statement = (
+            select(Ingredient, InventoryBalance)
+            .join(InventoryBalance, InventoryBalance.ingredient_id == Ingredient.id)
+            .join(Restaurant, Restaurant.id == Ingredient.restaurant_id)
+            .where(
+                Ingredient.id == ingredient_id,
+                Ingredient.restaurant_id == restaurant_id,
+                Restaurant.organization_id == organization_id,
+            )
+            .execution_options(populate_existing=True)
+        )
+        if lock:
+            statement = statement.with_for_update(of=(Ingredient, InventoryBalance))
+        row = (await self.session.execute(statement)).one_or_none()
+        if row is None:
+            raise NotFoundError("Ingredient not found")
+        return row[0], row[1]
+
+    async def open_episode(
+        self, ingredient_id: int, *, lock: bool = False
+    ) -> InventoryLowStockEpisode | None:
+        statement = select(InventoryLowStockEpisode).where(
+            InventoryLowStockEpisode.ingredient_id == ingredient_id,
+            InventoryLowStockEpisode.resolved_at.is_(None),
+        )
+        if lock:
+            statement = statement.with_for_update()
+        return await self.session.scalar(statement)
+
+    def add_episode(self, episode: InventoryLowStockEpisode) -> None:
+        """Stage an episode fact in the caller-owned transaction."""
+        self.session.add(episode)
+
+
+class InventoryRepository(InventoryTransitionRepository):
+    def __init__(self, session: AsyncSession, context: AccessContext) -> None:
+        super().__init__(session)
         self.context = context
 
     async def lock_restaurant(self, restaurant_id: int) -> None:

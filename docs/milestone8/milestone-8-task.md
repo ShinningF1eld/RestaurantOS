@@ -3,11 +3,15 @@
 Status: Published
 Source: docs/milestone8/milestone-8-design.md, approved revision 1 (2026-10-11); RestaurantOS_Master_Roadmap.md, Milestone 8.
 Inspected revision: 156badacb0dba913d3548389cb1c08d34316539b; working tree initially clean.
-Updated: 2026-10-11 (Asia/Bangkok)
+Updated: 2026-10-12 (Asia/Bangkok)
 Target: ShinningF1eld/RestaurantOS
 GitHub milestone: [Milestone 8 Reliable background jobs and domain events](https://github.com/ShinningF1eld/RestaurantOS/milestone/3) (GitHub milestone number 3; product milestone 8).
 Publication authorization: user requested creation of milestone-8-task.md and GitHub issues with acceptance criteria, all assigned to GitHub Milestone 8.
-Task-plan revision: 1. All criteria below are planned and unverified.
+Task-plan revision: 1. T1–T3 implementation evidence is recorded below and
+in `docs/current-state.md`. T2's historical Windows sandbox unit limitation is
+retained in its verification; T3's final Python 3.12 run passed all backend-unit,
+backend-integration and backend-static gates. T4 onward remains planned and
+unverified; full Milestone 8 acceptance is open.
 
 ## Ordered tasks
 
@@ -24,6 +28,14 @@ Task-plan revision: 1. All criteria below are planned and unverified.
 | T9 | Expose scoped inventory alerts and history with resilient refresh | R10, R12 | T7, T8 | [#39](https://github.com/ShinningF1eld/RestaurantOS/issues/39) |
 | T10 | Enforce worker failure and workflow regressions in shared validation gates | R1–R14 | T6, T7, T8, T9 | [#40](https://github.com/ShinningF1eld/RestaurantOS/issues/40) |
 | T11 | Measure processing freshness and publish Milestone 8 operational evidence | R3, R6, R11–R14; roadmap exit criteria | T10 | [#41](https://github.com/ShinningF1eld/RestaurantOS/issues/41) |
+
+T1 implementation evidence (2026-10-11): backend-static passed; the event
+contract unit module passed (6 tests); backend-integration passed (228 tests)
+with `alembic check`; clean and seeded `migrations` verification passed,
+including the retained-event downgrade guard. The full backend-unit gate was
+attempted but stalls in the existing unit-only socket guard on this Windows
+host; see `docs/current-state.md` for the stack location and limitation. This
+does not establish full Milestone 8 acceptance.
 
 ## Coverage and sequencing
 
@@ -76,11 +88,11 @@ None.
 
 ## Acceptance criteria
 
-- [ ] Define all eight approved contracts: order.submitted.v1, order.accepted.v1, order.completed.v1, order.cancelled.v1, order.deleted.v1, menu.updated.v1, inventory.state_changed.v1, inventory.low.v1. Record typed fields, trigger/no-op matrix, and the fixed event-to-consumer subscription matrix in docs/api/.
-- [ ] Envelopes carry stable UUID, consistent type/version, verified organization/restaurant, aggregate identity/revision, UTC occurrence time and request correlation. Serialize decimal money/quantities losslessly; explicitly interpret naive order creation timestamps as UTC while retaining creation-date grouping. Exclude customer names/notes, credentials, cookies, headers and arbitrary request bodies.
-- [ ] Persist immutable events, per-consumer delivery state, unique (consumer,event_id) receipts, retained attempt/replay history and claim ownership. Required delivery rows are inserted alongside the event through a public service interface using the caller's transaction; repositories never commit.
-- [ ] Constraints enforce applicable scope/identity relationships; deleting orders/menu items/ingredients cannot cascade-delete durable event or history facts. Redis metadata cannot select handlers or override authoritative payloads.
-- [ ] Add order revision metadata with safe populated-database defaults; preserve immutable snapshots and existing history. Review migration SQL/indexes and downgrade guards against discarding retained work; maintain one Alembic head and no implicit startup migration.
+- [x] Define all eight approved contracts: order.submitted.v1, order.accepted.v1, order.completed.v1, order.cancelled.v1, order.deleted.v1, menu.updated.v1, inventory.state_changed.v1, inventory.low.v1. Record typed fields, trigger/no-op matrix, and the fixed event-to-consumer subscription matrix in docs/api/.
+- [x] Envelopes carry stable UUID, consistent type/version, verified organization/restaurant, aggregate identity/revision, UTC occurrence time and request correlation. Serialize decimal money/quantities losslessly; explicitly interpret naive order creation timestamps as UTC while retaining creation-date grouping. Exclude customer names/notes, credentials, cookies, headers and arbitrary request bodies.
+- [x] Persist immutable events, per-consumer delivery state, unique (consumer,event_id) receipts, retained attempt/replay history and claim ownership. Required delivery rows are inserted alongside the event through a public service interface using the caller's transaction; repositories never commit.
+- [x] Constraints enforce applicable scope/identity relationships; deleting orders/menu items/ingredients cannot cascade-delete durable event or history facts. Redis metadata cannot select handlers or override authoritative payloads.
+- [x] Add order revision metadata with safe populated-database defaults; preserve immutable snapshots and existing history. Review migration SQL/indexes and downgrade guards against discarding retained work; maintain one Alembic head and no implicit startup migration.
 
 ## Verification
 
@@ -104,15 +116,23 @@ Extend inventory domain/service/repository and expose a public transition/state 
 
 ## Acceptance criteria
 
-- [ ] Under the existing restaurant lock, assign monotonic state revisions for actual balance, threshold and active-state changes and persist stable episode IDs plus opening/closing facts. State is low exactly when active and quantity <= reorder_threshold, including zero at a zero threshold.
-- [ ] Creation with low opening stock opens one episode; further changes while low do not open another. Recovery above threshold, threshold reevaluation and archive resolve with explicit stock-recovery/threshold-change/archive reasons. Restoration while low opens a new episode.
-- [ ] Capture immutable ingredient name/unit, opening quantity/threshold, timestamps and resolution facts sufficient for history even when close events arrive first. Producer facts, not worker arrival order, determine episode identity.
-- [ ] Manual stock changes and order consumption use the same public inventory transition interface and retain restaurant/order/ascending ingredient locks, ledger/balance/audit atomicity and unchanged physical-count conflicts.
-- [ ] No-op updates, stock command idempotent replays and rollback do not advance state or emit transitions; cancellation neither restores stock nor resolves an episode. Baseline initialization has a supported suppression/provenance path rather than invented historical transitions.
+- [x] Under the existing restaurant lock, assign monotonic state revisions for actual balance, threshold and active-state changes and persist stable episode IDs plus opening/closing facts. State is low exactly when active and quantity <= reorder_threshold, including zero at a zero threshold.
+- [x] Creation with low opening stock opens one episode; further changes while low do not open another. Recovery above threshold, threshold reevaluation and archive resolve with explicit `stock_recovered`/`threshold_changed`/`archived` reasons. Restoration while low opens a new episode.
+- [x] Capture immutable ingredient name/unit, opening quantity/threshold, timestamps and resolution facts sufficient for history even when close events arrive first. Producer facts, not worker arrival order, determine episode identity.
+- [x] Manual stock changes and order consumption use the same public inventory transition interface and retain restaurant/order/ascending ingredient locks, ledger/balance/audit atomicity and unchanged physical-count conflicts.
+- [x] No-op updates, stock command idempotent replays and rollback do not advance state or emit transitions; cancellation neither restores stock nor resolves an episode. Baseline initialization has a supported suppression/provenance path rather than invented historical transitions.
 
 ## Verification
 
 Run backend-unit, backend-integration, backend-static and migrations. Cover every transition boundary and threshold/archive/restore case, idempotency conflicts and deterministic overlapping stock/acceptance writes.
+
+T2 evidence (2026-10-11): `backend-integration` passed 234 tests with model
+drift check, `backend-static` passed Ruff lint/format and mypy, and `migrations`
+passed clean/seeded upgrades and retained-fact downgrade guards. The focused
+transition/event unit modules passed 18 tests. The full `backend-unit` gate
+stalled in the existing Windows Proactor socket guard and is not claimed as
+passed. See `docs/milestone8/verification-milestone8-issue32.md` for commands,
+scope, and the limitation.
 
 <!-- github-plan: docs/milestone8/milestone-8-design.md | T2 -->
 
@@ -132,15 +152,24 @@ Integrate events' public append interface into backend/app/modules/orders/servic
 
 ## Acceptance criteria
 
-- [ ] Emit order lifecycle events only on genuine approved transitions; completion snapshots include authoritative total, creation timestamp and revision. Permitted deletion captures sufficient identity/revision facts before removal for analytics tombstones.
-- [ ] Emit menu.updated.v1 for actual menu/item creation, edit, deactivation and deletion with operation/affected identities; inventory.state_changed.v1 for actual resulting state changes and inventory.low.v1 only for new episodes. Multiple events in one command share correlation.
-- [ ] Business state, stock ledger, audit facts, immutable event and required consumer deliveries commit together. Inject audit/event/delivery/flush failures and prove complete rollback, including no partially visible fan-out.
-- [ ] Read requests, unchanged status/no-op edits and command retries emit no duplicate business event. Preserve authorization locks, current membership/assignment checks, monetary snapshots, idempotency replay/mismatch and cancellation without restock.
-- [ ] An API process killed after commit and before any transport publication leaves all events/deliveries recoverable by a later worker; API writes require neither Redis nor a running worker. Existing post-commit cache invalidation and API Redis/auth failure policies remain unchanged.
+- [x] Emit order lifecycle events only on genuine approved transitions; completion snapshots include authoritative total, creation timestamp and revision. Permitted deletion captures sufficient identity/revision facts before removal for analytics tombstones.
+- [x] Emit menu.updated.v1 for actual menu/item creation, edit, deactivation and deletion with operation/affected identities; inventory.state_changed.v1 for actual resulting state changes and inventory.low.v1 only for new episodes. Multiple events in one command share correlation.
+- [x] Business state, stock ledger, audit facts, immutable event and required consumer deliveries commit together. Inject audit/event/delivery/flush failures and prove complete rollback, including no partially visible fan-out.
+- [x] Read requests, unchanged status/no-op edits and command retries emit no duplicate business event. Preserve authorization locks, current membership/assignment checks, monetary snapshots, idempotency replay/mismatch and cancellation without restock.
+- [x] An API process killed after commit and before any transport publication leaves all events/deliveries recoverable by a later worker; API writes require neither Redis nor a running worker. Existing post-commit cache invalidation and API Redis/auth failure policies remain unchanged.
 
 ## Verification
 
 Run backend-unit, backend-integration and backend-static. Use real PostgreSQL rollback injection and a controlled actual API-process crash boundary; inspect committed records rather than relying on logs.
+
+T3 evidence (2026-10-12): Python 3.12.13 `backend-unit` passed 262 tests,
+`backend-integration` passed 257 tests with no Alembic drift, and
+`backend-static` passed. Controlled API death with Redis unavailable leaves all
+required subscribed work pending in PostgreSQL; actual worker effects remain
+T4–T7. No schema or HTTP contract changes were introduced. See
+[Issue #33 verification](verification-milestone8-issue33.md) for the acceptance
+review, exact commands, corrected fixture failures and omitted gates. This is
+producer-slice completion, not full M8 acceptance.
 
 <!-- github-plan: docs/milestone8/milestone-8-design.md | T3 -->
 

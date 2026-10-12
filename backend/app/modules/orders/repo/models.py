@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
 class Order(Base):
     __tablename__ = "orders"
     __table_args__ = (
+        CheckConstraint("revision >= 1", name="ck_orders_revision"),
         Index("ix_orders_restaurant_created_at", "restaurant_id", "created_at"),
     )
 
@@ -65,6 +67,11 @@ class Order(Base):
 
     inventory_processed: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
+    )
+
+    # Revision metadata is additive; existing orders start at revision one.
+    revision: Mapped[int] = mapped_column(
+        nullable=False, default=1, server_default=text("1")
     )
 
     created_at: Mapped[datetime] = mapped_column(

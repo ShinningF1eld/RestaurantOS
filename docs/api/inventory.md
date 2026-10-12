@@ -55,8 +55,54 @@ audit facts. Order acceptance records negative `consumption` movements in the
 same ledger and advances the same balance version used by physical counts.
 Consumption, recipe edits, and manual stock changes share the restaurant lock.
 Cancellation never restores stock. See [the order contract](orders.md).
+
+## Revisioned state and low-stock episodes
+
+The producer stores an `inventory_ingredients.state_revision` watermark,
+independent of `inventory_balances.version`. A new ingredient starts at
+revision 1. A real balance, threshold, or active-state change advances the state
+revision once under the restaurant lock. Name/unit-only edits and zero-delta
+counts do not advance it; physical counts still advance `balance.version` and
+retain their existing conflict behavior.
+
+Low stock means exactly `is_active AND quantity <= reorder_threshold`, including
+zero quantity at a zero threshold. A low opening balance creates one episode at
+ingredient creation. Normal-to-low transitions create a new stable UUID;
+additional changes within that low period keep the same episode. Recovery,
+threshold reevaluation, and archive resolve it with `stock_recovered`,
+`threshold_changed`, or `archived`. Restoring an archived low ingredient starts
+a new episode.
+
+Each episode retains opening scope, ingredient name/unit, quantity, threshold,
+timestamp, state revision, and operation/actor/order provenance. Resolution is
+recorded once with timestamp, reason, resulting quantity/threshold/active state,
+revision, and provenance. Opening fields are protected by a database trigger;
+there are no cascading ingredient references, so snapshots survive later
+catalog deletion. The partial unique index permits at most one unresolved
+episode per ingredient. Existing ingredients receive revision watermark 1 but
+are not assigned invented historical episodes.
+
+Inventory and order services share `record_inventory_transition` within their
+existing transaction and lock order. It returns an immutable
+`InventoryTransition` containing the resulting state and complete episode facts
+and appends state/episode events in that same transaction. `load_inventory_state(..., lock=True)` provides
+trusted consumers a live state check under the same restaurant and ingredient
+locks. `record_baseline_inventory_episode` supports later maintenance setup:
+it records the observation time and `maintenance_initialization` provenance,
+marks notification suppression, and does not advance the inventory revision.
+Issue #33 emits `inventory.state_changed.v1` for genuine balance, threshold,
+or active-state changes and `inventory.low.v1` only for new episode openings.
+Further low-state changes retain the episode identity without another low event.
+Name/unit-only edits, zero-delta counts and idempotent replays emit no event;
+physical-count versions and movement history retain their existing behavior.
+Baseline initialization emits no event. Legacy low rows without initialized
+episodes may emit truthful state changes with no episode identity, never a false
+low-stock opening. These internal interfaces add no HTTP routes. Business state,
+ledger, episode facts, audit, events and required deliveries commit together.
+
 There is no supplier, purchase-order, or inter-restaurant transfer workflow. Revision
 `c48b7e02f315` adds the inventory tables after catalog-price revision
-`b37a6d91e204`. The existing application database was verified at inventory
-revision `c48b7e02f315` on 2026-10-05. Recipe and order migrations are additive
-and verified on disposable databases before deployment.
+`b37a6d91e204`. The last recorded application-database revision is
+`c48b7e02f315` (2026-10-05); the later recipe, order, event, and inventory
+revision migrations are additive and verified on disposable databases. This
+Issue #32 work does not migrate the application database.

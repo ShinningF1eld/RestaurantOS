@@ -5,6 +5,78 @@ in [issue #27 verification](milestone7/verification-milestone7-issue27.md).
 Catalog/dashboard experiments and full ten-gate local validation passed;
 final PR CI remains required. Full milestone acceptance is not yet claimed.
 
+## Milestone 8 Issue #33 T3 implementation evidence
+
+On 2026-10-12, T3 integrated order lifecycle/deletion, catalog change and
+inventory state/episode event producers into existing business transactions.
+Business state, stock ledger, audit, events and fixed delivery fan-out commit
+atomically. No-op/status retries and idempotent replays emit no additional event.
+Completion and deletion capture authoritative totals, UTC creation timestamps
+and revisions; acceptance's stock/order events share command correlation.
+Catalog revisions use retained scoped events under the restaurant lock. Legacy
+low rows without initialized episodes emit truthful state changes without false
+low-stock openings. See [event contracts](api/events.md).
+
+Python 3.12.13 validation passed `backend-unit` (262 tests),
+`backend-integration` (257 tests and no Alembic model drift) and `backend-static`
+(Ruff lint/format and mypy). Regressions include twelve rollback injections,
+locked concurrent catalog edits and a real API killed after commit with Redis
+unavailable, leaving complete pending delivery records in PostgreSQL. Earlier
+test-fixture failures were corrected before the final passing run. No schema/API
+changes or application migration were performed. Worker processing and full M8
+acceptance remain later tasks. Exact commands, acceptance mapping and omissions
+are in [Issue #33 verification](milestone8/verification-milestone8-issue33.md).
+
+## Milestone 8 Issue #31 T1 implementation evidence
+
+On 2026-10-11, T1 added the eight typed event contracts, fixed subscription
+registry, transaction-bound PostgreSQL outbox and delivery/history tables, and
+order revision metadata. The API does not emit these events yet; inventory
+transition production, Redis publication, and consumers remain later M8 tasks.
+`backend-static` passed, the event contract unit module passed (6 tests), the
+PostgreSQL integration gate passed (228 tests) with model drift check, and the
+clean/seeded `migrations` gate passed, including both downgrade guards. The full
+`backend-unit` gate could not complete on this Windows host: its existing
+unit-only socket guard blocks in Python's Windows Proactor `socketpair()` during
+the first asynchronous auth test. This is a validation limitation, not a claim
+that the full unit gate passed. M8 remains in progress; see
+[`docs/api/events.md`](api/events.md) for the implemented contract.
+
+Follow-up on 2026-10-11 fixes the Issue #31 P2 contract finding: event payloads
+and producer boundaries reject contradictory episode opening/resolution states,
+and low-stock opening quantities cannot exceed their thresholds. Legacy low
+producer snapshots remain valid without an episode until initialization. The
+focused suites passed 34 tests; full `backend-unit` passed 259 tests and
+`backend-static` passed using Python 3.12.13 outside the sandbox. Integration
+passed 234 tests with no Alembic model drift. The earlier Windows stall is sandbox-dependent in
+this run, rather than proof of a current socket-guard defect. See the
+[updated Issue #31 report](milestone8/verification-milestone8-issue31.md) for
+pre-fix evidence and follow-up results. No schema or application migration is
+needed by this fix; full M8 acceptance remains open.
+
+## Milestone 8 Issue #32 T2 implementation evidence
+
+On 2026-10-11, T2 added monotonic inventory state revisions and durable low-stock
+episode facts. Manual stock commands and order acceptance call the same
+transaction-bound transition writer; episode opening snapshots and one-time
+resolution facts are retained independently of ingredient deletion. A partial
+unique index prevents multiple open episodes per ingredient, and a database
+trigger protects recorded history. The baseline interface records observation
+time and notification suppression for later Issue #38 maintenance. No event is
+emitted by T2.
+
+The `backend-static` gate passed. The disposable `backend-integration` gate
+passed all 234 tests with Alembic model-drift check, and `migrations` passed
+clean/seeded upgrades, legacy inventory preservation, and the retained-episode
+downgrade guard. The focused transition/event unit modules passed 18 tests. The
+full `backend-unit` gate was attempted but remains unverified because the
+existing unit-only socket guard stalls at Python's Windows Proactor
+`socketpair()` path in the first asynchronous auth test. This is not a full
+backend-unit pass. The host ran Python 3.13.15; the supported baseline is Python
+3.12. These partial runs do not establish Milestone 8 acceptance. The
+application database was not migrated. See the [Issue #32 verification record](milestone8/verification-milestone8-issue32.md) and
+[`docs/api/inventory.md`](api/inventory.md).
+
 Milestone 6 verification is dated 2026-10-06 in
 [the acceptance review](milestone6/milestone-6-verification.md). The complete local command
 passed, and all three roadmap exit criteria were verified with full GitHub CI and
@@ -179,14 +251,15 @@ The current models and tables are:
 | Membership | UUID `id` | Unique user; one organization; OWNER/MANAGER/EMPLOYEE; active/revoked |
 | RestaurantAssignment | `membership_id` + `restaurant_id` | Membership and restaurant must belong to the same organization |
 | AuditEntry | UUID `id` | Organization-scoped safe mutation facts; Owner-only inspection |
-| InventoryIngredient | `id` | Restaurant-scoped name, base unit, reorder threshold and active/archive state |
+| InventoryIngredient | `id` | Restaurant-scoped name, base unit, reorder threshold, active/archive state, and monotonic `state_revision` |
 | InventoryBalance | `ingredient_id` | Current nonnegative quantity and optimistic stock version |
 | InventoryMovement | `id` | Opening, receipt, waste, count or consumption delta; balance snapshot, actor, reason; manual idempotency or order reference |
+| InventoryLowStockEpisode | UUID `episode_id` | Immutable opening snapshot and one-time resolution facts, including organization/restaurant scope and operation provenance; retained across ingredient deletion |
 
 Alembic has one linear chain:
 
 ```text
-9007636220c5 -> 694f7189fe51 -> 2d7747d9f5b1 -> 4a1e9a2dc8e4 -> 72bd03a1f901 -> 83c7e1b4a902 -> 94d8f2c5b013 -> b37a6d91e204 -> c48b7e02f315 -> d57c8f13a426 -> e68d9a24b537 (repository head)
+9007636220c5 -> 694f7189fe51 -> 2d7747d9f5b1 -> 4a1e9a2dc8e4 -> 72bd03a1f901 -> 83c7e1b4a902 -> 94d8f2c5b013 -> b37a6d91e204 -> c48b7e02f315 -> d57c8f13a426 -> e68d9a24b537 -> c61a0f3d9e42 -> b8f34c2a91de (repository head)
 ```
 
 The existing application database is currently verified at

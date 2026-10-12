@@ -1,0 +1,1 @@
+"""PostgreSQL event storage operations."""
