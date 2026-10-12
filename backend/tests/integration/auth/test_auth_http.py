@@ -336,8 +336,27 @@ def test_expired_access_can_logout_with_refresh(authenticated_client):
     assert scalar("SELECT revoked_at IS NOT NULL FROM auth_sessions")
 
 
-def test_login_limits_include_unknown_accounts_and_spoofed_forwarded_ip():
+def test_login_limits_include_unknown_accounts_and_spoofed_forwarded_ip(monkeypatch):
+    from app.modules.auth import rate_limit
+    from tests.support.redis_ready import warm_redis
+
+    # Keep all failures in one fixed window even if CI starts at xx:xx:59.99.
+    # Execute the actual admission/finalization Lua against real Redis, replacing
+    # only its TIME source. Other tests exercise server-time expiry boundaries.
+    for script in ("ADMIT", "FINALIZE"):
+        monkeypatch.setattr(
+            rate_limit,
+            script,
+            getattr(rate_limit, script).replace("redis.call('TIME')", "{120, 0}"),
+        )
     with TestClient(app) as client:
+        subject = app.state.auth_limiter
+        monkeypatch.setattr(subject, "_wall", lambda: 120.0)
+
+        async def ready():
+            await warm_redis(subject._redis())
+
+        client.portal.call(ready)
         payload = {
             "email": "unknown@example.test",
             "password": "Wrong password long enough",  # pragma: allowlist secret

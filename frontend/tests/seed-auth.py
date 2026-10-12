@@ -26,6 +26,7 @@ engine = create_engine(
 )
 with engine.begin() as connection:
     if sys.argv[1] == "delete":
+        retain_tenant = False
         org = connection.scalar(
             text("SELECT organization_id FROM memberships WHERE user_id=:id"),
             {"id": user_id},
@@ -37,31 +38,55 @@ with engine.begin() as connection:
                 )
                 == "browser-" + user_id
             )
-            # Delete only this fixture's private tenant, in restrictive-FK order.
-            for statement in [
-                "DELETE FROM recipe_components WHERE menu_item_id IN (SELECT i.menu_item_id FROM menu_items i JOIN menus m ON m.menu_id=i.menu_id JOIN restaurants r ON r.id=m.restaurant_id WHERE r.organization_id=:org)",
-                "DELETE FROM inventory_movements WHERE ingredient_id IN (SELECT id FROM inventory_ingredients WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org))",
-                "DELETE FROM inventory_balances WHERE ingredient_id IN (SELECT id FROM inventory_ingredients WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org))",
-                "DELETE FROM inventory_ingredients WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org)",
-                "DELETE FROM audit_entries WHERE organization_id=:org",
-                "DELETE FROM restaurant_assignments WHERE organization_id=:org",
-                "DELETE FROM memberships WHERE organization_id=:org",
-                "DELETE FROM order_submissions WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org)",
-                "DELETE FROM order_items WHERE order_id IN (SELECT order_id FROM orders WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org))",
-                "DELETE FROM orders WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org)",
-                "DELETE FROM menu_items WHERE menu_id IN (SELECT menu_id FROM menus WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org))",
-                "DELETE FROM menus WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org)",
-                "DELETE FROM restaurants WHERE organization_id=:org",
-                "DELETE FROM organizations WHERE id=:org",
-            ]:
-                if statement.startswith(
-                    "DELETE FROM order_submissions"
-                ) and not connection.scalar(
-                    text("SELECT to_regclass('order_submissions')")
-                ):
-                    continue
-                connection.execute(text(statement), {"org": org})
-        connection.execute(text("DELETE FROM users WHERE id=:id"), {"id": user_id})
+            # Immutable outbox facts reference this tenant. Retire its account
+            # and leave the private fixture data for the suite-owned DB drop;
+            # neither delete retained events nor truncate other tests' tenants.
+            retain_tenant = bool(
+                connection.scalar(
+                    text(
+                        "SELECT EXISTS (SELECT 1 FROM outbox_events WHERE organization_id=:org)"
+                    ),
+                    {"org": org},
+                )
+            )
+            if retain_tenant:
+                connection.execute(
+                    text("UPDATE users SET status='disabled' WHERE id=:id"),
+                    {"id": user_id},
+                )
+                connection.execute(
+                    text(
+                        "UPDATE auth_sessions SET revoked_at=COALESCE(revoked_at,now()) WHERE user_id=:id"
+                    ),
+                    {"id": user_id},
+                )
+            else:
+                # Delete only this fixture's private tenant, in restrictive-FK order.
+                for statement in [
+                    "DELETE FROM recipe_components WHERE menu_item_id IN (SELECT i.menu_item_id FROM menu_items i JOIN menus m ON m.menu_id=i.menu_id JOIN restaurants r ON r.id=m.restaurant_id WHERE r.organization_id=:org)",
+                    "DELETE FROM inventory_movements WHERE ingredient_id IN (SELECT id FROM inventory_ingredients WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org))",
+                    "DELETE FROM inventory_balances WHERE ingredient_id IN (SELECT id FROM inventory_ingredients WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org))",
+                    "DELETE FROM inventory_ingredients WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org)",
+                    "DELETE FROM audit_entries WHERE organization_id=:org",
+                    "DELETE FROM restaurant_assignments WHERE organization_id=:org",
+                    "DELETE FROM memberships WHERE organization_id=:org",
+                    "DELETE FROM order_submissions WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org)",
+                    "DELETE FROM order_items WHERE order_id IN (SELECT order_id FROM orders WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org))",
+                    "DELETE FROM orders WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org)",
+                    "DELETE FROM menu_items WHERE menu_id IN (SELECT menu_id FROM menus WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org))",
+                    "DELETE FROM menus WHERE restaurant_id IN (SELECT id FROM restaurants WHERE organization_id=:org)",
+                    "DELETE FROM restaurants WHERE organization_id=:org",
+                    "DELETE FROM organizations WHERE id=:org",
+                ]:
+                    if statement.startswith(
+                        "DELETE FROM order_submissions"
+                    ) and not connection.scalar(
+                        text("SELECT to_regclass('order_submissions')")
+                    ):
+                        continue
+                    connection.execute(text(statement), {"org": org})
+        if not retain_tenant:
+            connection.execute(text("DELETE FROM users WHERE id=:id"), {"id": user_id})
     elif sys.argv[1] == "create":
         account = json.load(sys.stdin)
         connection.execute(

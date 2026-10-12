@@ -113,3 +113,44 @@ could not create its disposable temporary baseline; the same gate passed
 outside the sandbox. No behavioral tests were rerun for comment-only changes.
 Final CI for the follow-up commit remains to be observed; this local partial
 gate does not establish complete PR or Milestone 8 acceptance.
+
+
+## PR #43 integration/browser CI follow-up — 2026-10-12
+
+The original run also failed the browser and backend integration gates. Browser
+reported 16 failures / 10 passes, all failing on private-fixture teardown:
+`DELETE FROM restaurants` violated the immutable outbox's retained scope FK.
+The fixture now disables its account and revokes sessions when events exist,
+retaining tenant, business and event history until the suite-owned disposable
+database is dropped. It keeps the test-database and private-tenant ownership
+guards; empty fixtures still hard-delete. No retained-fact trigger is bypassed,
+no global truncation is added and production deletion behavior is unchanged.
+Two new PostgreSQL regressions invoke the real seed CLI and verify both paths.
+Installed Next.js Playwright documentation was consulted before editing the
+frontend-owned Python fixture, as required by `frontend/AGENTS.md`.
+
+Backend CI had one failing test: unknown-account/spoofed-IP login requests began
+at `06:13:59.997 UTC` and continued after `06:14:00`, so Redis correctly expired
+the first failure at its fixed-minute boundary and the expected sixth-request
+429 was actually 401. That test now runs real Redis admission/finalization Lua
+with only its TIME source fixed, alongside the limiter's controlled local wall
+clock. Production Lua, server-time behavior, deadlines and quotas are unchanged;
+existing expiry-window tests continue using actual server-time scripts. Redis
+warming happens inside the TestClient's owning loop before auth admissions.
+
+Local commands, with Python 3.12.13 and existing locked dependencies:
+
+```powershell
+./scripts/validate.ps1 -PythonExecutable backend/.venv-m6-dev/Scripts/python.exe -Gate browser -NoInstall
+./scripts/validate.ps1 -PythonExecutable backend/.venv-m6-dev/Scripts/python.exe -Gate backend-integration -NoInstall
+./scripts/validate.ps1 -PythonExecutable backend/.venv-m6-dev/Scripts/python.exe -Gate backend-static -NoInstall
+./scripts/validate.ps1 -PythonExecutable backend/.venv-m6-dev/Scripts/python.exe -Gate baseline -NoInstall
+```
+
+Browser passed all 26 Chromium journeys and verified isolated suite cleanup.
+The final standalone integration rerun passed all 259 tests with no Alembic
+model drift. Final backend-static and baseline gates also passed. An earlier
+concurrent local run passed 258 tests but caught misplaced Redis warming outside
+the API loop (corrected) and a 100 ms fixture Redis cleanup timeout while the
+Next build ran. The final integration gate runs without that concurrent build.
+No production timeout or test failure handling was weakened.

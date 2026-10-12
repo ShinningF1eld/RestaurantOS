@@ -39,6 +39,15 @@ The API starts from the temporary workspace with the backend on `PYTHONPATH`,
 so application settings cannot fall back to the developer's backend `.env`.
 The original `.next` output and developer servers are untouched.
 
+Per-test fixture teardown deletes only its private tenant when it has no
+outbox history. Once a business event exists, immutable retained facts prevent
+that tenant's removal: teardown disables the fixture account and revokes its
+sessions, retaining the tenant and history until the suite-owned database is
+dropped. It never deletes retained event facts, disables immutability triggers,
+or truncates another fixture's data. Empty fixture accounts still hard-delete.
+`backend/tests/integration/test_browser_fixture_retention.py` verifies both
+paths through the actual guarded seed CLI.
+
 The source copy shares installed dependency files through a junction on Windows
 and a symlink on Linux. Its cleanup removes the link itself before removing the
 verified temporary workspace. The runner owns only its API child process;
