@@ -15,8 +15,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
+import pytest
 from pydantic import SecretStr
 from sqlalchemy import func, select, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -30,11 +32,15 @@ from app.modules.events.domain.contracts import (
 )
 from app.modules.events.repo.models import EventDelivery
 from app.modules.events.repo.worker_queries import (
-    claim_due_deliveries,
-    observe_publication,
+    claim_due_deliveries as claim_delivery_rows,
 )
 from app.modules.events.service import append_event
-from app.modules.events.worker.redis import WorkerRedisTransport
+from app.modules.events.worker.service import EventWorkerService
+from app.modules.events.worker.redis import (
+    WorkerFailureKind,
+    WorkerRedisFailure,
+    WorkerRedisTransport,
+)
 from app.modules.events.worker.runtime import EventWorker
 from app.modules.events.worker.streams import EventStreams, GROUPS
 from app.modules.tenancy.repo.models import Organization
@@ -498,6 +504,120 @@ def test_consumer_groups_route_independently_reclaim_own_pel_and_rebuild_stream(
         delete_owned_stream(settings)
 
 
+@pytest.mark.parametrize(
+    "failure_point,expected_ack_calls",
+    [
+        ("postgres_read", 1),
+        ("xack_before_execution", 2),
+        ("xack_after_execution", 1),
+    ],
+)
+def test_same_consumer_retries_transient_pending_reference_failures(
+    failure_point, expected_ack_calls, monkeypatch
+):
+    event = append_event_for_test(create_scope())
+    settings = worker_settings(event_worker_infra_backoff_initial_ms=500)
+
+    async def consume_until_recovered():
+        worker = EventWorker(settings, AsyncSessionLocal, worker_id="same-consumer")
+        stop = asyncio.Event()
+        first_failure = asyncio.Event()
+        recovered = asyncio.Event()
+        load_calls = 0
+        ack_calls = 0
+        original_load = worker.event_service.load_stored_delivery
+        original_ack = worker.streams.acknowledge
+        original_pending_reference = worker.streams.pending_reference
+
+        async def fail_postgres_read_once(*, event_id, consumer_name):
+            nonlocal load_calls
+            load_calls += 1
+            if failure_point == "postgres_read" and load_calls == 1:
+                first_failure.set()
+                raise SQLAlchemyError("injected transient database failure")
+            return await original_load(event_id=event_id, consumer_name=consumer_name)
+
+        async def fail_ack_once(group, message_id):
+            nonlocal ack_calls
+            ack_calls += 1
+            if failure_point == "xack_before_execution" and ack_calls == 1:
+                first_failure.set()
+                raise WorkerRedisFailure(WorkerFailureKind.CONNECTION)
+            if failure_point == "xack_after_execution" and ack_calls == 1:
+                acknowledged = await original_ack(group, message_id)
+                assert acknowledged
+                first_failure.set()
+                raise WorkerRedisFailure(WorkerFailureKind.CONNECTION)
+            acknowledged = await original_ack(group, message_id)
+            if acknowledged:
+                recovered.set()
+            return acknowledged
+
+        async def observe_ambiguous_ack(group, consumer, message_id):
+            pending = await original_pending_reference(group, consumer, message_id)
+            if failure_point == "xack_after_execution" and pending is None:
+                recovered.set()
+            return pending
+
+        monkeypatch.setattr(
+            worker.event_service, "load_stored_delivery", fail_postgres_read_once
+        )
+        monkeypatch.setattr(worker.streams, "acknowledge", fail_ack_once)
+        monkeypatch.setattr(worker.streams, "pending_reference", observe_ambiguous_ack)
+        task = None
+        try:
+            await worker.redis.open()
+            await worker.streams.ensure_groups()
+            original_message_id = await worker.redis.execute(
+                "XADD",
+                worker.streams.stream,
+                "*",
+                "event_id",
+                str(event.event_id),
+                "event_type",
+                event.event_type,
+                "schema_version",
+                str(event.schema_version),
+                "correlation_id",
+                event.correlation_id,
+            )
+            task = asyncio.create_task(worker._consumer_loop("alerts", stop))
+            await asyncio.wait_for(first_failure.wait(), timeout=5)
+            pending_after_failure = await worker.streams.pending_page(
+                "alerts", cursor="-", count=10
+            )
+            if failure_point == "xack_after_execution":
+                assert pending_after_failure == []
+            else:
+                assert len(pending_after_failure) == 1
+                assert pending_after_failure[0].owner == "same-consumer.alerts"
+
+            await asyncio.wait_for(recovered.wait(), timeout=5)
+            assert await worker.streams.pending_count("alerts") == 0
+            entries = await worker.redis.execute(
+                "XRANGE", worker.streams.stream, "-", "+"
+            )
+            assert len(entries) == 1
+            assert entries[0][0] == original_message_id
+            assert ack_calls == expected_ack_calls
+            if failure_point == "postgres_read":
+                assert load_calls == 2
+        finally:
+            stop.set()
+            if task is not None:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+            await worker.redis.close()
+
+    try:
+        asyncio.run(consume_until_recovered())
+    finally:
+        delete_owned_stream(settings)
+
+
 def test_physical_redis_restart_recreates_groups_from_postgres(tmp_path):
     event = append_event_for_test(create_scope())
     with owned_redis() as (container, port):
@@ -571,16 +691,61 @@ def test_physical_redis_restart_recreates_groups_from_postgres(tmp_path):
             kill_process(first)
 
 
+def test_worker_repository_stages_claim_inside_caller_transaction():
+    event = append_event_for_test(create_scope())
+
+    async def claim_inside_transaction():
+        async with AsyncSessionLocal() as session:
+            with pytest.raises(RuntimeError, match="caller transaction"):
+                await claim_delivery_rows(
+                    session,
+                    owner="transaction-contract-worker",
+                    limit=1,
+                    lease_seconds=5,
+                    republish_after_seconds=60,
+                )
+
+            async with session.begin():
+                claims = await claim_delivery_rows(
+                    session,
+                    owner="transaction-contract-worker",
+                    limit=1,
+                    lease_seconds=5,
+                    republish_after_seconds=60,
+                )
+                assert session.in_transaction()
+                assert len(claims) == 1
+                with engine.connect() as connection:
+                    uncommitted_token = connection.scalar(
+                        text(
+                            "SELECT claim_token FROM event_deliveries "
+                            "WHERE event_id=:event_id AND consumer_name=:consumer"
+                        ),
+                        {
+                            "event_id": event.event_id,
+                            "consumer": claims[0].consumer_name,
+                        },
+                    )
+                assert uncommitted_token is None
+                return claims[0]
+
+    claim = asyncio.run(claim_inside_transaction())
+    rows = delivery_rows(event.event_id)
+    owned = next(row for row in rows if row["consumer_name"] == claim.consumer_name)
+    assert owned["claim_token"] == claim.claim_token
+    assert owned["claim_owner"] == "transaction-contract-worker"
+
+
 def test_two_claimants_expiry_and_old_claim_fencing():
     event = append_event_for_test(create_scope())
+    event_service = EventWorkerService(AsyncSessionLocal)
 
     async def race_claimants():
         barrier = asyncio.Barrier(2)
 
         async def claim(owner):
             await barrier.wait()
-            return await claim_due_deliveries(
-                AsyncSessionLocal,
+            return await event_service.claim_due_deliveries(
                 owner=owner,
                 limit=1,
                 lease_seconds=5,
@@ -602,8 +767,7 @@ def test_two_claimants_expiry_and_old_claim_fencing():
         )
 
     async def reclaim():
-        return await claim_due_deliveries(
-            AsyncSessionLocal,
+        return await event_service.claim_due_deliveries(
             owner="relay-new",
             limit=1,
             lease_seconds=5,
@@ -613,8 +777,8 @@ def test_two_claimants_expiry_and_old_claim_fencing():
     newer = asyncio.run(reclaim())[0]
     assert newer.event_id == event.event_id
     assert newer.claim_token != old_claim.claim_token
-    assert asyncio.run(observe_publication(AsyncSessionLocal, old_claim)) is False
-    assert asyncio.run(observe_publication(AsyncSessionLocal, newer)) is True
+    assert asyncio.run(event_service.observe_publication(old_claim)) is False
+    assert asyncio.run(event_service.observe_publication(newer)) is True
     rows = delivery_rows(event.event_id)
     assert rows[0]["published_at"] is not None
     assert rows[0]["claim_token"] is None
@@ -733,10 +897,10 @@ def test_worker_redis_outage_recovers_without_spending_delivery_attempts(tmp_pat
 def test_relay_claim_batch_stays_bounded_with_significant_backlog():
     scope = create_scope()
     events = [append_event_for_test(scope) for _ in range(25)]
+    event_service = EventWorkerService(AsyncSessionLocal)
 
     async def claim_batch():
-        return await claim_due_deliveries(
-            AsyncSessionLocal,
+        return await event_service.claim_due_deliveries(
             owner="bounded-backlog-worker",
             limit=10,
             lease_seconds=30,

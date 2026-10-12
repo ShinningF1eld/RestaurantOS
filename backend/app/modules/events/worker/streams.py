@@ -225,6 +225,23 @@ class EventStreams:
         result = await self._redis.pending_range(self.stream, group, cursor, "+", count)
         return _pending_messages(result)
 
+    async def pending_reference(
+        self, group: ConsumerName, consumer: str, message_id: str
+    ) -> StreamMessage | None:
+        """Reload one PEL entry only while this consumer still owns it."""
+        pending = _pending_messages(
+            await self._redis.pending_range(
+                self.stream, group, message_id, message_id, 1
+            )
+        )
+        if not pending or pending[0].owner != consumer:
+            return None
+        entries = await self._redis.execute(
+            "XRANGE", self.stream, message_id, message_id, "COUNT", 1
+        )
+        messages = _claimed_messages(entries)
+        return messages[0] if messages else None
+
     async def claim_pending(
         self,
         group: ConsumerName,

@@ -15,21 +15,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.core.config import Settings
 from app.modules.events.domain.contracts import ConsumerName
 from app.modules.events.domain.subscriptions import consumers_for
-from app.modules.events.repo.worker_queries import (
-    DeliveryClaim,
-    claim_due_deliveries,
-    database_time,
-    defer_claim_after_transport_failure,
-    load_stored_delivery,
-    observe_publication,
-    reset_observations_before,
-    retained_work_counts,
-)
+from app.modules.events.repo.worker_queries import DeliveryClaim
 from app.modules.events.worker.redis import (
     WorkerFailureKind,
     WorkerRedisFailure,
     WorkerRedisTransport,
 )
+from app.modules.events.worker.service import EventWorkerService
 from app.modules.events.worker.streams import (
     EventStreams,
     PendingMessage,
@@ -48,6 +40,12 @@ class WorkerHooks:
     after_publish: Callable[[DeliveryClaim, str], Awaitable[None]] | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class _ReferenceRetry:
+    failure_count: int
+    ready_at: float
+
+
 class EventWorker:
     def __init__(
         self,
@@ -59,7 +57,7 @@ class EventWorker:
         hooks: WorkerHooks | None = None,
     ) -> None:
         self.settings = settings
-        self.sessions = sessions
+        self.event_service = EventWorkerService(sessions)
         self.worker_id = worker_id or f"worker-{uuid4().hex}"
         if len(self.worker_id) > 80:
             raise ValueError("Worker identity must be at most 80 characters")
@@ -130,6 +128,52 @@ class EventWorker:
             max(self._initial_backoff(), current * 2),
         )
 
+    def _reference_retry_delay(self, failure_count: int) -> int:
+        delay = self._initial_backoff()
+        for _ in range(min(max(failure_count - 1, 0), 16)):
+            delay = self._next_backoff(delay)
+        return delay
+
+    def _schedule_reference_retry(
+        self,
+        message: StreamMessage,
+        group: ConsumerName,
+        error: WorkerRedisFailure | SQLAlchemyError | OSError | TimeoutError,
+        retries: dict[str, _ReferenceRetry],
+        *,
+        failure_count: int | None = None,
+    ) -> None:
+        previous = retries.get(message.message_id)
+        count = failure_count or (previous.failure_count + 1 if previous else 1)
+        delay_ms = self._reference_retry_delay(count)
+        retries[message.message_id] = _ReferenceRetry(
+            failure_count=count,
+            ready_at=asyncio.get_running_loop().time() + delay_ms / 1000,
+        )
+        try:
+            event_id = str(UUID(message.fields.get("event_id", "")))
+        except (ValueError, TypeError):
+            event_id = None
+        if isinstance(error, WorkerRedisFailure):
+            failure_category = error.kind.value
+        elif isinstance(error, SQLAlchemyError):
+            failure_category = "postgres_unavailable"
+        else:
+            failure_category = "infrastructure_unavailable"
+        logger.warning(
+            "event_worker_reference_retry_scheduled",
+            extra={
+                "event": "worker_reference_retry",
+                "worker_id": self.worker_id,
+                "consumer_name": group,
+                "event_id": event_id,
+                "transport_message_id": message.message_id,
+                "failure_category": failure_category,
+                "retry_delay_ms": delay_ms,
+                "outcome": "retry_scheduled",
+            },
+        )
+
     async def _wait(self, stop: asyncio.Event, delay_ms: int) -> None:
         if stop.is_set():
             return
@@ -187,8 +231,7 @@ class EventWorker:
         backoff = self._initial_backoff()
         while not stop.is_set():
             try:
-                claims = await claim_due_deliveries(
-                    self.sessions,
+                claims = await self.event_service.claim_due_deliveries(
                     owner=self.worker_id,
                     limit=self.settings.event_worker_claim_batch_size,
                     lease_seconds=self.settings.event_worker_claim_lease_seconds,
@@ -240,7 +283,7 @@ class EventWorker:
                 message_id = await self.streams.publish(claim)
                 if self.hooks.after_publish is not None:
                     await self.hooks.after_publish(claim, message_id)
-                owned = await observe_publication(self.sessions, claim)
+                owned = await self.event_service.observe_publication(claim)
                 logger.info(
                     "event_worker_publication_observed",
                     extra={
@@ -264,8 +307,7 @@ class EventWorker:
                 )
                 delay = min(delay, self.settings.event_worker_infra_backoff_max_ms)
                 try:
-                    await defer_claim_after_transport_failure(
-                        self.sessions,
+                    await self.event_service.defer_claim_after_transport_failure(
                         claim,
                         retry_after_ms=delay,
                         failure_category=f"redis_{error.kind.value}",
@@ -296,17 +338,17 @@ class EventWorker:
                 stream_size = await self.streams.length()
                 if stream_size == 0:
                     if self._stream_loss_cutoff is None:
-                        self._stream_loss_cutoff = await database_time(self.sessions)
-                    recovered = await reset_observations_before(
-                        self.sessions,
+                        self._stream_loss_cutoff = (
+                            await self.event_service.database_time()
+                        )
+                    recovered = await self.event_service.reset_observations_before(
                         cutoff=self._stream_loss_cutoff,
                         limit=self.settings.event_worker_recovery_batch_size,
                     )
                     if recovered < self.settings.event_worker_recovery_batch_size:
                         self._stream_loss_cutoff = None
                 elif self._stream_loss_cutoff is not None:
-                    recovered = await reset_observations_before(
-                        self.sessions,
+                    recovered = await self.event_service.reset_observations_before(
                         cutoff=self._stream_loss_cutoff,
                         limit=self.settings.event_worker_recovery_batch_size,
                     )
@@ -315,7 +357,7 @@ class EventWorker:
                 else:
                     recovered = 0
 
-                work = await retained_work_counts(self.sessions)
+                work = await self.event_service.retained_work_counts()
                 pending_count = 0
                 for group in self._groups():
                     pending_count += await self.streams.pending_count(group)
@@ -370,9 +412,48 @@ class EventWorker:
         consumer = f"{self.worker_id}.{group}"
         cursor = "-"
         backoff = self._initial_backoff()
+        retries: dict[str, _ReferenceRetry] = {}
         while not stop.is_set():
             try:
                 await self.streams.ensure_groups()
+                if retries:
+                    message_id, retry = min(
+                        retries.items(), key=lambda entry: entry[1].ready_at
+                    )
+                    remaining_ms = max(
+                        0,
+                        int(
+                            (retry.ready_at - asyncio.get_running_loop().time()) * 1000
+                        ),
+                    )
+                    if remaining_ms:
+                        await self._wait(stop, remaining_ms)
+                        continue
+                    message = StreamMessage(message_id, {})
+                    try:
+                        pending_message = await self.streams.pending_reference(
+                            group, consumer, message_id
+                        )
+                        if pending_message is not None:
+                            message = pending_message
+                            await self._route_message(pending_message, group)
+                    except (
+                        WorkerRedisFailure,
+                        SQLAlchemyError,
+                        OSError,
+                        TimeoutError,
+                    ) as error:
+                        self._schedule_reference_retry(
+                            message,
+                            group,
+                            error,
+                            retries,
+                        )
+                    else:
+                        retries.pop(message_id, None)
+                    backoff = self._initial_backoff()
+                    continue
+
                 pending = await self.streams.pending_page(
                     group,
                     cursor=cursor,
@@ -383,9 +464,21 @@ class EventWorker:
                     for message in await self._claim_abandoned(
                         pending, group=group, consumer=consumer
                     ):
-                        await self._route_message(message, group)
+                        try:
+                            await self._route_message(message, group)
+                        except (
+                            WorkerRedisFailure,
+                            SQLAlchemyError,
+                            OSError,
+                            TimeoutError,
+                        ) as error:
+                            self._schedule_reference_retry(
+                                message, group, error, retries
+                            )
                 else:
                     cursor = "-"
+                if retries:
+                    continue
                 messages = await self.streams.read_new(
                     group,
                     consumer,
@@ -393,7 +486,15 @@ class EventWorker:
                     block_ms=self.settings.event_worker_redis_block_ms,
                 )
                 for message in messages:
-                    await self._route_message(message, group)
+                    try:
+                        await self._route_message(message, group)
+                    except (
+                        WorkerRedisFailure,
+                        SQLAlchemyError,
+                        OSError,
+                        TimeoutError,
+                    ) as error:
+                        self._schedule_reference_retry(message, group, error, retries)
                 backoff = self._initial_backoff()
             except asyncio.CancelledError:
                 raise
@@ -453,8 +554,8 @@ class EventWorker:
             self._log_bad_reference(message, group, "invalid_event_id")
             return
         try:
-            stored = await load_stored_delivery(
-                self.sessions, event_id=event_id, consumer_name=group
+            stored = await self.event_service.load_stored_delivery(
+                event_id=event_id, consumer_name=group
             )
         except ValueError:
             self._log_bad_reference(message, group, "invalid_stored_event")

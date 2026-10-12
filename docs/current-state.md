@@ -12,7 +12,8 @@ No schema, API, image or dependency changes were made. See the
 [event worker runbook](runbooks/event-worker.md), [Redis architecture](architecture/redis.md),
 and [event contract](api/events.md).
 
-Using the available Python 3.13.15 environment, `backend-unit` passed 270 tests,
+Initial implementation validation used the available Python 3.13.15 environment:
+`backend-unit` passed 270 tests,
 `backend-integration` passed 268 tests with no Alembic model drift, and
 `backend-static` passed. The worker-focused unit module passed 8 tests. The
 integration gate used disposable PostgreSQL 16 and Redis 7 services and cleaned
@@ -21,7 +22,31 @@ sandboxed unit run stalled in an existing async auth socket guard, then the gate
 passed outside the restricted process environment. Exact commands, exercised
 failure cases and omitted gates are recorded in
 [Issue #34 verification](milestone8/verification-milestone8-issue34.md).
-Independent review is pending; this is not full Milestone 8 acceptance.
+Independent review identified F1/F2; implementation follow-up is recorded below
+and is awaiting an independent rerun. Full Milestone 8 acceptance remains open.
+
+Follow-up on 2026-10-12 addresses findings F1 and F2 in the independent Issue
+#34 review. The worker now retries transient PostgreSQL-read and Redis-XACK
+failures for the same still-owned PEL reference with bounded exponential delay;
+an ambiguous XACK is reconciled against the PEL before retrying. Repository
+worker queries now accept an active `AsyncSession` and stage changes only; the
+worker-specific service owns sessions and short transactions. A separate worker
+service module also avoids importing producer business models in the standalone
+process. Regressions cover transient PostgreSQL read failure, XACK failure before
+execution, ambiguous XACK after execution, and caller-owned repository
+transactions.
+
+Follow-up validation on the available Python 3.13.15 environment passed
+`backend-static` (Ruff, 200 formatted files, mypy on 140 source files),
+`backend-unit` (270 tests), and `backend-integration` (272 tests against
+disposable PostgreSQL 16 and Redis 7, followed by a clean `alembic check`). The
+integration run emitted 807 existing deprecation warnings. The first sandboxed
+unit attempt stalled in an existing Windows async auth socket test; the complete
+unit gate passed when rerun outside that restricted process environment. No
+migration, API, image or dependency changes were required. The independent
+reviewer has not rerun the verification after these changes, so Issue #34
+acceptance and full Milestone 8 acceptance remain open. Exact follow-up evidence
+is appended to the [Issue #34 verification report](milestone8/verification-milestone8-issue34.md).
 
 Milestone 7 measurements and operational/failure evidence are dated 2026-10-10
 in [issue #27 verification](milestone7/verification-milestone7-issue27.md).

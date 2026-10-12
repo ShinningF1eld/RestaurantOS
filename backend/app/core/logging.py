@@ -37,6 +37,7 @@ class JsonFormatter(logging.Formatter):
             "failure_category",
             "outcome",
             "transport_message_id",
+            "retry_delay_ms",
             "stream_size",
             "pending_count",
             "unfinished_count",

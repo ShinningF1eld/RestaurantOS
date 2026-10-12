@@ -200,7 +200,7 @@ Add the backend worker entrypoint and shared transport adapters, dedicated bound
 
 Run backend-unit, backend-integration, backend-static and image if the runtime image is extended. Exercise real worker/Redis processes, ambiguous publish, pending reclaim, two relay workers, expired claims, restart/content loss and graceful/forced shutdown.
 
-T4 implementation evidence (2026-10-12): `backend-integration` passed 268
+Initial T4 implementation evidence (2026-10-12): `backend-integration` passed 268
 tests against disposable PostgreSQL 16 and Redis 7, including real worker
 processes, two-claimant fencing, both publication crash windows, ambiguous XADD,
 independent consumer groups, pending reclaim, physical Redis restart/content
@@ -214,6 +214,22 @@ image, or dependency changes; integration's clean disposable upgrades and
 [`Issue #34 verification`](verification-milestone8-issue34.md) for exact
 commands, review mapping and omissions. These are T4 implementation results;
 independent verification and full M8 acceptance remain open.
+
+T4 finding follow-up (2026-10-12): implemented bounded same-consumer retries
+for transient PostgreSQL reads and XACK failures, including ambiguous XACK
+responses, while leaving subscribed T5 work pending without repeated routing.
+Repository functions now require a caller-owned `AsyncSession`; the new
+worker-specific service owns short transactions. Moving it out of the producer
+service also keeps standalone worker mapper initialization independent of
+unrelated business models. Regressions cover these three transport failure
+points and repository transaction ownership. A real worker-process test and the
+full disposable `backend-integration` gate passed (272 tests; `alembic check`
+reported no model drift), with `backend-unit` (270 tests) and `backend-static`
+also passing. Validation used the available Python 3.13.15 environment; the
+unit gate needed to run outside the restricted Windows process sandbox after
+the first attempt stalled in an existing auth socket test. Independent
+verification has not rerun, and neither Issue #34 nor full M8 acceptance is
+claimed complete.
 
 <!-- github-plan: docs/milestone8/milestone-8-design.md | T4 -->
 
