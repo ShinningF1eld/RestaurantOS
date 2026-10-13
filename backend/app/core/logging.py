@@ -29,6 +29,23 @@ class JsonFormatter(logging.Formatter):
             "process_id",
             "reason",
             "duration_seconds",
+            "event_id",
+            "consumer_name",
+            "worker_id",
+            "claim_id",
+            "correlation_id",
+            "failure_category",
+            "outcome",
+            "transport_message_id",
+            "retry_delay_ms",
+            "stream_size",
+            "pending_count",
+            "unfinished_count",
+            "retained_event_count",
+            "retained_delivery_count",
+            "retained_receipt_count",
+            "retained_attempt_count",
+            "recovery_count",
         ):
             value = getattr(record, field, None)
             if value is not None:

@@ -39,6 +39,19 @@ class Settings(BaseSettings):
     redis_operation_budget_ms: int = Field(default=100, gt=0, le=100)
     redis_max_connections: int = Field(default=20, gt=0, le=1000)
     redis_test_namespace: str = Field(default="test")
+    event_worker_redis_operation_budget_ms: int = Field(default=2000, gt=0, le=10000)
+    event_worker_redis_block_ms: int = Field(default=1000, gt=0, le=9000)
+    event_worker_redis_max_connections: int = Field(default=8, gt=0, le=100)
+    event_worker_claim_batch_size: int = Field(default=10, gt=0, le=100)
+    event_worker_relay_concurrency: int = Field(default=2, gt=0, le=16)
+    event_worker_claim_lease_seconds: int = Field(default=30, gt=0, le=600)
+    event_worker_recovery_scan_interval_ms: int = Field(default=1500, gt=0, le=60000)
+    event_worker_recovery_batch_size: int = Field(default=10, gt=0, le=100)
+    event_worker_republish_stall_seconds: int = Field(default=60, gt=0, le=3600)
+    event_worker_pending_idle_ms: int = Field(default=60000, gt=0, le=3600000)
+    event_worker_infra_backoff_initial_ms: int = Field(default=1000, gt=0, le=30000)
+    event_worker_infra_backoff_max_ms: int = Field(default=30000, gt=0, le=300000)
+    event_worker_shutdown_grace_seconds: int = Field(default=10, gt=0, le=120)
     auth_jwt_secret: SecretStr = Field(validation_alias="AUTH_JWT_SECRET")
     auth_rate_limit_secret: SecretStr = Field(validation_alias="AUTH_RATE_LIMIT_SECRET")
     auth_trusted_origins: list[str] = Field(
@@ -105,6 +118,28 @@ class Settings(BaseSettings):
         ):
             raise ValueError(
                 "Production requires secure cookies, HTTPS origins and disabled SQL echo"
+            )
+        if (
+            self.event_worker_redis_block_ms
+            >= self.event_worker_redis_operation_budget_ms
+        ):
+            raise ValueError(
+                "Worker Redis blocking reads must fit inside its command deadline"
+            )
+        if (
+            self.event_worker_infra_backoff_max_ms
+            < self.event_worker_infra_backoff_initial_ms
+        ):
+            raise ValueError(
+                "Worker maximum outage backoff cannot be below its initial backoff"
+            )
+        network_seconds = self.event_worker_redis_operation_budget_ms / 1000
+        claim_waves = (
+            self.event_worker_claim_batch_size + self.event_worker_relay_concurrency - 1
+        ) // self.event_worker_relay_concurrency
+        if self.event_worker_claim_lease_seconds < network_seconds * claim_waves:
+            raise ValueError(
+                "Worker claim lease must cover the bounded relay batch deadline"
             )
         return self
 

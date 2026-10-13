@@ -56,6 +56,7 @@ def pytest_configure(config: pytest.Config) -> None:
                     "TEST_REDIS",
                     "AUTH_",
                     "REDIS",
+                    "EVENT_WORKER_",
                 )
             ) or key in {"ENVIRONMENT", "LOG_LEVEL"}:
                 os.environ.pop(key, None)

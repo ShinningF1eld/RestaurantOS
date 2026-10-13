@@ -114,3 +114,38 @@ Real Redis tests run under `backend-integration`; image smoke deliberately point
 at unavailable Redis to prove boot/liveness without automatic migrations.
 Normal developer `docker compose down` retains `postgres_data`; local Redis has
 no persistent volume. `docker-compose.test.yml` remains disposable and unchanged.
+
+## Milestone 8 event worker transport
+
+The separate `python -m app.worker` process owns a dedicated Redis pool, capped
+by `EVENT_WORKER_REDIS_MAX_CONNECTIONS` (default 8, range 1–100). It does not
+reuse the API cache/auth adapter or its 100 ms command budget. The worker's Redis
+deadline defaults to 2,000 ms (range 1–10,000); its blocking stream read is 1,000
+ms (range 1–9,000) and must be shorter than the command deadline. It uses one
+namespaced `restaurantos:{environment}:events:v1:stream` and the fixed groups
+`analytics`, `alerts`, and `notification_sink`.
+
+Stream entries contain only PostgreSQL `event_id`, `event_type`,
+`schema_version`, and `correlation_id`. PostgreSQL provides and validates the
+typed event facts. Each group's Redis Stream ID is transport identity only; a
+republish keeps the original PostgreSQL event UUID. Groups acknowledge
+non-subscribed references. T4 leaves subscribed entries in the PEL because
+consumer effects and durable receipts are implemented in T5.
+
+The worker's PostgreSQL relay claims at most 10 deliveries at once with two
+concurrent publications, a 30-second lease, and `SKIP LOCKED` selection. Recovery
+scans every 1,500 ms in batches of 10; a publication is considered stalled after
+60 seconds. Abandoned Redis pending entries become reclaimable after 60,000 ms.
+Infrastructure backoff doubles from 1,000 to at most 30,000 ms. Graceful worker
+shutdown allows 10 seconds before cancelling remaining loops. Each value has a
+bounded `EVENT_WORKER_*` setting; cross-setting validation keeps Redis blocking
+reads inside their deadline, leases long enough for one bounded relay batch, and
+maximum backoff at least the initial delay. The [event worker runbook](../runbooks/event-worker.md)
+contains the full configuration table and recovery procedures.
+
+Worker recovery recreates missing groups, scans bounded PostgreSQL work and
+resets publication observations when the stream is empty after content loss.
+`next_attempt_at` remains authoritative on early stream references. A successful
+`XADD` only records a fenced publication observation; it does not complete a
+delivery. Ambiguous writes may create duplicate stream IDs with the same event
+UUID. Automatic trimming and deletion of retained event history are not enabled.

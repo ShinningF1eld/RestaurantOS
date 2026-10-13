@@ -48,13 +48,16 @@ saves about 40% of queries but retains old aggregates after a permitted order
 delete until expiry. Milestone acceptance awaits the remaining
 verification evidence recorded in [issue #27](docs/milestone7/verification-milestone7-issue27.md).
 
-Milestone 8 T1–T3 now record committed order, catalog and inventory events plus
-required consumer deliveries in the business transaction. Low-stock events mark
-new episodes; no-op/status/idempotent retries emit no duplicates. API writes do
-not require a worker or Redis publication. Worker transport and consumer effects
-remain later tasks; see the [T3 verification](docs/milestone8/verification-milestone8-issue33.md).
-T3 adds no schema migration; running producers requires the existing T1/T2
-schema. Validation does not migrate the application database.
+Milestone 8 T1–T3 record committed order, catalog and inventory events plus
+required consumer deliveries in the business transaction. T4 adds a standalone
+worker that relays minimal event references to Redis Streams and recovers from
+the authoritative PostgreSQL outbox. Start it separately with
+`python -m app.worker` from `backend/`; it does not run migrations or start with
+the API. Consumer effects, durable receipts and operator replay remain later
+work. See the [event worker runbook](docs/runbooks/event-worker.md) and
+[T4 verification](docs/milestone8/verification-milestone8-issue34.md).
+T4 adds no schema migration; validation does not migrate the application
+database.
 
 ## Prerequisites
 
