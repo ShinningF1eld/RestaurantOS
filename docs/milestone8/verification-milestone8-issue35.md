@@ -93,3 +93,49 @@ operator roles are needed for individual attribution. If a process dies while
 PostgreSQL is unavailable before failure classification can be persisted,
 recovery can only identify an interrupted attempt; the agreed crash rule applies.
 No automatic database history deletion or Redis trimming is introduced.
+
+## CI browser follow-up — 2026-10-14 (Asia/Bangkok)
+
+The original `f1d7686` push workflow
+[38524505958](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/38524505958)
+passed. The later PR workflow
+[38543307822](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/38543307822)
+failed only the browser gate: 25 of 26 tests passed, while the simultaneous
+requests/tabs renewal case navigated to login instead of displaying the account.
+All other nine quality gates passed, including the T5 backend suites; the
+aggregate failed because the browser gate failed.
+
+Inspection found that the test waited for the second tab's Sign out button,
+which renders before `SessionMenu` finishes its initial `/auth/me` request.
+Twenty local diagnostic repetitions of the original case all passed, but six
+began access expiry before both initial identity checks had completed. This
+readiness gap is consistent with the intermittent CI failure; the exact failed
+navigation was not reproduced in those original local repetitions.
+
+The follow-up test now waits for the second tab's authenticated email before
+expiring the shared access cookie and reloading both tabs. Concurrent reloads,
+real API/cookie/Web Lock behavior and the exact one-refresh assertion remain.
+No production authentication policy, retry setting or assertion timeout changes.
+The diagnostic request/status instrumentation exists only in a temporary source
+copy; it records no cookies, token values or passwords and is not committed.
+
+Follow-up validation:
+
+- `backend/.venv/bin/python scripts/validate.py --gate frontend-tests --gate frontend-static --no-install`
+  passed: 10 client tests, 12 component tests, ESLint, Prettier and TypeScript.
+- Twenty repetitions of the corrected browser case passed with zero retries;
+  diagnostics showed both initial identity checks completed before expiry in
+  every corrected repetition (versus six premature expiries before the fix).
+- `backend/.venv/bin/python scripts/validate.py --gate browser --no-install`
+  passed all 26 tests with zero retries against a fresh database/production build;
+  the runner cleaned up its owned services, database, source copy and processes.
+- The follow-up push triggers fresh branch CI. Its result is available in
+  [GitHub Actions](https://github.com/ShinningF1eld/RestaurantOS/actions?query=branch%3Amilestone8%2Fissue35);
+  the local results above do not replace remote verification.
+
+Frontend dependencies were installed with `npm ci` from the committed lock,
+and Chromium was installed with the existing Playwright version. The initial
+local reproduction attempt could not build because the prebuilt workspace was
+missing frontend test dependencies; the locked install resolved it. No dependency
+or workflow configuration changed. Browser runs own disposable databases,
+Redis containers, source copies and server processes, preserving application data.

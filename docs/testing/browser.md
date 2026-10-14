@@ -78,3 +78,10 @@ retained JUnit, a screenshot and error context. Independent checks found no
 remaining browser databases, temporary source directories, or owned API/Next
 processes after these runs. A generated-value probe also verified diagnostic
 redaction without printing the values.
+
+The simultaneous-tab renewal case waits for both tabs' initial authenticated
+identity display before expiring shared access. A rendered Sign out button alone
+does not mean the initial session check has finished. This separates setup from
+the deliberate concurrent reloads and avoids unloading a tab during setup-time
+renewal. The test still requires exactly one real refresh request and successful
+authentication in both tabs, with retries disabled.
