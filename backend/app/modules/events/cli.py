@@ -33,6 +33,16 @@ async def run(arguments: argparse.Namespace) -> dict[str, object]:
                 "replay_id": str(replay_id),
                 "status": "pending",
             }
+        if arguments.command in {"analytics-inspect", "analytics-reconcile"}:
+            from app.modules.analytics.service import AnalyticsProjectionService
+
+            analytics = AnalyticsProjectionService(AsyncSessionLocal)
+            method = (
+                analytics.inspect
+                if arguments.command == "analytics-inspect"
+                else analytics.reconcile
+            )
+            return await method(arguments.organization_id, arguments.restaurant_id)
         result = await service.status()
         transport = WorkerRedisTransport(settings)
         try:
@@ -67,6 +77,10 @@ def main() -> None:
     replay = commands.add_parser("replay")
     replay.add_argument("delivery_id", type=delivery_uuid)
     replay.add_argument("--reason", required=True)
+    for name in ("analytics-inspect", "analytics-reconcile"):
+        command = commands.add_parser(name)
+        command.add_argument("--organization-id", required=True, type=UUID)
+        command.add_argument("--restaurant-id", required=True, type=int)
     arguments = parser.parse_args()
     try:
         result = asyncio.run(run(arguments))

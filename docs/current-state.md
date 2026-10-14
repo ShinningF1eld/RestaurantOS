@@ -1,5 +1,27 @@
 # RestaurantOS current state
 
+## Milestone 8 Issue #36 T6 implementation
+
+On 2026-10-14 (Asia/Bangkok), T6 installs the analytics consumer: completed-order
+contributions, deletion revision tombstones and daily completed count/sales by
+UTC order creation date. Effects, daily deltas, receipts and delivery success
+commit together, using the shared restaurant lock to serialize competing orders.
+Dashboard routes continue querying live SQL. Trusted CLI inspection/reconciliation
+returns scoped projection rows and SQL discrepancies. The T8 maintenance interface
+rebuilds totals from current order/deletion watermarks without deleting receipts
+or queued events; combined maintenance operations remain T8.
+
+Additive revision `a936d8e4c021` follows `b8f34c2a91de` and rejects downgrade with
+retained projection data. No HTTP API, frontend, dependency or image changes;
+no application migration or commit. See [the projection contract](api/analytics-projection.md)
+and [issue #36 verification](milestone8/verification-milestone8-issue36.md) for
+current commands/results and final acceptance status. Focused final analytics/
+transport coverage passed 12 tests with no model drift; unit, static, baseline
+and clean/seeded migration gates passed. Final full backend integration passed
+297 tests with no model drift; 282 unit tests passed and mypy checked 149 sources.
+All five issue #36 criteria passed the implementation agent's acceptance review.
+Alert/sink effects remain issue #37; full M8 acceptance remains open.
+
 ## Milestone 8 Issue #34 T4 implementation evidence
 
 On 2026-10-12, T4 added `python -m app.worker`, a standalone runtime with a

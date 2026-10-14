@@ -51,12 +51,14 @@ verification evidence recorded in [issue #27](docs/milestone7/verification-miles
 Milestone 8 T1–T3 record committed events and required deliveries in business
 transactions. T4 adds standalone Redis Streams relay/recovery; T5 adds atomic
 consumer execution, bounded retries and trusted operator status/inspect/replay.
-Actual analytics/alert/sink handlers remain T6/T7, so valid unimplemented
+T6 installs daily completed-sales projection, deletion tombstones and scoped
+operator reconciliation; see the [projection contract](docs/api/analytics-projection.md).
+Alert/sink handlers remain T7, so valid unimplemented
 consumer deliveries stay pending without receipts or spent attempts. API writes
 do not depend on Redis publication or worker availability. See the
 [worker runbook](docs/runbooks/event-worker.md) and
 [T5 verification](docs/milestone8/verification-milestone8-issue35.md).
-T5 adds no schema migration; validation does not migrate the application database.
+T6 adds migration `a936d8e4c021`; validation does not migrate the application database.
 
 ## Prerequisites
 
