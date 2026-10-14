@@ -525,17 +525,17 @@ def test_same_consumer_retries_transient_pending_reference_failures(
         recovered = asyncio.Event()
         load_calls = 0
         ack_calls = 0
-        original_load = worker.event_service.load_stored_delivery
+        original_load = worker.execution.execute
         original_ack = worker.streams.acknowledge
         original_pending_reference = worker.streams.pending_reference
 
-        async def fail_postgres_read_once(*, event_id, consumer_name):
+        async def fail_postgres_read_once(**arguments):
             nonlocal load_calls
             load_calls += 1
             if failure_point == "postgres_read" and load_calls == 1:
                 first_failure.set()
                 raise SQLAlchemyError("injected transient database failure")
-            return await original_load(event_id=event_id, consumer_name=consumer_name)
+            return await original_load(**arguments)
 
         async def fail_ack_once(group, message_id):
             nonlocal ack_calls
@@ -559,9 +559,7 @@ def test_same_consumer_retries_transient_pending_reference_failures(
                 recovered.set()
             return pending
 
-        monkeypatch.setattr(
-            worker.event_service, "load_stored_delivery", fail_postgres_read_once
-        )
+        monkeypatch.setattr(worker.execution, "execute", fail_postgres_read_once)
         monkeypatch.setattr(worker.streams, "acknowledge", fail_ack_once)
         monkeypatch.setattr(worker.streams, "pending_reference", observe_ambiguous_ack)
         task = None

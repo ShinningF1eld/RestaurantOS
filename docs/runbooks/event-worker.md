@@ -9,10 +9,10 @@ event facts, due times, claims, and delivery state. Redis contains minimal
 references and pending transport messages.
 
 The fixed consumer groups are `analytics`, `alerts`, and `notification_sink`.
-T4 acknowledges a group's message only when that consumer is not subscribed to
-the event. Subscribed messages remain pending: T5 must add the business effect,
-durable receipt, delivery completion, and then the Redis acknowledgement. Do not
-interpret a publication observation or an `XADD` reply as business processing.
+T5 adds fenced consumer execution, receipts, bounded retries and operator
+recovery. Actual analytics, alert and sink handlers remain Issues #36–#37:
+valid deliveries without a handler remain pending without receipts or attempts.
+Never interpret a publication observation or `XADD` reply as business processing.
 
 ## Start and stop
 
@@ -59,9 +59,10 @@ than initial backoff.
 | `EVENT_WORKER_REDIS_BLOCK_MS` | 1,000 | 1–9,000 | Blocking `XREADGROUP` duration; must be below the operation deadline. |
 | `EVENT_WORKER_REDIS_OPERATION_BUDGET_MS` | 2,000 | 1–10,000 | Outer deadline for each Redis operation, including pool acquisition. |
 | `EVENT_WORKER_REDIS_MAX_CONNECTIONS` | 8 | 1–100 | Dedicated worker pool bound, independent of API Redis pools. |
-| `EVENT_WORKER_PENDING_IDLE_MS` | 60,000 | 1–3,600,000 | Minimum idle time before reclaiming another consumer's pending message. |
+| `EVENT_WORKER_PENDING_IDLE_MS` | 60,000 | 1–3,600,000 | Minimum idle time before reclaiming/rechecking any pending message, including the current worker's entries. |
 | `EVENT_WORKER_INFRA_BACKOFF_INITIAL_MS` | 1,000 | 1–30,000 | First infrastructure retry/probe delay. |
 | `EVENT_WORKER_INFRA_BACKOFF_MAX_MS` | 30,000 | 1–300,000 | Exponential outage-backoff cap; cannot be below the initial delay. |
+| `EVENT_WORKER_MAX_ATTEMPTS` | 8 | 1–100 | Event-specific processing allowance per delivery retry cycle. |
 | `EVENT_WORKER_SHUTDOWN_GRACE_SECONDS` | 10 | 1–120 | Grace period before loop cancellation and bounded pool close. |
 
 The default lease covers five 2-second publication deadline waves for ten
@@ -90,9 +91,10 @@ delivery due.
 
 Each consumer group advances independently. The worker creates absent groups
 from the start of the stream. It scans bounded `XPENDING` pages and reclaims only
-entries owned by another consumer and idle for the configured threshold using
-`XCLAIM`. A restarted consumer therefore recovers abandoned PEL work without
-repeatedly routing its own pending subscribed messages. Groups acknowledge
+entries idle for the configured threshold using `XCLAIM`, including its own
+entries. This revisits references that arrived before a due time or while another
+attempt held the delivery lock, and eventually ACKs old references after completion.
+The idle threshold and page limit bound repeated reads of unfinished work. Groups acknowledge
 non-subscribed messages without effects.
 
 PostgreSQL scans are the source of recovery after Redis connection failure or
@@ -117,11 +119,91 @@ Publication and failure logs include event UUID, consumer, worker/claim identity
 correlation ID, safe failure category and outcome. They exclude event payloads,
 credentials, Redis URLs and raw exceptions.
 
-Use Redis `XLEN` and `XINFO GROUPS` against the configured namespaced stream to
-inspect transport depth and each group's pending count. PostgreSQL
-`event_deliveries` remains the authoritative unfinished-work view. Issue #35
-owns the operator status/inspect/replay CLI; manual database edits or deletion
-of retained event records are not part of this runbook.
+Run from `backend/` with trusted operator `DATABASE_URL` and `REDIS_URL`:
+
+```bash
+.venv/bin/python -m app.modules.events.cli status
+.venv/bin/python -m app.modules.events.cli inspect DELIVERY_UUID
+.venv/bin/python -m app.modules.events.cli replay DELIVERY_UUID --reason "Fixed the handler"
+```
+
+Use `.venv/Scripts/python.exe` on Windows. `--help` needs no database or secrets.
+Commands return JSON. Status reports PostgreSQL pending/processing depth, oldest
+unfinished age, unfinished event retries, failed and retained delivery/attempt/
+receipt counts per consumer, retained event/replay counts, and Redis stream size.
+A Redis outage gives `stream_size: null` and `redis_status: unavailable`; it does
+not hide the database backlog. Pending includes unimplemented handlers. A retry
+is unfinished work with an earlier charged attempt, not a Redis redelivery count.
+
+Inspect accepts the delivery UUID (the `event_deliveries.id` column), not an
+arbitrary actor or event selection query. It returns identity, scope, version,
+correlation, status/due time, attempt history, receipt outcome, and replay
+identities/provenance. It never prints event payloads, raw exceptions or free-form
+replay reasons. `reason_recorded` confirms that a reason is retained; trusted
+operators can inspect the retained reason directly in `event_delivery_replays`
+when necessary. Do not put secrets or customer data in a replay reason.
+
+The CLI's trust boundary is access to the operator environment and PostgreSQL
+credentials with the necessary table privileges. It is not an HTTP endpoint and
+accepts no `--operator`/Owner label as authority. Replay records PostgreSQL's
+`session_user` (the authenticated connection role), a required reason, database
+time, original correlation, and a generated replay UUID. Restrict those
+credentials to trusted operators. Existing shared credentials identify a role,
+not an individual human; provision distinct operator credentials when individual
+attribution is required. No automatic role provisioning is introduced here.
+
+Replay locks exactly one failed delivery with no receipt, increments its retry
+cycle, resets its attempt allowance/due/publication/claim state, and commits the
+provenance record atomically. It preserves the original immutable event/payload,
+all earlier attempts/replays, and other consumers' receipts. Concurrent duplicate
+replays, pending/successful targets, nonexistent targets and blank reasons are
+rejected. Repair the handler before replaying; replay cannot rewrite a bad event.
+No manual deletion of retained records is part of recovery.
+
+## Consumer execution and retries
+
+A short transaction locks the delivery, checks its due time/receipt, allocates a
+unique attempt and fenced lease, and records `processing`. A second transaction
+locks that delivery, verifies the token and lease, calls a code-registered feature
+handler, and commits the effect, unique receipt, attempt outcome and delivery
+success together. Feature handlers participate in this service-owned transaction:
+they must not commit/rollback or perform Redis/external I/O. T6/T7 install their
+public transaction-bound feature interfaces in `events.execution.CONSUMERS`.
+Returning `skipped` is a durable deliberate outcome; an unimplemented handler
+cannot return a placeholder skip. Redis ACK runs after the effect commit.
+
+Competing attempts skip a locked delivery; an old claim cannot overwrite a newer
+one. Recovery uses bounded `SKIP LOCKED` scans for expired processing claims,
+retains interrupted-attempt history and republishes pending work even after
+complete Redis loss. Database locks protect an executing transaction even if its
+lease expires while running; a replacement cannot acquire its delivery lock.
+A crash before commit leaves no effect/receipt. A crash after commit leaves one
+receipt and a subsequent reference only acknowledges it.
+
+The default event-specific allowance is **eight attempts per retry cycle**.
+Interrupted durably started attempts count, as agreed for T5. Retried transient
+failures persist delays of 1, 2, 4, 8, 16, 32 and 60 seconds, plus uniformly sampled
+0–10% positive jitter with the final delay capped at 60 seconds. Due times survive
+worker restarts and remain authoritative against early Redis references. These
+are minimum retry delays; scan/transport/outage delays can add latency.
+
+Unsupported versions/invalid payloads and event-caused integrity violations fail
+immediately with safe categories. Serialization/deadlock failures and other
+handler failures use the bounded event allowance. No driver message is retained.
+PostgreSQL connection/availability/resource SQLSTATEs, pool/network timeouts and
+explicit shared-dependency failures use the existing 1–30 second bounded loop
+backoff/probes. The failed attempt stays in history but its allowance is refunded.
+Attempt history ordinals can therefore exceed eight; `attempt_count` measures the
+charged allowance, not the number of retained diagnostic records. Successful
+consumers remain untouched when another consumer fails.
+
+If PostgreSQL is unavailable when recording an observed failure, the live worker
+keeps that classification and retries settlement after reconnection before taking
+new work. If the process also dies before it can persist that classification,
+recovery can only observe a durably started interrupted attempt; the agreed crash
+rule applies. Redis ACK failures occur after durable success and consume no new
+attempt. Original correlation accompanies relay, execution and replay logs;
+attempt UUID/ordinal/cycle and replay UUID extend the logging allowlist.
 
 ## Validation
 
@@ -130,4 +212,5 @@ Worker behavior is covered by the `backend-unit`, `backend-integration`, and
 PostgreSQL 16/Redis 7 services and isolated Redis keys; they do not use the
 persistent developer database volume. See
 [`verification-milestone8-issue34.md`](../milestone8/verification-milestone8-issue34.md)
-for the dated commands and environment limitations.
+for historical T4 commands and environment limitations. T5 evidence is in
+[`verification-milestone8-issue35.md`](../milestone8/verification-milestone8-issue35.md).

@@ -165,6 +165,9 @@ test("simultaneous requests and tabs rotate the shared token once", async ({
   const second = await context.newPage();
   await second.goto("/dashboard/restaurants");
   await expect(second.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
+  // The button renders before SessionMenu finishes its initial /auth/me check.
+  // Finish tab setup before expiring access and unloading both documents.
+  await expect(second.getByText(account.email, { exact: true })).toBeVisible();
   await expireAccess(page);
   let refreshes = 0;
   context.on("request", (request) => {

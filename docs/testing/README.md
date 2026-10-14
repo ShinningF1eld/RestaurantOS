@@ -77,9 +77,14 @@ PostgreSQL/Redis integration coverage for relay claiming/fencing, group routing,
 crash windows, ambiguous publication, pending reclaim, stream loss, outage
 recovery and bounded backlog. Run them through `backend-unit` and
 `backend-integration`; issue evidence is in
-`docs/milestone8/verification-milestone8-issue34.md`. Consumer effects, receipts,
-event-specific retry policy and replay remain T5 coverage. Redis continues to
-validate Milestone 7 caching/rate limiting independently.
+`docs/milestone8/verification-milestone8-issue34.md`. T5 adds
+`unit/test_event_execution.py` and `integration/test_event_execution.py` for
+atomic effect/receipt transactions, overlapping duplicates, process death before
+commit/ACK, eight-attempt poison isolation, due times across restarts, shared
+outages, real PostgreSQL connection termination, safe CLI inspection and replay.
+The actual T6/T7 feature effects remain deferred; tests use trusted code-only
+handlers with real database effects. Redis continues to validate Milestone 7
+caching/rate limiting independently.
 
 ## Failure and cleanup evidence
 

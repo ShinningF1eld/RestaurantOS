@@ -1,15 +1,15 @@
 # Domain event and delivery contracts
 
 This contract defines the PostgreSQL outbox records introduced for Milestone 8
-Issues #31–#33 and the T4 Redis Streams transport. Events are immutable facts.
+Issues #31–#35, including Redis Streams transport and consumer orchestration. Events are immutable facts.
 Producers append an event and its fixed consumer delivery rows in the business
 command's existing transaction through `app.modules.events.service.append_event`;
 the events repository never begins, commits, or rolls back a transaction. The
 standalone T4 worker relays stable event UUID references to Redis Streams, while
 PostgreSQL remains authoritative for event facts and unfinished delivery state.
-Consumer effects, receipts, and successful delivery acknowledgement belong to
-T5, so subscribed messages remain unfinished in both PostgreSQL and the Redis
-pending-entry list until that lifecycle exists.
+T5 supplies atomic effect/receipt execution, persisted retries and operator replay.
+The actual T6/T7 feature handlers are not installed yet; their valid deliveries
+remain pending with no receipt and no spent attempt allowance.
 
 ## Envelope
 
@@ -94,9 +94,9 @@ still requires an episode ID. Initialization itself emits no historical event.
 
 The registry is code-owned and immutable. T4 creates one Redis consumer group for
 each registry consumer: `analytics`, `alerts`, and `notification_sink`. The
-transport checks the PostgreSQL event and fixed registry before routing. T4 does
-not execute consumer business effects; subscribed references stay pending until
-T5 adds effect and receipt transactions.
+transport checks the PostgreSQL event and fixed registry before routing. T5
+executes registered handlers through a fenced service-owned transaction; missing
+T6/T7 handlers leave subscribed references pending without fabricated effects.
 
 | Event | Analytics | Alerts | Notification/diagnostic sink |
 |---|:---:|:---:|:---:|
@@ -134,3 +134,23 @@ back completely. Repositories do not commit. The T4 worker publishes minimal
 references after claiming delivery rows in PostgreSQL; `published_at` is only a
 transport observation, never business completion. No automatic pruning or Redis
 stream trimming is introduced.
+
+
+## T5 execution and operator recovery
+
+`events.execution.ConsumerExecutionService` owns short persisted attempt claims
+and effect transactions. Delivery locks and claim tokens serialize duplicates;
+the effect, processed/skipped receipt and success commit together before ACK.
+The default allowance is eight attempts per cycle with persisted exponential
+backoff, 0–10% jitter and a 60-second cap. Crashed started attempts count;
+observed shared outages retain diagnostic history without consuming allowance.
+Unsupported contracts/invalid payloads fail immediately. Retained history records
+ordinals independently from the charged `attempt_count`.
+
+`python -m app.modules.events.cli status|inspect|replay` uses trusted database
+credentials. Replay selects one failed delivery UUID and requires `--reason`;
+it records the database-authenticated role, timestamp and replay identity while
+preserving the event, original correlation and all earlier history. Safe output
+omits payloads, free-form reasons and raw errors. See the
+[worker runbook](../runbooks/event-worker.md) for commands and failure semantics.
+No HTTP API or schema migration is added by T5.

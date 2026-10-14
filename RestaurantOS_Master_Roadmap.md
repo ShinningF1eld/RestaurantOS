@@ -859,12 +859,13 @@ Record before/after for a defined workload:
 
 Decouple non-critical work without losing events or duplicating side effects.
 
-Implementation evidence (2026-10-12): T1–T3 provide durable contracts/storage,
-inventory episode facts and transactional producers. The T3 backend unit,
-integration and static gates pass, including rollback and actual API death
-before publication. [Issue #33 verification](docs/milestone8/verification-milestone8-issue33.md)
-records the slice evidence and omissions. Worker/consumer execution and the
-milestone exit criteria below remain unverified.
+Implementation evidence (2026-10-13): T1–T3 provide durable contracts/storage,
+inventory episode facts and transactional producers. T4 adds Redis Streams
+relay/recovery; T5 adds atomic consumer orchestration, bounded retries and safe
+operator inspection/replay. [Issue #35 verification](docs/milestone8/verification-milestone8-issue35.md)
+records current backend results and limits. Actual analytics/alert/sink effects
+remain #36–#37, so unimplemented handlers keep pending deliveries without receipts
+or spent attempts. Full milestone exit criteria remain unverified.
 
 ### Recommended evolution
 

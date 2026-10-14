@@ -3,15 +3,15 @@
 Status: Published
 Source: docs/milestone8/milestone-8-design.md, approved revision 1 (2026-10-11); RestaurantOS_Master_Roadmap.md, Milestone 8.
 Inspected revision: 156badacb0dba913d3548389cb1c08d34316539b; working tree initially clean.
-Updated: 2026-10-12 (Asia/Bangkok)
+Updated: 2026-10-14 (UTC)
 Target: ShinningF1eld/RestaurantOS
 GitHub milestone: [Milestone 8 Reliable background jobs and domain events](https://github.com/ShinningF1eld/RestaurantOS/milestone/3) (GitHub milestone number 3; product milestone 8).
 Publication authorization: user requested creation of milestone-8-task.md and GitHub issues with acceptance criteria, all assigned to GitHub Milestone 8.
 Task-plan revision: 1. T1–T3 implementation evidence is recorded below and
 in `docs/current-state.md`. T2's historical Windows sandbox unit limitation is
 retained in its verification; T3's final Python 3.12 run passed all backend-unit,
-backend-integration and backend-static gates. T4 onward remains planned and
-unverified; full Milestone 8 acceptance is open.
+backend-integration and backend-static gates. Later T4/T5 evidence is recorded
+in their dated verification files; full Milestone 8 acceptance is open.
 
 ## Ordered tasks
 
@@ -36,6 +36,16 @@ including the retained-event downgrade guard. The full backend-unit gate was
 attempted but stalls in the existing unit-only socket guard on this Windows
 host; see `docs/current-state.md` for the stack location and limitation. This
 does not establish full Milestone 8 acceptance.
+
+T5 implementation boundary agreed on 2026-10-13: #35 supplies consumer execution,
+retry/history and operator tooling; actual handlers stay in #36–#37. Missing
+handlers remain pending without receipts or charged attempts. The user accepted
+0–10% positive retry jitter capped at 60 seconds, the events CLI entrypoint,
+database-authenticated role provenance and required replay reason, and counting
+interrupted durably started attempts while refunding observed shared outages.
+On 2026-10-14 the user also accepted immediate `event_constraint` failure for
+integrity violations; serialization/deadlock failures remain retryable.
+See [T5 verification](verification-milestone8-issue35.md) for current results.
 
 ## Coverage and sequencing
 
@@ -249,13 +259,20 @@ Implement fixed-registry consumer execution, delivery/attempt orchestration and 
 
 ## Acceptance criteria
 
-- [ ] Commit each consumer's effect, unique receipt and successful delivery state in one transaction, then ACK Redis. Serialize overlapping attempts with constraints/locks; an initial receipt lookup alone cannot provide safety. Deliberate skip outcomes receive durable receipts.
-- [ ] One failed consumer never reruns successful effects in another. A crash before effect commit retries cleanly; a crash after commit/before ACK is receipt-checked and produces one effect. Reject missing/conflicting event references without trusting Redis facts.
-- [ ] Event-specific transient failures get eight total attempts by default, persisted exponential backoff starting at one second and capped at 60 seconds with documented small bounded jitter. Unsupported versions/invalid payloads fail immediately and remain inspectable.
-- [ ] Classify shared PostgreSQL/Redis/dependency outages separately: pause affected loops with bounded backoff/probes without exhausting unrelated event allowances. Event-caused database constraints must not suspend all work indefinitely. Persist history and respect due times after restart.
-- [ ] CLI status exposes per-consumer pending depth, oldest age, retries, failed/retained counts and stream size; inspect shows safe identity/scope/version/attempt/error facts. Use trusted operator credentials rather than treating a free-form actor label as access authority.
-- [ ] Replay targets exactly one failed delivery, retains its original event/payload and prior attempts/receipts, records reason/time/operator provenance/replay-operation identity and starts a new retry cycle. Reject invalid or already successful replay targets.
-- [ ] Propagate original request correlation through relay/attempts/replay with event/consumer/attempt context; deliberately extend logging allowlists and redact secrets, customer payloads, Redis URLs and raw driver exceptions.
+- [x] Commit each consumer's effect, unique receipt and successful delivery state in one transaction, then ACK Redis. Serialize overlapping attempts with constraints/locks; an initial receipt lookup alone cannot provide safety. Deliberate skip outcomes receive durable receipts.
+- [x] One failed consumer never reruns successful effects in another. A crash before effect commit retries cleanly; a crash after commit/before ACK is receipt-checked and produces one effect. Reject missing/conflicting event references without trusting Redis facts.
+- [x] Event-specific transient failures get eight total attempts by default, persisted exponential backoff starting at one second and capped at 60 seconds with documented small bounded jitter. Unsupported versions/invalid payloads fail immediately and remain inspectable.
+- [x] Classify shared PostgreSQL/Redis/dependency outages separately: pause affected loops with bounded backoff/probes without exhausting unrelated event allowances. Event-caused database constraints must not suspend all work indefinitely. Persist history and respect due times after restart.
+- [x] CLI status exposes per-consumer pending depth, oldest age, retries, failed/retained counts and stream size; inspect shows safe identity/scope/version/attempt/error facts. Use trusted operator credentials rather than treating a free-form actor label as access authority.
+- [x] Replay targets exactly one failed delivery, retains its original event/payload and prior attempts/receipts, records reason/time/operator provenance/replay-operation identity and starts a new retry cycle. Reject invalid or already successful replay targets.
+- [x] Propagate original request correlation through relay/attempts/replay with event/consumer/attempt context; deliberately extend logging allowlists and redact secrets, customer payloads, Redis URLs and raw driver exceptions.
+
+Local verification (2026-10-14): all T5 criteria above are exercised through
+the shared framework with real database test effects. Actual feature handlers
+remain #36–#37 as agreed. `backend-unit` passed 280 tests,
+`backend-integration` passed 286 tests with no model drift, and `backend-static`
+and `baseline` passed. See [T5 evidence](verification-milestone8-issue35.md).
+This does not close the GitHub issue or establish full M8 acceptance.
 
 ## Verification
 

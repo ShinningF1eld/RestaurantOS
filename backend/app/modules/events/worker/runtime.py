@@ -14,7 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.config import Settings
 from app.modules.events.domain.contracts import ConsumerName
-from app.modules.events.domain.subscriptions import consumers_for
+from app.modules.events.domain.retries import RetryPolicy
+from app.modules.events.domain.diagnostics import safe_identifier
+from app.modules.events.execution import ConsumerExecutionService, DependencyUnavailable
 from app.modules.events.repo.worker_queries import DeliveryClaim
 from app.modules.events.worker.redis import (
     WorkerFailureKind,
@@ -55,9 +57,17 @@ class EventWorker:
         worker_id: str | None = None,
         redis: WorkerRedisTransport | None = None,
         hooks: WorkerHooks | None = None,
+        execution: ConsumerExecutionService | None = None,
     ) -> None:
         self.settings = settings
         self.event_service = EventWorkerService(sessions)
+        self.execution = execution or ConsumerExecutionService(
+            sessions,
+            policy=RetryPolicy(settings.event_worker_max_attempts),
+            lease_seconds=settings.event_worker_claim_lease_seconds,
+            infrastructure_delay_seconds=settings.event_worker_infra_backoff_initial_ms
+            / 1000,
+        )
         self.worker_id = worker_id or f"worker-{uuid4().hex}"
         if len(self.worker_id) > 80:
             raise ValueError("Worker identity must be at most 80 characters")
@@ -138,7 +148,11 @@ class EventWorker:
         self,
         message: StreamMessage,
         group: ConsumerName,
-        error: WorkerRedisFailure | SQLAlchemyError | OSError | TimeoutError,
+        error: WorkerRedisFailure
+        | SQLAlchemyError
+        | OSError
+        | TimeoutError
+        | DependencyUnavailable,
         retries: dict[str, _ReferenceRetry],
         *,
         failure_count: int | None = None,
@@ -199,7 +213,9 @@ class EventWorker:
                 "consumer_name": consumer_name,
                 "event_id": str(event_id) if event_id else None,
                 "claim_id": str(claim.claim_token) if claim else None,
-                "correlation_id": claim.correlation_id if claim else None,
+                "correlation_id": safe_identifier(claim.correlation_id)
+                if claim
+                else None,
                 "failure_category": error.kind.value,
                 "outcome": outcome,
             },
@@ -221,7 +237,9 @@ class EventWorker:
                 "consumer_name": consumer_name,
                 "event_id": str(event_id) if event_id else None,
                 "claim_id": str(claim.claim_token) if claim else None,
-                "correlation_id": claim.correlation_id if claim else None,
+                "correlation_id": safe_identifier(claim.correlation_id)
+                if claim
+                else None,
                 "failure_category": "postgres_unavailable",
                 "outcome": outcome,
             },
@@ -231,6 +249,9 @@ class EventWorker:
         backoff = self._initial_backoff()
         while not stop.is_set():
             try:
+                await self.execution.recover_expired(
+                    limit=self.settings.event_worker_recovery_batch_size
+                )
                 claims = await self.event_service.claim_due_deliveries(
                     owner=self.worker_id,
                     limit=self.settings.event_worker_claim_batch_size,
@@ -292,7 +313,7 @@ class EventWorker:
                         "consumer_name": claim.consumer_name,
                         "worker_id": self.worker_id,
                         "claim_id": str(claim.claim_token),
-                        "correlation_id": claim.correlation_id,
+                        "correlation_id": safe_identifier(claim.correlation_id),
                         "transport_message_id": message_id,
                         "outcome": "published" if owned else "claim_lost",
                     },
@@ -438,6 +459,7 @@ class EventWorker:
                             message = pending_message
                             await self._route_message(pending_message, group)
                     except (
+                        DependencyUnavailable,
                         WorkerRedisFailure,
                         SQLAlchemyError,
                         OSError,
@@ -467,6 +489,7 @@ class EventWorker:
                         try:
                             await self._route_message(message, group)
                         except (
+                            DependencyUnavailable,
                             WorkerRedisFailure,
                             SQLAlchemyError,
                             OSError,
@@ -489,6 +512,7 @@ class EventWorker:
                     try:
                         await self._route_message(message, group)
                     except (
+                        DependencyUnavailable,
                         WorkerRedisFailure,
                         SQLAlchemyError,
                         OSError,
@@ -536,8 +560,7 @@ class EventWorker:
         abandoned = [
             message.message_id
             for message in pending
-            if message.owner != consumer
-            and message.idle_ms >= self.settings.event_worker_pending_idle_ms
+            if message.idle_ms >= self.settings.event_worker_pending_idle_ms
         ]
         return await self.streams.claim_pending(
             group,
@@ -553,75 +576,24 @@ class EventWorker:
         except (ValueError, TypeError):
             self._log_bad_reference(message, group, "invalid_event_id")
             return
-        try:
-            stored = await self.event_service.load_stored_delivery(
-                event_id=event_id, consumer_name=group
-            )
-        except ValueError:
-            self._log_bad_reference(message, group, "invalid_stored_event")
-            return
-        if stored is None:
-            self._log_bad_reference(message, group, "event_not_found")
-            return
-        event = stored.event
-        if (
-            message.fields.get("event_type") != event.event_type
-            or message.fields.get("schema_version") != str(event.schema_version)
-            or message.fields.get("correlation_id") != event.correlation_id
-        ):
-            self._log_bad_reference(message, group, "reference_conflict")
-            return
-        if group not in consumers_for(event.event_type):
-            acknowledged = await self.streams.acknowledge(group, message.message_id)
-            logger.info(
-                "event_worker_unsubscribed_reference_acknowledged",
-                extra={
-                    "event": "worker_reference_routed",
-                    "event_id": str(event.event_id),
-                    "consumer_name": group,
-                    "worker_id": self.worker_id,
-                    "correlation_id": event.correlation_id,
-                    "transport_message_id": message.message_id,
-                    "outcome": "unsubscribed_acknowledged"
-                    if acknowledged
-                    else "already_acknowledged",
-                },
-            )
-            return
-        if stored.status is None:
-            outcome = "subscribed_delivery_missing"
-        elif not stored.is_due:
-            outcome = "subscribed_delivery_not_due"
-        elif stored.status == "succeeded" and stored.receipt_outcome is not None:
-            acknowledged = await self.streams.acknowledge(group, message.message_id)
-            outcome = (
-                "durable_receipt_acknowledged"
-                if acknowledged
-                else "already_acknowledged"
-            )
-        elif stored.status == "failed":
-            acknowledged = await self.streams.acknowledge(group, message.message_id)
-            outcome = (
-                "durable_failure_acknowledged"
-                if acknowledged
-                else "already_acknowledged"
-            )
-        elif stored.status == "succeeded":
-            outcome = "success_without_receipt_retained"
-        else:
-            # Issue #35 owns effect+receipt orchestration. Keep subscribed work
-            # in the PEL until that durable processing path is installed.
-            outcome = "awaiting_consumer_execution"
+        result = await self.execution.execute(
+            event_id=event_id,
+            consumer=group,
+            reference=message.fields,
+            worker_id=self.worker_id,
+        )
+        if result.acknowledge:
+            await self.streams.acknowledge(group, message.message_id)
         logger.info(
-            "event_worker_subscribed_reference_retained",
+            "event_worker_reference_routed",
             extra={
                 "event": "worker_reference_routed",
-                "event_id": str(event.event_id),
+                "event_id": str(event_id),
                 "consumer_name": group,
                 "worker_id": self.worker_id,
-                "correlation_id": event.correlation_id,
+                "correlation_id": result.correlation_id,
                 "transport_message_id": message.message_id,
-                "outcome": outcome,
+                "outcome": result.outcome,
             },
         )
 

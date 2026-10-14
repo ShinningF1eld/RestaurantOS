@@ -129,8 +129,12 @@ Stream entries contain only PostgreSQL `event_id`, `event_type`,
 `schema_version`, and `correlation_id`. PostgreSQL provides and validates the
 typed event facts. Each group's Redis Stream ID is transport identity only; a
 republish keeps the original PostgreSQL event UUID. Groups acknowledge
-non-subscribed references. T4 leaves subscribed entries in the PEL because
-consumer effects and durable receipts are implemented in T5.
+non-subscribed references. T5 executes code-registered handlers with fenced
+PostgreSQL attempts: effects, receipts and delivery success commit together
+before Redis ACK. Actual T6/T7 handlers remain unimplemented; their valid
+subscribed deliveries stay pending without receipts or spent attempts. Pending
+recovery rechecks sufficiently idle entries even when owned by the current
+consumer, so early references can later be acknowledged after completion.
 
 The worker's PostgreSQL relay claims at most 10 deliveries at once with two
 concurrent publications, a 30-second lease, and `SKIP LOCKED` selection. Recovery
@@ -149,3 +153,9 @@ resets publication observations when the stream is empty after content loss.
 `XADD` only records a fenced publication observation; it does not complete a
 delivery. Ambiguous writes may create duplicate stream IDs with the same event
 UUID. Automatic trimming and deletion of retained event history are not enabled.
+
+T5 event-specific retries have eight charged attempts by default with persisted
+exponential delays starting at one second, 0–10% positive jitter and a 60-second
+cap. Shared outages pause affected work without consuming that allowance. The
+operator CLI inspects retained PostgreSQL state and replays one failed delivery
+using database-authenticated provenance; see the runbook for exact commands.

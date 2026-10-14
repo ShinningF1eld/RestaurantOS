@@ -53,6 +53,30 @@ in [issue #27 verification](milestone7/verification-milestone7-issue27.md).
 Catalog/dashboard experiments and full ten-gate local validation passed;
 final PR CI remains required. Full milestone acceptance is not yet claimed.
 
+## Milestone 8 Issue #35 T5 implementation
+
+On 2026-10-13, T5 added fixed-registry consumer execution with fenced persisted
+attempts and atomic effect/receipt/success transactions, bounded retries and safe
+operator status/inspect/replay. The original event and earlier history survive
+single-delivery replay; provenance uses PostgreSQL's authenticated session role.
+The user agreed that actual analytics/alert/sink handlers remain #36–#37:
+unimplemented handlers stay pending without receipts or spent attempts. Started
+attempts interrupted by process death count toward the retry limit; observed
+shared outages retain diagnostic history while refunding the allowance.
+
+On 2026-10-14 the user confirmed immediate `event_constraint` failure for
+integrity violations; serialization/deadlock errors use the retry policy.
+Final validation on Linux/Python 3.12.14 passed `backend-unit` (280 tests),
+`backend-integration` (286 tests and no Alembic model drift), `backend-static`
+(Ruff/mypy) and `baseline` (Compose/dependencies/secret scan). Crash tests kill
+actual workers before effect commit and after commit/before ACK; lock barriers
+prove duplicate overlap. No implementation policy questions remain open. See
+[Issue #35 verification](milestone8/verification-milestone8-issue35.md) and the
+[worker runbook](runbooks/event-worker.md). No schema/HTTP API, frontend or runtime
+image change, application migration, push or remote CI was performed. Validation
+preceded the requested commit on `milestone8/issue35`.
+Full M8 acceptance remains open.
+
 ## Milestone 8 Issue #33 T3 implementation evidence
 
 On 2026-10-12, T3 integrated order lifecycle/deletion, catalog change and
