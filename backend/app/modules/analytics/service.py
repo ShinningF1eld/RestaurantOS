@@ -2,7 +2,8 @@
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Protocol
+from typing import Literal, Protocol
+from uuid import UUID
 
 from app.modules.analytics.domain.calculations import (
     start_of_day as start_of_day,
@@ -13,7 +14,7 @@ from app.modules.analytics.domain.calculations import (
 from app.core.errors import NotFoundError
 from app.modules.auth.domain.principal import AuthenticatedPrincipal
 from app.modules.tenancy.access import AccessService
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.modules.analytics.repo.queries import AnalyticsRepository
 from app.modules.analytics.repo.queries import (
     CompletedTotals,
@@ -27,6 +28,19 @@ from app.modules.analytics.domain.values import (
     SalesPointData as SalesPointData,
     TopSellingItemData as TopSellingItemData,
     RestaurantDashboardAnalyticsData as RestaurantDashboardAnalyticsData,
+)
+
+
+from app.modules.analytics.domain.projection import (
+    Contribution,
+    creation_date,
+    should_apply,
+)
+from app.modules.analytics.repo.projection import ProjectionRepository
+from app.modules.events.domain.contracts import (
+    EventEnvelope,
+    OrderCompletedEvent,
+    OrderDeletedEvent,
 )
 
 
@@ -168,3 +182,130 @@ class AnalyticsService:
             sales_graph=sales_graph,
             top_selling_items=top_selling_items,
         )
+
+
+async def apply_order_event(
+    session: AsyncSession, event: EventEnvelope
+) -> Literal["processed", "skipped"]:
+    """Stage effects in the execution service's receipt transaction; no I/O/commit.
+
+    The restaurant row serializes all analytics changes for a branch, including
+    first inserts and different orders on the same day. Maintenance shares this
+    lock. No network work occurs while holding it.
+    """
+    if not session.in_transaction():
+        raise RuntimeError("Analytics effects require a caller transaction")
+    if not isinstance(event, (OrderCompletedEvent, OrderDeletedEvent)):
+        raise ValueError("Unsupported analytics event")
+    repo = ProjectionRepository(session, event.organization_id, event.restaurant_id)
+    await repo.scope(lock=True)
+    incoming = Contribution(
+        event.payload.order_id,
+        event.aggregate_revision,
+        creation_date(event.payload.created_at),
+        event.payload.total
+        if isinstance(event, OrderCompletedEvent)
+        else Decimal("0.00"),
+        "completed" if isinstance(event, OrderCompletedEvent) else "deleted",
+    )
+    row = await repo.get(incoming.order_id)
+    current = repo.value(row) if row is not None else None
+    if not should_apply(current, incoming):
+        return "skipped"
+    if current is not None and current.count:
+        await repo.delta(current.creation_date, -1, -current.total)
+    if incoming.count:
+        await repo.delta(incoming.creation_date, 1, incoming.total)
+    await repo.store(incoming, row)
+    await session.flush()
+    return "processed"
+
+
+class AnalyticsProjectionService:
+    """Database-credential operator access; no user-facing authorization bypass.
+
+    Rebuild requires stopped workers and quiesced writes (T8 orchestrates this).
+    A transaction and shared restaurant lock also fence already waiting effects.
+    Receipts, deliveries and producer history are never reset or deleted.
+    """
+
+    def __init__(self, sessions: async_sessionmaker[AsyncSession]) -> None:
+        self.sessions = sessions
+
+    async def inspect(
+        self, organization_id: UUID, restaurant_id: int
+    ) -> dict[str, object]:
+        async with self.sessions() as session, session.begin():
+            repo = ProjectionRepository(session, organization_id, restaurant_id)
+            await repo.scope(lock=True)
+            return {
+                "organization_id": str(organization_id),
+                "restaurant_id": restaurant_id,
+                "daily": [
+                    {
+                        "creation_date": str(day),
+                        "order_count": count,
+                        "sales": str(sales),
+                    }
+                    for day, (count, sales) in (await repo.daily()).items()
+                ],
+                "orders": [
+                    {
+                        "order_id": row.order_id,
+                        "revision": row.revision,
+                        "creation_date": str(row.creation_date),
+                        "total": str(row.total),
+                        "state": row.state,
+                    }
+                    for row in await repo.contributions()
+                ],
+            }
+
+    async def reconcile(
+        self, organization_id: UUID, restaurant_id: int
+    ) -> dict[str, object]:
+        async with self.sessions() as session, session.begin():
+            repo = ProjectionRepository(session, organization_id, restaurant_id)
+            await repo.scope(lock=True)
+            projected, authoritative = await repo.daily(), await repo.authoritative()
+            differences = []
+            for day in sorted(projected.keys() | authoritative.keys()):
+                actual = authoritative.get(day, (0, Decimal("0.00")))
+                derived = projected.get(day, (0, Decimal("0.00")))
+                if actual != derived:
+                    differences.append(
+                        {
+                            "creation_date": str(day),
+                            "authoritative_count": actual[0],
+                            "authoritative_sales": str(actual[1]),
+                            "projected_count": derived[0],
+                            "projected_sales": str(derived[1]),
+                        }
+                    )
+            return {
+                "organization_id": str(organization_id),
+                "restaurant_id": restaurant_id,
+                "matches": not differences,
+                "discrepancies": differences,
+            }
+
+    async def rebuild(self, organization_id: UUID, restaurant_id: int) -> None:
+        """Maintenance-only seed/rebuild, repeatable with queued events retained."""
+        async with self.sessions() as session, session.begin():
+            repo = ProjectionRepository(session, organization_id, restaurant_id)
+            await repo.scope(lock=True)
+            baseline = await repo.baseline()
+            existing = {row.order_id: row for row in await repo.contributions()}
+            # Never forget existing deletion watermarks. An absent completed row
+            # without a producer deletion fact is unsafe to silently discard.
+            for order_id, row in existing.items():
+                if order_id not in baseline:
+                    if row.state != "deleted":
+                        raise ValueError("Missing authoritative order/deletion fact")
+                    baseline[order_id] = repo.value(row)
+            await repo.clear_daily()
+            for value in baseline.values():
+                await repo.store(value, existing.get(value.order_id))
+                if value.count:
+                    await repo.delta(value.creation_date, 1, value.total)
+            await session.flush()

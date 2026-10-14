@@ -82,8 +82,13 @@ recovery and bounded backlog. Run them through `backend-unit` and
 atomic effect/receipt transactions, overlapping duplicates, process death before
 commit/ACK, eight-attempt poison isolation, due times across restarts, shared
 outages, real PostgreSQL connection termination, safe CLI inspection and replay.
-The actual T6/T7 feature effects remain deferred; tests use trusted code-only
-handlers with real database effects. Redis continues to validate Milestone 7
+T6 adds `unit/test_analytics_projection.py` and
+`integration/test_analytics_projection.py` for the actual analytics handler:
+creation-date decimal totals, scope reconciliation, deletion permutations,
+lock-proven competing same/different-order effects, atomic rollback, queued
+events after rebuild and real analytics worker death before/after commit. T7
+effects remain deferred. Earlier T5 tests use trusted code-only handlers with
+real database effects. Redis continues to validate Milestone 7
 caching/rate limiting independently.
 
 ## Failure and cleanup evidence

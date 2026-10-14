@@ -10,9 +10,17 @@ references and pending transport messages.
 
 The fixed consumer groups are `analytics`, `alerts`, and `notification_sink`.
 T5 adds fenced consumer execution, receipts, bounded retries and operator
-recovery. Actual analytics, alert and sink handlers remain Issues #36–#37:
-valid deliveries without a handler remain pending without receipts or attempts.
+recovery. Issue #36 installs the analytics handler. Alert and sink handlers remain
+Issue #37; valid deliveries without a handler remain pending without receipts or attempts.
 Never interpret a publication observation or `XADD` reply as business processing.
+
+Analytics inspection/reconciliation commands and the T8 maintenance interface are
+documented in [the projection contract](../api/analytics-projection.md). Compare
+one verified organization/restaurant pair before and after maintenance. A mismatch
+can reflect an ordinary pending backlog; inspect analytics deliveries before
+diagnosing corruption. Stop workers/quiesce writes before rebuilding, preserve
+receipts and queued events, then reconcile and restart workers. Combined T8
+initialization and operational rebuild CLI remain pending.
 
 ## Start and stop
 

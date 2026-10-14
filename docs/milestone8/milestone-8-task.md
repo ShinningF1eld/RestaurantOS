@@ -10,7 +10,7 @@ Publication authorization: user requested creation of milestone-8-task.md and Gi
 Task-plan revision: 1. T1–T3 implementation evidence is recorded below and
 in `docs/current-state.md`. T2's historical Windows sandbox unit limitation is
 retained in its verification; T3's final Python 3.12 run passed all backend-unit,
-backend-integration and backend-static gates. Later T4/T5 evidence is recorded
+backend-integration and backend-static gates. Later T4–T6 evidence is recorded
 in their dated verification files; full Milestone 8 acceptance is open.
 
 ## Ordered tasks
@@ -296,15 +296,25 @@ Implement analytics-owned contribution/tombstone and daily aggregate persistence
 
 ## Acceptance criteria
 
-- [ ] Apply order.completed.v1 to per-order contribution/revision state and daily completed count/sales by restaurant and order creation date, matching current authoritative SQL and fixed precision; do not switch to completion date or restaurant timezone.
-- [ ] Apply permitted deletion by removing the contribution and retaining a revision tombstone; older/duplicate completion cannot resurrect it. Out-of-order completion/deletion and replay yield the same result as current SQL.
-- [ ] Receipt, contribution/tombstone and aggregate delta commit atomically. Overlapping different orders updating one day do not lose increments; duplicate same-order attempts yield one contribution.
-- [ ] Provide inspectable projection output and scoped authoritative-SQL reconciliation identifying discrepancies; dashboard reads remain live SQL. Item/category/timezone/refund metrics remain M11.
-- [ ] Expose a maintenance seeding/rebuild interface with order revision watermarks usable by T8; receipts remain truthful and queued old events cannot double count or undo a rebuilt baseline. Add model registration, single-head migration and retained-data downgrade protections.
+- [x] Apply order.completed.v1 to per-order contribution/revision state and daily completed count/sales by restaurant and order creation date, matching current authoritative SQL and fixed precision; do not switch to completion date or restaurant timezone.
+- [x] Apply permitted deletion by removing the contribution and retaining a revision tombstone; older/duplicate completion cannot resurrect it. Out-of-order completion/deletion and replay yield the same result as current SQL.
+- [x] Receipt, contribution/tombstone and aggregate delta commit atomically. Overlapping different orders updating one day do not lose increments; duplicate same-order attempts yield one contribution.
+- [x] Provide inspectable projection output and scoped authoritative-SQL reconciliation identifying discrepancies; dashboard reads remain live SQL. Item/category/timezone/refund metrics remain M11.
+- [x] Expose a maintenance seeding/rebuild interface with order revision watermarks usable by T8; receipts remain truthful and queued old events cannot double count or undo a rebuilt baseline. Add model registration, single-head migration and retained-data downgrade protections.
 
 ## Verification
 
 Run backend-unit, backend-integration, backend-static and migrations. Compare SQL/projection across multiple restaurants, decimal totals, completion/deletion permutations, lock-proven same-day concurrency and baseline plus queued events.
+
+T6 evidence (2026-10-14, Asia/Bangkok): all five acceptance criteria passed
+inspection and fresh execution. Backend-unit passed 282 tests; backend-static
+passed Ruff lint/format and mypy (149 sources); final backend-integration passed
+297 tests with no model drift; clean/seeded migrations and both analytics
+retained-data downgrade guards passed. Baseline and generated migration SQL
+review passed. Focused analytics/transport coverage passed 12 tests. See
+[issue #36 verification](verification-milestone8-issue36.md) for exact commands,
+earlier failures/corrections and omissions. No commit or application migration;
+T7 effects, combined T8 maintenance and full milestone acceptance remain open.
 
 <!-- github-plan: docs/milestone8/milestone-8-design.md | T6 -->
 

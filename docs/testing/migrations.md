@@ -16,6 +16,11 @@ unchanged when the downgrade guard rejects the operation. Episode opening facts
 are protected by a PostgreSQL trigger; the history table has no cascading
 ingredient foreign key.
 
+Issue #36 adds empty analytics contribution/tombstone and daily-sales tables at
+`a936d8e4c021`. The seeded gate separately exercises each table's retained-data
+downgrade guard and verifies unchanged rows, schema and revision. The existing
+legacy fixture/baseline remains unchanged; upgrades do not seed derived totals.
+
 The selected legacy baseline is after tenancy ownership, order item snapshots,
 and the inventory ledger were introduced, and immediately before recipe tracking
 and order inventory processing. That makes the fixture representative of data

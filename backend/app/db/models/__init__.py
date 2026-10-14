@@ -3,9 +3,12 @@ from app.db.models.menu import Menu
 from app.db.models.menu_items import MenuItem
 from app.db.models.order import Order, OrderItem
 from app.modules.recipes.repo.models import RecipeComponent
+from app.modules.analytics.repo.models import DailySales, OrderContribution
 
 
 __all__ = [
+    "DailySales",
+    "OrderContribution",
     "Ingredient",
     "InventoryBalance",
     "InventoryLowStockEpisode",

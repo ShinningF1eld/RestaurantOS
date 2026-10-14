@@ -8,8 +8,9 @@ the events repository never begins, commits, or rolls back a transaction. The
 standalone T4 worker relays stable event UUID references to Redis Streams, while
 PostgreSQL remains authoritative for event facts and unfinished delivery state.
 T5 supplies atomic effect/receipt execution, persisted retries and operator replay.
-The actual T6/T7 feature handlers are not installed yet; their valid deliveries
-remain pending with no receipt and no spent attempt allowance.
+T6 installs the completed-sales/deletion analytics handler; see the
+[projection contract](analytics-projection.md). T7 alert and sink handlers remain
+pending with no receipt and no spent attempt allowance.
 
 ## Envelope
 

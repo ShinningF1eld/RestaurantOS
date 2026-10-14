@@ -867,6 +867,13 @@ records current backend results and limits. Actual analytics/alert/sink effects
 remain #36–#37, so unimplemented handlers keep pending deliveries without receipts
 or spent attempts. Full milestone exit criteria remain unverified.
 
+T6 implementation (2026-10-14): issue #36 installs completed daily sales/counts,
+order revision contributions/deletion tombstones, scoped operator inspection/
+SQL reconciliation and a T8 maintenance seeding/rebuild interface. The dashboard
+stays on live SQL. See [issue #36 verification](docs/milestone8/verification-milestone8-issue36.md)
+for current gate evidence. Alert/sink effects remain #37 and combined maintenance
+operations remain #38. This evidence does not establish full M8 acceptance.
+
 ### Recommended evolution
 
 1. PostgreSQL transactional outbox as the source of publishable events.

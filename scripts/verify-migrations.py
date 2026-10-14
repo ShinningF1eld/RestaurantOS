@@ -450,7 +450,13 @@ def verify_event_history_downgrade_guard(
         ).fetchall()
 
     result = subprocess.run(
-        [sys.executable, "-m", "alembic", "downgrade", "e68d9a24b537"],  # pragma: allowlist secret - public Alembic revision ID
+        [
+            sys.executable,
+            "-m",
+            "alembic",
+            "downgrade",
+            "e68d9a24b537",  # pragma: allowlist secret - public Alembic revision ID
+        ],  # pragma: allowlist secret - public Alembic revision ID
         cwd=BACKEND,
         env=dict(env),
         capture_output=True,
@@ -497,6 +503,60 @@ def inject_failure(
         raise RuntimeError(
             f"Injected failure after {stage}; disposable database was {database.name}"
         )
+
+
+def verify_analytics_downgrade_guard(
+    database: TestDatabase, env: Mapping[str, str], head: str
+) -> None:
+    """Retained contribution/tombstone or aggregate alone must block downgrade."""
+    for table, insert in (
+        (
+            "analytics_order_contributions",
+            "INSERT INTO analytics_order_contributions SELECT id,102,organization_id,4,CURRENT_DATE,0,'deleted' FROM restaurants WHERE id=101",
+        ),
+        (
+            "analytics_daily_sales",
+            "INSERT INTO analytics_daily_sales SELECT id,CURRENT_DATE,organization_id,0,0 FROM restaurants WHERE id=101",
+        ),
+    ):
+        with psycopg.connect(database.sync_url) as connection:
+            connection.execute(insert)
+            before_schema = schema_snapshot(connection)
+            before_rows = connection.execute(f"SELECT * FROM {table}").fetchall()
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "alembic",
+                "downgrade",
+                "b8f34c2a91de",  # pragma: allowlist secret - public Alembic revision ID
+            ],
+            cwd=BACKEND,
+            env=dict(env),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if (
+            result.returncode == 0
+            or "retained analytics projection data" not in result.stdout + result.stderr
+        ):
+            raise AssertionError(
+                "Analytics downgrade did not reject retained projection data"
+            )
+        with psycopg.connect(database.sync_url) as connection:
+            assert schema_snapshot(connection) == before_schema
+            assert (
+                connection.execute(f"SELECT * FROM {table}").fetchall() == before_rows
+            )
+            # Disposable fixture only: isolate each guard branch.
+            connection.execute(f"DELETE FROM {table}")
+        assert current_revision(database) == head
+    run_alembic("check", env=env)
+    print(
+        "PASS: analytics downgrade guards preserve tombstones, totals and schema",
+        flush=True,
+    )
 
 
 def verify_clean(head: str, fail_after: str | None) -> None:
@@ -559,6 +619,7 @@ def verify_legacy(head: str, script: ScriptDirectory, fail_after: str | None) ->
             verify_history_downgrade_guard(database, env, head)
             verify_event_history_downgrade_guard(database, env, head)
             verify_inventory_episode_downgrade_guard(database, env, head)
+            verify_analytics_downgrade_guard(database, env, head)
         else:
             print(
                 "SKIP: current migration graph has no order-inventory downgrade guard",

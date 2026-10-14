@@ -9,7 +9,11 @@ from app.core.config import get_settings
 from app.core.logging import configure_json_logging
 from app.db.database import AsyncSessionLocal, engine
 from app.modules.events.repo.worker_queries import DeliveryClaim
-from app.modules.events.execution import ConsumerExecutionService, ExecutionHooks
+from app.modules.events.execution import (
+    CONSUMERS,
+    ConsumerExecutionService,
+    ExecutionHooks,
+)
 from app.modules.tenancy.repo.models import Organization
 from app.modules.events.worker.runtime import EventWorker, WorkerHooks
 
@@ -76,6 +80,15 @@ async def main() -> None:
                 "alerts": test_effect,
                 "notification_sink": test_effect,
             },
+            lease_seconds=settings.event_worker_claim_lease_seconds,
+            hooks=ExecutionHooks(
+                before_commit=before_commit, after_commit=after_commit
+            ),
+        )
+    elif os.environ.get("EVENT_WORKER_TEST_ANALYTICS") == "1":
+        execution = ConsumerExecutionService(
+            AsyncSessionLocal,
+            registry=CONSUMERS,
             lease_seconds=settings.event_worker_claim_lease_seconds,
             hooks=ExecutionHooks(
                 before_commit=before_commit, after_commit=after_commit

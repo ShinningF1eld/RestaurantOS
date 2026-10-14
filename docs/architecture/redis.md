@@ -131,8 +131,9 @@ typed event facts. Each group's Redis Stream ID is transport identity only; a
 republish keeps the original PostgreSQL event UUID. Groups acknowledge
 non-subscribed references. T5 executes code-registered handlers with fenced
 PostgreSQL attempts: effects, receipts and delivery success commit together
-before Redis ACK. Actual T6/T7 handlers remain unimplemented; their valid
-subscribed deliveries stay pending without receipts or spent attempts. Pending
+before Redis ACK. T6 installs analytics' daily sales/deletion projection; T7 alert
+and sink handlers remain unimplemented and their valid subscribed deliveries stay
+pending without receipts or spent attempts. Pending
 recovery rechecks sufficiently idle entries even when owned by the current
 consumer, so early references can later be acknowledged after completion.
 

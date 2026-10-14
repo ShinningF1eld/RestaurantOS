@@ -31,6 +31,7 @@ from app.modules.events.domain.contracts import (
     OrderSubmittedPayload,
 )
 from app.modules.events.repo.models import EventDelivery
+from app.modules.events.repo.models import EventReceipt
 from app.modules.events.repo.worker_queries import (
     claim_due_deliveries as claim_delivery_rows,
 )
@@ -415,7 +416,9 @@ def test_consumer_groups_route_independently_reclaim_own_pel_and_rebuild_stream(
     settings = worker_settings()
     first = start_process(tmp_path, settings, module=True)
     try:
-        wait_for(lambda: len(stream_entries(settings)) >= 2)
+        # Either subscribed delivery's reference can complete analytics before
+        # its own relay turn, so one or two initial transport entries are valid.
+        wait_for(lambda: len(stream_entries(settings)) >= 1)
 
         async def group_state():
             redis = WorkerRedisTransport(settings)
@@ -441,8 +444,8 @@ def test_consumer_groups_route_independently_reclaim_own_pel_and_rebuild_stream(
             state = asyncio.run(group_state())
             return (
                 state
-                if state[0]["analytics"] >= 2
-                and state[0]["notification_sink"] >= 2
+                if state[0]["analytics"] == 0
+                and state[0]["notification_sink"] >= 1
                 and state[0]["alerts"] == 0
                 and all(state[2][group] == state[3] for group in GROUPS)
                 else None
@@ -452,31 +455,50 @@ def test_consumer_groups_route_independently_reclaim_own_pel_and_rebuild_stream(
         assert counts["alerts"] == 0
         assert all(
             pending.owner
-            for group in ("analytics", "notification_sink")
+            for group in ("notification_sink",)
             for pending in owners[group]
         )
-        old_owner = owners["analytics"][0].owner
+        # T6 analytics is complete/ACKed; the unimplemented sink still needs
+        # pending recovery. Redis loss must not rerun the completed consumer.
+        with engine.connect() as connection:
+            assert (
+                connection.scalar(
+                    select(func.count())
+                    .select_from(EventReceipt)
+                    .where(
+                        EventReceipt.event_id == event.event_id,
+                        EventReceipt.consumer_name == "analytics",
+                    )
+                )
+                == 1
+            )
+        old_owner = owners["notification_sink"][0].owner
         kill_process(first)
+        published_count = len(stream_entries(settings))
+        assert published_count in (1, 2)
 
         second = start_process(tmp_path, settings, module=True)
         try:
 
             def changed_owner():
                 latest_counts, latest_owners, _, _ = asyncio.run(group_state())
-                pending = latest_owners["analytics"]
+                pending = latest_owners["notification_sink"]
                 return (
                     (
                         latest_counts,
                         latest_owners,
                     )
-                    if pending and pending[0].owner != old_owner
+                    if pending
+                    and latest_counts["notification_sink"] == published_count
+                    and all(entry.owner != old_owner for entry in pending)
                     else None
                 )
 
             counts, owners = wait_for(changed_owner)
-            assert counts["analytics"] == 2
-            assert owners["analytics"][0].owner != old_owner
-            assert len(stream_entries(settings)) == 2
+            assert counts["analytics"] == 0
+            assert counts["notification_sink"] == published_count
+            assert owners["notification_sink"][0].owner != old_owner
+            assert len(stream_entries(settings)) == published_count
             kill_process(second)
 
             # Deleting this one test-owned stream models Redis content/group loss.
@@ -486,14 +508,26 @@ def test_consumer_groups_route_independently_reclaim_own_pel_and_rebuild_stream(
                 rebuilt = wait_for(
                     lambda: (
                         stream_entries(settings)
-                        if len(stream_entries(settings)) >= 2
+                        if len(stream_entries(settings)) >= 1
                         else None
                     )
                 )
-                assert len(rebuilt) == 2
+                assert len(rebuilt) == 1
                 assert {entry[1]["event_id"] for entry in rebuilt} == {
                     str(event.event_id)
                 }
+                with engine.connect() as connection:
+                    assert (
+                        connection.scalar(
+                            select(func.count())
+                            .select_from(EventReceipt)
+                            .where(
+                                EventReceipt.event_id == event.event_id,
+                                EventReceipt.consumer_name == "analytics",
+                            )
+                        )
+                        == 1
+                    )
                 stop_gracefully(third)
             finally:
                 kill_process(third)

@@ -18,6 +18,8 @@ from uuid import UUID, uuid4
 from sqlalchemy.exc import DBAPIError, IntegrityError, TimeoutError as PoolTimeout
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.modules.analytics.service import apply_order_event
+
 from app.modules.events.domain.contracts import (
     ConsumerName,
     EventEnvelope,
@@ -43,7 +45,7 @@ Effect = Callable[
 # must never write placeholder receipts or consume the poison-event allowance.
 CONSUMERS: Mapping[ConsumerName, Effect | None] = MappingProxyType(
     {
-        "analytics": None,
+        "analytics": apply_order_event,
         "alerts": None,
         "notification_sink": None,
     }
