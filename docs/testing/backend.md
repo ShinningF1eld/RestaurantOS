@@ -115,3 +115,21 @@ insertion/flush rollback and an API killed after commit with Redis unavailable.
 The crash test inspects durable pending fan-out using a fresh connection; it
 claims no worker effects. Worker delivery/retry/receipt/recovery execution remains
 in later Milestone 8 tasks.
+
+
+Milestone 8 T5 execution tests in `integration/test_event_execution.py` exercise
+real delivery locks with a barrier inside the uncommitted effect transaction.
+A competing duplicate encounters that lock; only one effect/receipt commits.
+`tests/support/event_worker_process.py` wires test-only database handlers and
+barriers before effect commit and after commit/before ACK; the tests kill actual
+processes and verify recovery and retained interrupted-attempt history. Production
+has no environment flag enabling those handlers.
+
+Deterministic clocks verify all eight event attempts, persisted due times and
+replay cycles. Shared outage history is distinct from charged attempts; a real
+`pg_terminate_backend` tests rollback and refund after reconnect. Independent
+Redis groups and ambiguous ACK tests keep successful effects unique. CLI
+subprocesses verify status, safe inspect, role provenance, retained history,
+invalid replay rejection and redaction. Run these through the existing
+`backend-unit`, `backend-integration` and `backend-static` gates; no optional gate
+or new application schema is introduced by T5.

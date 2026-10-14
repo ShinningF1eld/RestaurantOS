@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     event_worker_pending_idle_ms: int = Field(default=60000, gt=0, le=3600000)
     event_worker_infra_backoff_initial_ms: int = Field(default=1000, gt=0, le=30000)
     event_worker_infra_backoff_max_ms: int = Field(default=30000, gt=0, le=300000)
+    event_worker_max_attempts: int = Field(default=8, gt=0, le=100)
     event_worker_shutdown_grace_seconds: int = Field(default=10, gt=0, le=120)
     auth_jwt_secret: SecretStr = Field(validation_alias="AUTH_JWT_SECRET")
     auth_rate_limit_secret: SecretStr = Field(validation_alias="AUTH_RATE_LIMIT_SECRET")
