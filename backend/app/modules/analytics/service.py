@@ -292,20 +292,29 @@ class AnalyticsProjectionService:
     async def rebuild(self, organization_id: UUID, restaurant_id: int) -> None:
         """Maintenance-only seed/rebuild, repeatable with queued events retained."""
         async with self.sessions() as session, session.begin():
-            repo = ProjectionRepository(session, organization_id, restaurant_id)
-            await repo.scope(lock=True)
-            baseline = await repo.baseline()
-            existing = {row.order_id: row for row in await repo.contributions()}
-            # Never forget existing deletion watermarks. An absent completed row
-            # without a producer deletion fact is unsafe to silently discard.
-            for order_id, row in existing.items():
-                if order_id not in baseline:
-                    if row.state != "deleted":
-                        raise ValueError("Missing authoritative order/deletion fact")
-                    baseline[order_id] = repo.value(row)
-            await repo.clear_daily()
-            for value in baseline.values():
-                await repo.store(value, existing.get(value.order_id))
-                if value.count:
-                    await repo.delta(value.creation_date, 1, value.total)
-            await session.flush()
+            await rebuild_analytics_projection(session, organization_id, restaurant_id)
+
+
+async def rebuild_analytics_projection(
+    session: AsyncSession, organization_id: UUID, restaurant_id: int
+) -> None:
+    """Public transaction-bound maintenance interface; preserve receipts and history."""
+    if not session.in_transaction():
+        raise RuntimeError("Analytics rebuild requires a caller transaction")
+    repo = ProjectionRepository(session, organization_id, restaurant_id)
+    await repo.scope(lock=True)
+    baseline = await repo.baseline()
+    existing = {row.order_id: row for row in await repo.contributions()}
+    # Never forget existing deletion watermarks. An absent completed row
+    # without a producer deletion fact is unsafe to silently discard.
+    for order_id, row in existing.items():
+        if order_id not in baseline:
+            if row.state != "deleted":
+                raise ValueError("Missing authoritative order/deletion fact")
+            baseline[order_id] = repo.value(row)
+    await repo.clear_daily()
+    for value in baseline.values():
+        await repo.store(value, existing.get(value.order_id))
+        if value.count:
+            await repo.delta(value.creation_date, 1, value.total)
+    await session.flush()

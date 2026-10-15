@@ -1,4 +1,5 @@
 from app.modules.notifications.repo.models import EventDiagnostic, NotificationStub
+from app.modules.events.repo.maintenance import MaintenanceOperation
 from app.db.models.restaurant import Restaurant
 from app.db.models.menu import Menu
 from app.db.models.menu_items import MenuItem
@@ -12,6 +13,7 @@ from app.modules.alerts.repo.models import (
 
 
 __all__ = [
+    "MaintenanceOperation",
     "DailySales",
     "OrderContribution",
     "AlertEpisode",

@@ -374,16 +374,27 @@ Implement trusted-operator maintenance initialization and analytics rebuild/reco
 
 ## Acceptance criteria
 
-- [ ] Document and exercise the explicit sequence: pause/quiesce business writes and stop workers, inspect actual application revision/backup, explicitly migrate, seed analytics/revision watermarks, baseline active-low episodes, persist notification suppression, then start workers/resume writes.
-- [ ] Initialize from existing completed orders without historical lifecycle events; queued completion/deletion cannot double count or undo watermarks. Preserve all pending events and successful receipts.
-- [ ] Create 'low at initialization' episodes using observation time and immutable current opening facts, not fabricated start times. Persist scoped markers/provenance so reruns do not duplicate baselines or recreate resolved ones.
-- [ ] Already-low baselines remain notification-suppressed until recovery and a genuinely new episode. Verify reruns with later stock/threshold/archive changes and existing event history.
-- [ ] Analytics rebuild is maintenance reconstruction, not receipt deletion/replay. Preserve alert history, event/attempt/replay/receipt/stub records; reconciliation proves correct totals afterward and reports retained counts/storage-growth limitations.
-- [ ] Record executable CLI names/flags, trusted operator access, safe output, preconditions, interruption/rerun recovery and backup procedures. No validation script migrates the application database or removes the developer volume; live cutover requires its separate explicit operation.
+- [x] Document and exercise the explicit sequence: pause/quiesce business writes and stop workers, inspect actual application revision/backup, explicitly migrate, seed analytics/revision watermarks, baseline active-low episodes, persist notification suppression, then start workers/resume writes.
+- [x] Initialize from existing completed orders without historical lifecycle events; queued completion/deletion cannot double count or undo watermarks. Preserve all pending events and successful receipts.
+- [x] Create 'low at initialization' episodes using observation time and immutable current opening facts, not fabricated start times. Persist scoped markers/provenance so reruns do not duplicate baselines or recreate resolved ones.
+- [x] Already-low baselines remain notification-suppressed until recovery and a genuinely new episode. Verify reruns with later stock/threshold/archive changes and existing event history.
+- [x] Analytics rebuild is maintenance reconstruction, not receipt deletion/replay. Preserve alert history, event/attempt/replay/receipt/stub records; reconciliation proves correct totals afterward and reports retained counts/storage-growth limitations.
+- [x] Record executable CLI names/flags, trusted operator access, safe output, preconditions, interruption/rerun recovery and backup procedures. No validation script migrates the application database or removes the developer volume; live cutover requires its separate explicit operation.
 
 ## Verification
 
 Run backend-integration, backend-static and migrations against seeded legacy/new disposable state. Exercise interrupted initialization, scoped reruns, resolved baseline rerun, pending older events and rebuild with retained successful receipts.
+
+Implementation review (2026-10-15, Asia/Bangkok): all six criteria passed.
+Backend-unit passed 282 tests; full backend-integration passed 320 tests with no
+model drift. The final nine-case T8 suite additionally proves overlapping scoped
+initialization, retained replay/diagnostic facts and actual worker startup after
+baseline/resumed writes. Baseline/static and clean/seeded migration gates passed,
+including custom-format backup/restore, production CLI cutover and maintenance
+provenance downgrade protection. See [issue #38 verification](verification-milestone8-issue38.md)
+for exact commands, suite differences and limitations, and the
+[maintenance runbook](../runbooks/event-maintenance.md) for application operations.
+No application migration/initialization or push; full M8 acceptance remains open.
 
 <!-- github-plan: docs/milestone8/milestone-8-design.md | T8 -->
 

@@ -159,3 +159,17 @@ preserving the event, original correlation and all earlier history. Safe output
 omits payloads, free-form reasons and raw errors. See the
 [worker runbook](../runbooks/event-worker.md) for commands and failure semantics.
 No HTTP API or schema migration is added by T5.
+
+## T8 maintenance operations
+
+`initialize` and `analytics-rebuild` add trusted scoped offline reconstruction;
+see the [maintenance runbook](../runbooks/event-maintenance.md) for exact flags,
+backup/migration sequence and interruption recovery. Additive revision
+`c3d8e1f52a74` creates `event_maintenance_operations`: one uniquely indexed
+initialization marker per restaurant plus retained rebuild provenance, with a
+restrictive organization/restaurant foreign key. It stores operation UUID,
+kind, database-authenticated role, required reason and observation time, without
+rewriting business data or generating historical events. Downgrade rejects
+retained provenance. Initialization, projection seeding, suppressed baseline
+facts and the marker commit atomically; an initialization rerun returns the
+existing marker without regenerating episodes or resetting deliveries/receipts.

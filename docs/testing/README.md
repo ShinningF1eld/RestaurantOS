@@ -98,6 +98,17 @@ revision-fenced current state, baseline suppression, deduplicated durable stubs
 database effects. Redis continues to validate Milestone 7
 caching/rate limiting independently.
 
+T8 adds `integration/test_event_maintenance.py` for scoped legacy initialization,
+truthful suppressed baselines, reruns after recovery/threshold/archive changes,
+queued order watermarks, rollback and retained-record analytics reconstruction.
+Concurrent initialization observes the shared restaurant lock through PostgreSQL.
+The `migrations` gate restores a custom-format backup of seeded legacy data into
+another disposable database, explicitly migrates it and exercises production
+initialize/rerun/rebuild/reconcile CLI commands and retained-provenance downgrade
+protection. Local runs use tools in the owned test PostgreSQL container; external
+services require PostgreSQL 16 `pg_dump` and `pg_restore` on PATH. This rehearsal
+does not connect to the application database or invoke business/worker processes.
+
 ## Failure and cleanup evidence
 
 `python scripts/validate.py --gate backend-integration --no-install

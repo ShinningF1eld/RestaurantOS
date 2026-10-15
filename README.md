@@ -63,6 +63,12 @@ depend on Redis publication or worker availability. See the
 T6 adds migration `a936d8e4c021`; T7 adds `b2c7d9a41e63`. Validation does not
 migrate the application database.
 
+T8 adds trusted scoped `initialize` and `analytics-rebuild` commands, atomic
+legacy analytics/baseline initialization and retained database-role provenance.
+See the [backup/cutover/rebuild runbook](docs/runbooks/event-maintenance.md).
+Its additive migration is `c3d8e1f52a74`; application cutover remains a separate
+explicit operation. Reruns preserve resolved baselines, queued events and receipts.
+
 ## Prerequisites
 
 - Python 3.12 (the supported documentation and CI version)

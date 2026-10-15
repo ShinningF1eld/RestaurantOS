@@ -33,7 +33,8 @@ cannot race when inserting an episode for the first time.
 routes. Rebuild uses inventory's public bulk state/history interfaces and the
 shared restaurant lock. It refreshes derived rows without deleting episodes,
 notification outcomes, receipts, attempts, or queued events. Initialization
-orchestration and operator CLI remain T8.
+orchestration and operator CLI are implemented by T8's
+[`initialize` maintenance operation](../runbooks/event-maintenance.md).
 Inspection returns scoped `episodes` and `states` ORM rows for internal callers;
 callers must serialize the selected fields and apply user authorization before
 exposing them through a user-facing interface. These hooks supply no principal
