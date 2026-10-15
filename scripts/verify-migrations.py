@@ -559,6 +559,84 @@ def verify_analytics_downgrade_guard(
     )
 
 
+def verify_alert_sink_downgrade_guard(
+    database: TestDatabase, env: Mapping[str, str], head: str
+) -> None:
+    """Each retained T7 projection/effect table independently blocks data loss."""
+    parent_revision = "a936d8e4c021"  # pragma: allowlist secret
+    episode_id, event_id, stub_id = uuid4(), uuid4(), uuid4()
+    inserts = (
+        (
+            "alert_episodes",
+            (
+                "INSERT INTO alert_episodes (episode_id,organization_id,restaurant_id,ingredient_id,opening_revision) "
+                "SELECT %s,organization_id,id,102,1 FROM restaurants WHERE id=101"
+            ),
+            (episode_id,),
+        ),
+        (
+            "alert_ingredient_states",
+            (
+                "INSERT INTO alert_ingredient_states (organization_id,restaurant_id,ingredient_id,revision,ingredient_name,unit,quantity,reorder_threshold,is_active,is_low,occurred_at) "
+                "SELECT organization_id,id,103,1,'T7 test','g',0,0,true,true,now() FROM restaurants WHERE id=101"
+            ),
+            (),
+        ),
+        (
+            "notification_stubs",
+            (
+                "INSERT INTO notification_stubs (id,episode_id,event_id,organization_id,restaurant_id,ingredient_id,ingredient_name,unit,opening_quantity,reorder_threshold,opened_at,outcome,correlation_id) "
+                "SELECT %s,%s,%s,organization_id,id,102,'T7 test','g',0,0,now(),'skipped','t7-migration-test' FROM restaurants WHERE id=101"
+            ),
+            (stub_id, episode_id, event_id),
+        ),
+        (
+            "event_diagnostics",
+            (
+                "INSERT INTO event_diagnostics (event_id,organization_id,restaurant_id,event_type,aggregate_type,aggregate_id,aggregate_revision,correlation_id,facts) "
+                "SELECT %s,organization_id,id,'menu.updated.v1','menu','101',1,'t7-migration-test','{}'::jsonb FROM restaurants WHERE id=101"
+            ),
+            (event_id,),
+        ),
+    )
+    for table, insert, parameters in inserts:
+        with psycopg.connect(database.sync_url) as connection:
+            connection.execute(insert, parameters)
+            before_schema = schema_snapshot(connection)
+            before_rows = connection.execute(f"SELECT * FROM {table}").fetchall()
+        result = subprocess.run(
+            [sys.executable, "-m", "alembic", "downgrade", parent_revision],
+            cwd=BACKEND,
+            env=dict(env),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if (
+            result.returncode == 0
+            or "retained alert or sink data" not in result.stdout + result.stderr
+        ):
+            raise AssertionError(f"T7 downgrade did not reject retained {table} data")
+        with psycopg.connect(database.sync_url) as connection:
+            assert schema_snapshot(connection) == before_schema
+            assert (
+                connection.execute(f"SELECT * FROM {table}").fetchall() == before_rows
+            )
+            connection.execute(f"DELETE FROM {table}")
+        assert current_revision(database) == head
+    # Once the test-owned retained rows are removed, commit an empty T7
+    # downgrade and re-upgrade rather than relying only on transactional rollback.
+    run_alembic("downgrade", parent_revision, env=env)
+    assert current_revision(database) == parent_revision
+    run_alembic("upgrade", head, env=env)
+    assert current_revision(database) == head
+    run_alembic("check", env=env)
+    print(
+        "PASS: alert/sink downgrade guards and empty downgrade/re-upgrade preserve schema and history",
+        flush=True,
+    )
+
+
 def verify_clean(head: str, fail_after: str | None) -> None:
     with disposable_database(prefix="restaurantos_m6_clean") as database:
         print(f"Created clean migration database {database.name}", flush=True)
@@ -620,6 +698,7 @@ def verify_legacy(head: str, script: ScriptDirectory, fail_after: str | None) ->
             verify_event_history_downgrade_guard(database, env, head)
             verify_inventory_episode_downgrade_guard(database, env, head)
             verify_analytics_downgrade_guard(database, env, head)
+            verify_alert_sink_downgrade_guard(database, env, head)
         else:
             print(
                 "SKIP: current migration graph has no order-inventory downgrade guard",

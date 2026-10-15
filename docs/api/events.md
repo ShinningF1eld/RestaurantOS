@@ -9,8 +9,10 @@ standalone T4 worker relays stable event UUID references to Redis Streams, while
 PostgreSQL remains authoritative for event facts and unfinished delivery state.
 T5 supplies atomic effect/receipt execution, persisted retries and operator replay.
 T6 installs the completed-sales/deletion analytics handler; see the
-[projection contract](analytics-projection.md). T7 alert and sink handlers remain
-pending with no receipt and no spent attempt allowance.
+[projection contract](analytics-projection.md). T7 installs revisioned alert
+history/current-state projection, durable per-episode notification outcomes,
+and deduplicated order/menu diagnostic records; see the
+[alert and sink projection contract](alert-projection.md).
 
 ## Envelope
 
@@ -96,8 +98,10 @@ still requires an episode ID. Initialization itself emits no historical event.
 The registry is code-owned and immutable. T4 creates one Redis consumer group for
 each registry consumer: `analytics`, `alerts`, and `notification_sink`. The
 transport checks the PostgreSQL event and fixed registry before routing. T5
-executes registered handlers through a fenced service-owned transaction; missing
-T6/T7 handlers leave subscribed references pending without fabricated effects.
+executes registered handlers through a fenced service-owned transaction;
+unimplemented handlers leave subscribed references pending without fabricated
+effects. The analytics, alerts and notification-sink consumers are now all
+implemented.
 
 | Event | Analytics | Alerts | Notification/diagnostic sink |
 |---|:---:|:---:|:---:|
@@ -112,8 +116,8 @@ T6/T7 handlers leave subscribed references pending without fabricated effects.
 
 Analytics handles completed-order contributions and deletion tombstones. Alerts
 handles revisioned state and episode history. The sink records deduplicated
-diagnostic facts and one low-stock notification stub per episode in a later
-slice; no external messaging is part of this contract.
+diagnostic facts and one low-stock notification outcome per episode; no external
+messaging is part of this contract.
 
 ## Durable records and transaction boundary
 

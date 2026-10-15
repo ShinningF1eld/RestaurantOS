@@ -72,6 +72,42 @@ class InventoryTransitionRepository:
             statement = statement.with_for_update()
         return await self.session.scalar(statement)
 
+    async def episode_by_id(self, episode_id: UUID) -> InventoryLowStockEpisode | None:
+        return await self.session.get(InventoryLowStockEpisode, episode_id)
+
+    async def episodes_for_restaurant(
+        self, organization_id: UUID, restaurant_id: int
+    ) -> list[InventoryLowStockEpisode]:
+        result = await self.session.scalars(
+            select(InventoryLowStockEpisode)
+            .where(
+                InventoryLowStockEpisode.organization_id == organization_id,
+                InventoryLowStockEpisode.restaurant_id == restaurant_id,
+            )
+            .order_by(
+                InventoryLowStockEpisode.opened_at, InventoryLowStockEpisode.episode_id
+            )
+        )
+        return list(result)
+
+    async def ingredients_for_restaurant(
+        self, organization_id: UUID, restaurant_id: int, *, lock: bool = False
+    ) -> list[tuple[Ingredient, InventoryBalance]]:
+        statement = (
+            select(Ingredient, InventoryBalance)
+            .join(InventoryBalance, InventoryBalance.ingredient_id == Ingredient.id)
+            .join(Restaurant, Restaurant.id == Ingredient.restaurant_id)
+            .where(
+                Ingredient.restaurant_id == restaurant_id,
+                Restaurant.organization_id == organization_id,
+            )
+            .order_by(Ingredient.id)
+        )
+        if lock:
+            statement = statement.with_for_update(of=(Ingredient, InventoryBalance))
+        result = await self.session.execute(statement)
+        return [(item, balance) for item, balance in result]
+
     def add_episode(self, episode: InventoryLowStockEpisode) -> None:
         """Stage an episode fact in the caller-owned transaction."""
         self.session.add(episode)

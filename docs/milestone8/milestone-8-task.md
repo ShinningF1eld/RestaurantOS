@@ -334,16 +334,27 @@ Add alerts-owned episode projection/current revision state and an actual notific
 
 ## Acceptance criteria
 
-- [ ] Project opening/resolution history from producer episode facts, preserving immutable name/unit/opening quantity/threshold and provenance even across rename/archive and close-before-open delivery.
-- [ ] Per-ingredient revisions prevent older state from replacing newer current state. Delayed historical opening may fill history but cannot reopen a resolved or superseded episode; repeated low deductions create neither another episode nor a reminder.
-- [ ] Under the same restaurant lock as stock writes, check current active/low state and episode identity before committing at most one low-stock stub per episode through a unique episode key. Commit outcome and receipt atomically without external I/O under the lock.
-- [ ] Persist skip outcomes/receipts for resolved or superseded episodes; initialization baselines suppress notifications. Resolution before stub commit skips it, while replenishment after stub commit preserves the historical stub and resolves the alert.
-- [ ] Order lifecycle/deletion and menu events produce durable deduplicated operator diagnostic records; logs alone are not the effect. There is no external delivery, repeated reminder, acknowledge or dismiss behavior.
-- [ ] Derived rebuild preserves historical snapshots/receipts and baseline provenance; producer transition facts remain available for reconstruction. Register tables, preserve business-deletion references and protect retained history on downgrade.
+- [x] Project opening/resolution history from producer episode facts, preserving immutable name/unit/opening quantity/threshold and provenance even across rename/archive and close-before-open delivery.
+- [x] Per-ingredient revisions prevent older state from replacing newer current state. Delayed historical opening may fill history but cannot reopen a resolved or superseded episode; repeated low deductions create neither another episode nor a reminder.
+- [x] Under the same restaurant lock as stock writes, check current active/low state and episode identity before committing at most one low-stock stub per episode through a unique episode key. Commit outcome and receipt atomically without external I/O under the lock.
+- [x] Persist skip outcomes/receipts for resolved or superseded episodes; initialization baselines suppress notifications. Resolution before stub commit skips it, while replenishment after stub commit preserves the historical stub and resolves the alert.
+- [x] Order lifecycle/deletion and menu events produce durable deduplicated operator diagnostic records; logs alone are not the effect. There is no external delivery, repeated reminder, acknowledge or dismiss behavior.
+- [x] Derived rebuild preserves historical snapshots/receipts and baseline provenance; producer transition facts remain available for reconstruction. Register tables, preserve business-deletion references and protect retained history on downgrade.
 
 ## Verification
 
 Run backend-unit, backend-integration, backend-static and migrations. Prove out-of-order history/current-state behavior, baseline suppression, unique stubs and both stock-versus-stub lock boundaries using explicit coordination.
+
+Implementation review (2026-10-15, Asia/Bangkok): all six criteria passed.
+Backend-unit passed 282 tests, backend-integration passed 313 tests with no model
+drift, and backend-static, clean/seeded migrations (including independent retained
+data guards and empty T7 downgrade/re-upgrade), and baseline checks passed.
+The focused alert/sink suite passed 16 tests, including both PostgreSQL-observed
+lock boundaries, reverse-order/superseded history, baseline suppression,
+actual-effect rollback and real worker death before commit/after commit-before
+ACK. See [issue #37 verification](verification-milestone8-issue37.md) for commands,
+limitations and the disclosed application-database migration incident. Changes
+remain uncommitted for independent review; full M8 acceptance remains open.
 
 <!-- github-plan: docs/milestone8/milestone-8-design.md | T7 -->
 

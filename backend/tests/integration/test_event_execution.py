@@ -263,7 +263,10 @@ def test_missing_handler_and_conflicting_references_do_not_spend_attempts():
     event = append_event_for_test(create_scope())
 
     async def scenario():
-        execution = ConsumerExecutionService(AsyncSessionLocal)
+        execution = ConsumerExecutionService(
+            AsyncSessionLocal,
+            registry={"analytics": None, "alerts": None, "notification_sink": None},
+        )
         assert (await execute(execution, event)).outcome == "handler_unavailable"
         conflicting = {**reference(event), "correlation_id": "forged"}
         assert (

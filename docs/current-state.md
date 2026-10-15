@@ -1,5 +1,35 @@
 # RestaurantOS current state
 
+## Milestone 8 Issue #37 T7 implementation
+
+On 2026-10-15 (Asia/Bangkok), T7 installs alerts-owned episode snapshots and
+revisioned current inventory state, plus notifications-owned unique low-stock
+outcomes and deduplicated order/menu diagnostic records. Effects, receipts and
+delivery success commit together. Both alert event paths and notification stock
+checks use inventory's public state/lock interface. Delayed historical events
+cannot reopen resolved/superseded state; baseline episodes remain suppressed.
+Trusted scoped read and repeatable rebuild hooks prepare T8/T9 integration.
+
+Focused PostgreSQL/Redis verification passed 16 tests, including actual lock-wait
+overlap in both stock/stub directions, rollback and real worker death before
+commit and after commit/before ACK. Unit verification passed 282 tests; Ruff
+lint/format and mypy (159 sources) passed. Full backend integration passed 313
+tests with no model drift. Clean/seeded migrations, retained-data guards,
+empty T7 downgrade/re-upgrade and baseline checks passed. All six issue criteria
+passed this implementation review; commands and limits are recorded in the
+[issue #37 report](milestone8/verification-milestone8-issue37.md).
+No HTTP/frontend, dependency or runtime image changes, external provider, commit
+or push. Independent review and full M8 acceptance remain open.
+
+Application database incident: on 2026-10-14 an ad hoc migration command set only
+`TEST_DATABASE_URL`, allowing Alembic's configured `DATABASE_URL` to select the
+application database. It advanced from `a936d8e4c021` to additive T7 revision
+`b2c7d9a41e63`, creating empty tables without rewriting business data. A read-only
+revision check confirmed that result; no downgrade was attempted. The 2026-10-15
+continuation used only guarded disposable databases for migration validation and
+performed no further application migration. T8 application initialization has
+not been run. See the report for the incident and exact verification limits.
+
 ## Milestone 8 Issue #36 T6 implementation
 
 On 2026-10-14 (Asia/Bangkok), T6 installs the analytics consumer: completed-order

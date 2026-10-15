@@ -87,8 +87,15 @@ T6 adds `unit/test_analytics_projection.py` and
 creation-date decimal totals, scope reconciliation, deletion permutations,
 lock-proven competing same/different-order effects, atomic rollback, queued
 events after rebuild and real analytics worker death before/after commit. T7
-effects remain deferred. Earlier T5 tests use trusted code-only handlers with
-real database effects. Redis continues to validate Milestone 7
+adds `integration/test_alert_projection.py` for out-of-order episode history,
+revision-fenced current state, baseline suppression, deduplicated durable stubs
+  and diagnostics, preservation during rebuild, both stock-lock/stub-commit
+  timing boundaries observed through PostgreSQL's wait graph, overlapping
+  history deliveries, actual-effect rollback, and real alert/sink worker death
+  before commit and after commit/before ACK. Transport-only tests explicitly
+  disable feature handlers in test wiring; the production entrypoint test checks
+  the real durable diagnostic effect. Earlier T5 tests use trusted code-only handlers with real
+database effects. Redis continues to validate Milestone 7
 caching/rate limiting independently.
 
 ## Failure and cleanup evidence

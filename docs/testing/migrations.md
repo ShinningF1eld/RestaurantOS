@@ -21,6 +21,13 @@ Issue #36 adds empty analytics contribution/tombstone and daily-sales tables at
 downgrade guard and verifies unchanged rows, schema and revision. The existing
 legacy fixture/baseline remains unchanged; upgrades do not seed derived totals.
 
+Issue #37 adds retained alert episode/current-state projections, unique
+per-episode notification outcomes and event-keyed diagnostic sink rows at
+`b2c7d9a41e63`. The seeded gate exercises each table's downgrade guard and
+verifies schema, rows and revision remain unchanged after a rejected downgrade.
+The migration creates empty tables; it does not initialize projections or
+change the application database.
+
 The selected legacy baseline is after tenancy ownership, order item snapshots,
 and the inventory ledger were introduced, and immediately before recipe tracking
 and order inventory processing. That makes the fixture representative of data

@@ -19,6 +19,8 @@ from sqlalchemy.exc import DBAPIError, IntegrityError, TimeoutError as PoolTimeo
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.modules.analytics.service import apply_order_event
+from app.modules.alerts.service import apply_alert_event
+from app.modules.notifications.service import apply_notification_event
 
 from app.modules.events.domain.contracts import (
     ConsumerName,
@@ -41,13 +43,13 @@ from app.modules.events.repo.models import (
 Effect = Callable[
     [AsyncSession, EventEnvelope], Awaitable[Literal["processed", "skipped"]]
 ]
-# Issues #36–37 install actual feature interfaces here. Missing implementations
-# must never write placeholder receipts or consume the poison-event allowance.
+# Fixed feature interfaces; missing implementations must never write placeholder
+# receipts or consume the poison-event allowance.
 CONSUMERS: Mapping[ConsumerName, Effect | None] = MappingProxyType(
     {
         "analytics": apply_order_event,
-        "alerts": None,
-        "notification_sink": None,
+        "alerts": apply_alert_event,
+        "notification_sink": apply_notification_event,
     }
 )
 logger = logging.getLogger("restaurantos.event_consumer")

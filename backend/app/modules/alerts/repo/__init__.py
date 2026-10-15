@@ -1,0 +1,1 @@
+"""Alert projection persistence."""

@@ -10,8 +10,9 @@ references and pending transport messages.
 
 The fixed consumer groups are `analytics`, `alerts`, and `notification_sink`.
 T5 adds fenced consumer execution, receipts, bounded retries and operator
-recovery. Issue #36 installs the analytics handler. Alert and sink handlers remain
-Issue #37; valid deliveries without a handler remain pending without receipts or attempts.
+recovery. Issues #36–#37 install the analytics, alerts and notification-sink
+handlers. Future valid contracts without a handler remain pending without
+receipts or attempts.
 Never interpret a publication observation or `XADD` reply as business processing.
 
 Analytics inspection/reconciliation commands and the T8 maintenance interface are
