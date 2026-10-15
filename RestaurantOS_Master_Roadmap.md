@@ -881,6 +881,15 @@ internal read/rebuild hooks prepare T8/T9. See [issue #37 verification](docs/mil
 for criteria, gate results, remaining milestone work and the separately disclosed
 application-database migration incident. Full M8 acceptance remains open.
 
+T8 implementation (2026-10-15): issue #38 adds scoped trusted initialization and
+analytics rebuild CLI, atomic legacy revision/baseline seeding, repeatable markers
+and retained operator provenance. Disposable backup/restore/cutover rehearsal,
+queued-event fences, rollback/rerun, retained-record reconstruction and actual
+worker startup/resumed-write regressions passed. No application cutover occurred.
+See [issue #38 verification](docs/milestone8/verification-milestone8-issue38.md)
+and [maintenance runbook](docs/runbooks/event-maintenance.md). T9–T11 and full M8
+acceptance remain open.
+
 ### Recommended evolution
 
 1. PostgreSQL transactional outbox as the source of publishable events.
@@ -1532,7 +1541,7 @@ After Milestone 0, give Sol only one milestone or vertical slice at a time. A st
 | 5. Transactional ordering and inventory | Complete — recipes, stock availability, acceptance consumption and retry safety; cancellation never restores stock | [`docs/current-state.md`](docs/current-state.md#milestone-5-completion-evidence); 309 backend tests, 21 Chromium tests, clean/previous-head migrations and concurrency checks passed |
 | 6. Test architecture and quality gates | Not verified | |
 | 7. Redis caching and rate limiting | Not started/verify | |
-| 8. Background jobs and events | In progress — T7 alert/sink effects implemented; independent review and full M8 acceptance remain open | [Issue #37 verification](docs/milestone8/verification-milestone8-issue37.md); [`docs/current-state.md`](docs/current-state.md#milestone-8-issue-37-t7-implementation); [`docs/api/events.md`](docs/api/events.md) |
+| 8. Background jobs and events | In progress — T8 maintenance initialization/rebuild implemented; T9–T11 and full M8 acceptance remain open | [Issue #38 verification](docs/milestone8/verification-milestone8-issue38.md); [`docs/current-state.md`](docs/current-state.md#milestone-8-issue-38-t8-implementation); [`docs/api/events.md`](docs/api/events.md) |
 | 9. Containers, CI/CD, deployment | Not verified | |
 | 10. Observability | Not started/verify | |
 | 11. Analytics model | Early work/verify | |

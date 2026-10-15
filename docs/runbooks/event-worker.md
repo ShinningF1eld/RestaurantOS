@@ -21,7 +21,8 @@ one verified organization/restaurant pair before and after maintenance. A mismat
 can reflect an ordinary pending backlog; inspect analytics deliveries before
 diagnosing corruption. Stop workers/quiesce writes before rebuilding, preserve
 receipts and queued events, then reconcile and restart workers. Combined T8
-initialization and operational rebuild CLI remain pending.
+initialization and operational rebuild CLI are documented in
+[maintenance and backup/cutover procedures](event-maintenance.md).
 
 ## Start and stop
 

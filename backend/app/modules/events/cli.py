@@ -43,6 +43,18 @@ async def run(arguments: argparse.Namespace) -> dict[str, object]:
                 else analytics.reconcile
             )
             return await method(arguments.organization_id, arguments.restaurant_id)
+        if arguments.command in {"initialize", "analytics-rebuild"}:
+            from app.modules.events.maintenance import EventMaintenanceService
+
+            return await EventMaintenanceService(AsyncSessionLocal).run(
+                arguments.organization_id,
+                arguments.restaurant_id,
+                kind="initialize"
+                if arguments.command == "initialize"
+                else "analytics_rebuild",
+                reason=arguments.reason,
+                maintenance_confirmed=arguments.maintenance_confirmed,
+            )
         result = await service.status()
         transport = WorkerRedisTransport(settings)
         try:
@@ -81,6 +93,17 @@ def main() -> None:
         command = commands.add_parser(name)
         command.add_argument("--organization-id", required=True, type=UUID)
         command.add_argument("--restaurant-id", required=True, type=int)
+    for name in ("initialize", "analytics-rebuild"):
+        command = commands.add_parser(name)
+        command.add_argument("--organization-id", required=True, type=UUID)
+        command.add_argument("--restaurant-id", required=True, type=int)
+        command.add_argument("--reason", required=True)
+        command.add_argument(
+            "--maintenance-confirmed",
+            required=True,
+            action="store_true",
+            help="Confirm workers are stopped and business writes quiesced",
+        )
     arguments = parser.parse_args()
     try:
         result = asyncio.run(run(arguments))

@@ -50,8 +50,12 @@ from retained producer deletion facts. Existing missing-order tombstones survive
 missing nondeleted contributions without deletion facts abort rather than silently
 losing protection. Receipts, events, attempts and deliveries remain unchanged.
 Queued old events cannot double count the seeded contribution or undo its revision.
-Repeated rebuilds are safe. The combined initialization/provenance/CLI workflow
-remains T8; this issue does not expose an unattended rebuild command.
+Repeated rebuilds are safe. T8's public transaction-bound
+`rebuild_analytics_projection(session, organization_id, restaurant_id)` allows
+maintenance orchestration to commit analytics, baselines and provenance together.
+The original service method delegates to that interface. Operator `initialize`
+and `analytics-rebuild` commands require a verified scope, maintenance attestation
+and reason; see [maintenance operations](../runbooks/event-maintenance.md).
 
 Additive migration `a936d8e4c021` follows `b8f34c2a91de`, creates empty projection
 tables without rewriting business data, and rejects downgrade if either table

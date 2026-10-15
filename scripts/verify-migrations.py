@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import shutil
 import subprocess
 import sys
 from collections.abc import Mapping
@@ -652,6 +654,149 @@ def verify_clean(head: str, fail_after: str | None) -> None:
         )
 
 
+def verify_maintenance_cutover(
+    database: TestDatabase, env: Mapping[str, str], head: str
+) -> None:
+    """Rehearse backup/restore and offline cutover only on owned disposable databases."""
+    container = env.get("TEST_POSTGRES_CONTAINER")
+    if container:
+        dump_command = [
+            "docker",
+            "exec",
+            container,
+            "pg_dump",
+            "-U",
+            "restaurantos",
+            "-Fc",
+            database.name,
+        ]
+    else:
+        if not shutil.which("pg_dump") or not shutil.which("pg_restore"):
+            raise RuntimeError(
+                "Cutover rehearsal requires PostgreSQL pg_dump/pg_restore or TEST_POSTGRES_CONTAINER"
+            )
+        dump_command = ["pg_dump", "-Fc", "-d", database.sync_url]
+    archive = subprocess.run(dump_command, check=True, capture_output=True).stdout
+    assert archive.startswith(b"PGDMP")
+    with disposable_database(
+        prefix="restaurantos_t8_restore", test_url=env["TEST_DATABASE_URL"]
+    ) as restored:
+        restore_command = (
+            [
+                "docker",
+                "exec",
+                "-i",
+                container,
+                "pg_restore",
+                "-U",
+                "restaurantos",
+                "--exit-on-error",
+                "-d",
+                restored.name,
+            ]
+            if container
+            else ["pg_restore", "--exit-on-error", "-d", restored.sync_url]
+        )
+        subprocess.run(restore_command, input=archive, check=True, capture_output=True)
+        assert current_revision(restored) == current_revision(database)
+        with (
+            psycopg.connect(database.sync_url) as source,
+            psycopg.connect(restored.sync_url) as target,
+        ):
+            assert legacy_data_snapshot(source) == legacy_data_snapshot(target)
+            organization_id = target.execute(
+                "SELECT organization_id FROM restaurants WHERE id=101"
+            ).fetchone()[0]
+            # Test-owned legacy low stock, with ledger kept consistent.
+            target.execute(
+                "UPDATE inventory_ingredients SET reorder_threshold=1000 WHERE id=101"
+            )
+            before = legacy_data_snapshot(target)
+        isolated = restored.environment(env)
+        run_alembic("current", env=isolated)
+        run_alembic("upgrade", head, env=isolated)
+        scope = ["--organization-id", str(organization_id), "--restaurant-id", "101"]
+
+        def cli(command: str) -> dict:
+            mutation = (
+                ["--maintenance-confirmed", "--reason", "Disposable cutover rehearsal"]
+                if command != "analytics-reconcile"
+                else []
+            )
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "app.modules.events.cli",
+                    command,
+                    *scope,
+                    *mutation,
+                ],
+                cwd=BACKEND,
+                env=isolated,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            return json.loads(result.stdout)
+
+        first, second = cli("initialize"), cli("initialize")
+        assert (
+            first["outcome"] == "completed"
+            and second["outcome"] == "already_initialized"
+        )
+        assert first["operation_id"] == second["operation_id"]
+        assert cli("analytics-reconcile")["matches"]
+        assert cli("analytics-rebuild")["outcome"] == "completed"
+        assert cli("analytics-reconcile")["matches"]
+        with psycopg.connect(restored.sync_url) as connection:
+            assert legacy_data_snapshot(connection) == before
+            assert (
+                connection.execute("SELECT count(*) FROM outbox_events").fetchone()[0]
+                == 0
+            )
+            assert (
+                connection.execute("SELECT count(*) FROM event_receipts").fetchone()[0]
+                == 0
+            )
+            assert connection.execute(
+                "SELECT notification_suppressed,opening_source FROM inventory_low_stock_episodes"
+            ).fetchall() == [(True, "maintenance_initialization")]
+            snapshot = schema_snapshot(connection)
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "alembic",
+                "downgrade",
+                "b2c7d9a41e63",  # pragma: allowlist secret
+            ],
+            cwd=BACKEND,
+            env=isolated,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert (
+            result.returncode != 0
+            and "retained maintenance provenance" in result.stdout + result.stderr
+        )
+        with psycopg.connect(restored.sync_url) as connection:
+            assert schema_snapshot(connection) == snapshot
+            assert (
+                connection.execute(
+                    "SELECT count(*) FROM event_maintenance_operations"
+                ).fetchone()[0]
+                == 2
+            )
+        assert current_revision(restored) == head
+        run_alembic("check", env=isolated)
+    print(
+        "PASS: disposable backup/restore, legacy cutover CLI/rerun/rebuild/reconcile and maintenance downgrade guard",
+        flush=True,
+    )
+
+
 def verify_legacy(head: str, script: ScriptDirectory, fail_after: str | None) -> None:
     graph = ancestors(script, head)
     if LEGACY_BASELINE not in graph:
@@ -668,6 +813,8 @@ def verify_legacy(head: str, script: ScriptDirectory, fail_after: str | None) ->
         seed_legacy_data(database)
         with psycopg.connect(database.sync_url) as connection:
             before = legacy_data_snapshot(connection)
+
+        verify_maintenance_cutover(database, env, head)
 
         run_alembic("upgrade", head, env=env)
         run_alembic("check", env=env)

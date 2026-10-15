@@ -68,6 +68,17 @@ mapping. Callers with a dedicated test-service hostname can pass an explicit
 
 ## Commands
 
+T8 additionally restores a custom-format backup of the seeded legacy database
+into a second guarded disposable database. It compares restored business rows
+and revision, migrates that copy, initializes a truthful suppressed low baseline,
+reruns initialization, rebuilds and reconciles analytics through the production
+CLI, and verifies retained-provenance downgrade rejection. No workers or business
+writers run in this offline rehearsal. Both databases are removed afterward.
+The normal local gate uses `pg_dump`/`pg_restore` in its owned test container.
+External-service runs require compatible PostgreSQL client tools on PATH.
+The representative `c48b7e02f315` baseline and original preservation expectations
+are unchanged; extra low-stock preparation occurs only in the restored copy.
+
 In PowerShell, set a disposable-database template that ends in `_test`, then run
 the verifier with the backend virtual environment:
 

@@ -1,5 +1,27 @@
 # RestaurantOS current state
 
+## Milestone 8 Issue #38 T8 implementation
+
+On 2026-10-15 (Asia/Bangkok), T8 adds trusted scoped `initialize` and
+`analytics-rebuild` CLI operations with required reason/maintenance attestation.
+Initialization atomically seeds analytics revision watermarks, observes suppressed
+legacy low-stock baselines, reconstructs alert state and persists database-role
+provenance. A scoped marker makes reruns a no-op, including after baseline
+resolution. Rebuild preserves events, attempts, replays, receipts and sink/history
+records. Existing producer episodes keep their original provenance/eligibility.
+
+Additive revision `c3d8e1f52a74` follows T7 and protects retained maintenance
+provenance on downgrade. No application migration or initialization was run.
+The [maintenance runbook](runbooks/event-maintenance.md) documents the separate
+backup/restore/quiesce/cutover sequence; validation rehearses it only on disposable
+legacy data. The final focused suite passed nine cases, including actual worker
+startup after baseline and resumed stock writes. Full integration passed 320
+tests, unit passed 282, and baseline/static plus clean/seeded migrations passed.
+All six issue criteria passed the implementation review; see
+[issue #38 verification](milestone8/verification-milestone8-issue38.md) for exact
+commands, final-suite differences, failures/corrections and limits. No frontend,
+HTTP, dependency or image change. Full M8 acceptance and remote CI remain open.
+
 ## Milestone 8 Issue #37 T7 implementation
 
 On 2026-10-15 (Asia/Bangkok), T7 installs alerts-owned episode snapshots and
