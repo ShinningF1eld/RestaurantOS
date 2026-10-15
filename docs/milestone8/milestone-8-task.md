@@ -414,16 +414,26 @@ Add paginated alert/history reads under the existing restaurant inventory namesp
 
 ## Acceptance criteria
 
-- [ ] Resolve current membership/capability/branch assignment on every direct/nested/list/count/history read using inventory.read: Owners cover their organization, Managers require assignment, Employees cannot read alerts. Foreign/unassigned resources return 404 and forbidden capabilities 403; revocation immediately removes access.
-- [ ] Active alerts present authoritative current quantity/base unit/threshold with episode start; paginated history presents immutable opening facts/start/resolution/baseline provenance/reason. Pagination and counts cannot leak another tenant/branch.
-- [ ] Place active alerts above ingredients and a collapsible paginated Alert history section on the existing inventory page; retain live low_stock indicators while workers catch up, and add no acknowledge/dismiss controls.
-- [ ] Refresh every 15 seconds only while visible, after local stock actions, and on manual request. Preserve entered form values/editor focus and prevent stale overlapping requests from replacing newer results.
-- [ ] Distinguish loading/error/stale/empty states; retain clearly marked last-known data on failure with retry, never present a failed request as 'no alerts'. Handle access revocation and restaurant changes without showing prior scoped data.
-- [ ] Before frontend code consult installed Next.js docs per frontend/AGENTS.md. Reuse browser/server transports and current URLs, cookie/CSRF/serialized bounded renewal behavior; SSR does not rotate cookies.
+- [x] Resolve current membership/capability/branch assignment on every direct/nested/list/count/history read using inventory.read: Owners cover their organization, Managers require assignment, Employees cannot read alerts. Foreign/unassigned resources return 404 and forbidden capabilities 403; revocation immediately removes access.
+- [x] Active alerts present authoritative current quantity/base unit/threshold with episode start; paginated history presents immutable opening facts/start/resolution/baseline provenance/reason. Pagination and counts cannot leak another tenant/branch.
+- [x] Place active alerts above ingredients and a collapsible paginated Alert history section on the existing inventory page; retain live low_stock indicators while workers catch up, and add no acknowledge/dismiss controls.
+- [x] Refresh every 15 seconds only while visible, after local stock actions, and on manual request. Preserve entered form values/editor focus and prevent stale overlapping requests from replacing newer results.
+- [x] Distinguish loading/error/stale/empty states; retain clearly marked last-known data on failure with retry, never present a failed request as 'no alerts'. Handle access revocation and restaurant changes without showing prior scoped data.
+- [x] Before frontend code consult installed Next.js docs per frontend/AGENTS.md. Reuse browser/server transports and current URLs, cookie/CSRF/serialized bounded renewal behavior; SSR does not rotate cookies.
 
 ## Verification
 
 Run backend-unit/backend-integration/backend-static, frontend-tests/frontend-static/frontend-build and browser. Cover Owner/assigned-unassigned Manager/Employee/cross-tenant/revoked reads, history pagination, visible timer behavior, local action refresh, error retry and form preservation.
+
+Implementation review (2026-10-15, Asia/Bangkok): all six criteria passed.
+Backend-unit passed 282 tests; final backend-integration passed 328 tests with no
+model drift; backend-static and baseline passed. Frontend tests (10 client/19
+component), static and production build passed. Two fresh full Chromium runs
+passed 29 tests each against the real standalone worker, and injected browser
+failure propagated with no new containers or temporary source copies left.
+See [issue #39 verification](verification-milestone8-issue39.md) for exact commands,
+initial failures/corrections and limits. No schema, application migration,
+initialization, commit or push; T10/T11 and full M8 acceptance remain open.
 
 <!-- github-plan: docs/milestone8/milestone-8-design.md | T9 -->
 

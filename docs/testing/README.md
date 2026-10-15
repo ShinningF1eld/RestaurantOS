@@ -60,6 +60,13 @@ Local Windows uses junctions for isolated frontend dependencies; Linux uses syml
 
 ## Layer ownership and regression maps
 
+T9 adds `integration/test_alert_reads.py` for inventory alert permissions,
+revocation, scoped counts/pages, live-stock fencing and immutable/baseline history.
+`InventoryAlerts.test.tsx` and `InventoryManager.test.tsx` exercise visible polling,
+request races, retry/stale states, scope changes and editor preservation.
+`alerts.spec.ts` exercises the real worker/API inventory-page workflow in the
+existing browser gate; the runner owns and cleans up the separate worker process.
+
 - [Dependencies and format checks](dependencies.md)
 - [Backend test boundaries and critical-rule map](backend.md)
 - [Frontend component/client tests](frontend.md)

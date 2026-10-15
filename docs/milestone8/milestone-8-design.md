@@ -481,6 +481,13 @@ scope require a proposed design revision and user acceptance.
 
 ## Decision history
 
+T9 implementation choices accepted on 2026-10-15: inventory alert reads use
+`limit`/`offset`, default 20 and maximum 100 rows; history includes ongoing
+episodes ordered by opening time descending and episode UUID descending; visible
+polling uses 15 seconds. Initialization baselines are presented as “Low when
+tracking started.” Exact endpoints and response fields are recorded in
+[`docs/api/alert-projection.md`](../api/alert-projection.md).
+
 | Date | Accepted decision and approval evidence |
 |---|---|
 | 2026-10-11 | Redis Streams and proposed consumer scope: user chose Redis because it is already present and requested guidance. |

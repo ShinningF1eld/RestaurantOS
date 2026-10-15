@@ -23,6 +23,12 @@ physical count may be zero.
 | `PUT /ingredients/{ingredient_id}` | `inventory.manage` | Updates the name, unit, reorder threshold, and active/archive state. Archived ingredients remain visible in the list and history. |
 | `POST /ingredients/{ingredient_id}/movements` | `inventory.manage` | Records a receipt, waste amount, or physical count. The balance and ledger entry commit together. |
 | `GET /ingredients/{ingredient_id}/movements?limit=20&offset=0` | `inventory.read` | Lists newest movements first, including the balance after each movement, actor email when available, and reason. Limit is 1–100. |
+| `GET /alerts?limit=20&offset=0` | `inventory.read` | Paginated projected active episodes, checked against live inventory. |
+| `GET /alerts/history?limit=20&offset=0` | `inventory.read` | All projected episodes, newest opening/UUID first, including ongoing and baseline episodes. |
+
+Alert responses use `{items,total,limit,offset}`, default 20 rows and maximum 100.
+See the [alert read contract](alert-projection.md#user-facing-inventory-reads-issue-39)
+for fields, live-state fencing, history provenance and refresh/failure behavior.
 
 Ingredient creation accepts `name`, `unit`, optional `reorder_threshold`,
 optional `opening_quantity`, and an `idempotency_key`. Updating a unit is

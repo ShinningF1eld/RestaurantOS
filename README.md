@@ -69,6 +69,12 @@ See the [backup/cutover/rebuild runbook](docs/runbooks/event-maintenance.md).
 Its additive migration is `c3d8e1f52a74`; application cutover remains a separate
 explicit operation. Reruns preserve resolved baselines, queued events and receipts.
 
+T9 exposes scoped active alerts and all episode history on the inventory page.
+Current stock fences stale projected alerts; history preserves opening snapshots
+and baseline provenance. Visible pages refresh every 15 seconds without resetting
+editors, retain clearly marked stale data on failures, and clear protected data
+when access is lost. See the [alert read contract](docs/api/alert-projection.md).
+
 ## Prerequisites
 
 - Python 3.12 (the supported documentation and CI version)
