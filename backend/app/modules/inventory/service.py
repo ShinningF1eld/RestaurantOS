@@ -278,6 +278,48 @@ async def load_inventory_state(
     )
 
 
+async def load_inventory_episode_facts(
+    session: AsyncSession, episode_id: UUID
+) -> InventoryEpisodeFacts | None:
+    """Return immutable producer-owned episode facts to trusted consumers."""
+    episode = await InventoryTransitionRepository(session).episode_by_id(episode_id)
+    return _episode_facts(episode) if episode is not None else None
+
+
+async def load_inventory_episode_history(
+    session: AsyncSession, organization_id: UUID, restaurant_id: int
+) -> list[InventoryEpisodeFacts]:
+    """T8 maintenance hook for retained producer opening/closing facts."""
+    repository = InventoryTransitionRepository(session)
+    episodes = await repository.episodes_for_restaurant(organization_id, restaurant_id)
+    return [_episode_facts(episode) for episode in episodes]
+
+
+async def load_inventory_restaurant_states(
+    session: AsyncSession,
+    organization_id: UUID,
+    restaurant_id: int,
+    *,
+    lock: bool = False,
+) -> list[InventoryTransition]:
+    """Trusted bulk read/init hook; optional locks follow restaurant/ingredient order."""
+    repository = InventoryTransitionRepository(session)
+    if lock:
+        await repository.lock_restaurant_for_organization(
+            organization_id, restaurant_id
+        )
+    rows = await repository.ingredients_for_restaurant(
+        organization_id, restaurant_id, lock=lock
+    )
+    return [
+        _transition_snapshot(
+            inventory_state_snapshot(organization_id, item, balance),
+            await repository.open_episode(item.id, lock=lock),
+        )
+        for item, balance in rows
+    ]
+
+
 async def record_baseline_inventory_episode(
     session: AsyncSession,
     organization_id: UUID,

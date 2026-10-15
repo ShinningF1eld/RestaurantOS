@@ -20,9 +20,10 @@ locks and an auditable movement ledger; order creation and stock writes are
 retry-safe. See the [inventory](docs/api/inventory.md),
 [recipe](docs/api/recipes.md), and [order contracts](docs/api/orders.md), plus
 [verification evidence](docs/current-state.md#milestone-5-completion-evidence).
-The existing local application database is at inventory revision `c48b7e02f315`;
-deploy the additive recipe/order migrations with `alembic upgrade head` before
-running this code against that database.
+Inspect the actual application database revision before applying migrations;
+repository head and historical local database observations are separate facts.
+The [current-state evidence](docs/current-state.md) records dated observations
+and the issue #37 application-database incident.
 
 See the [role/API contract](docs/api/tenancy.md) and
 [cutover runbook](docs/runbooks/tenancy.md). Local database acceptance and live
@@ -53,12 +54,14 @@ transactions. T4 adds standalone Redis Streams relay/recovery; T5 adds atomic
 consumer execution, bounded retries and trusted operator status/inspect/replay.
 T6 installs daily completed-sales projection, deletion tombstones and scoped
 operator reconciliation; see the [projection contract](docs/api/analytics-projection.md).
-Alert/sink handlers remain T7, so valid unimplemented
-consumer deliveries stay pending without receipts or spent attempts. API writes
-do not depend on Redis publication or worker availability. See the
+T7 installs revisioned alert history/current state, deduplicated notification
+stubs, and order/menu diagnostic records; see the
+[alert projection contract](docs/api/alert-projection.md). API writes do not
+depend on Redis publication or worker availability. See the
 [worker runbook](docs/runbooks/event-worker.md) and
 [T5 verification](docs/milestone8/verification-milestone8-issue35.md).
-T6 adds migration `a936d8e4c021`; validation does not migrate the application database.
+T6 adds migration `a936d8e4c021`; T7 adds `b2c7d9a41e63`. Validation does not
+migrate the application database.
 
 ## Prerequisites
 

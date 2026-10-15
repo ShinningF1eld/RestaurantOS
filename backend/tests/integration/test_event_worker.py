@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.db.database import AsyncSessionLocal
+from app.modules.notifications.repo.models import EventDiagnostic
 from app.db.models import Restaurant
 from app.modules.events.domain.contracts import (
     OrderCompletedEvent,
@@ -73,7 +74,9 @@ def worker_settings(**updates):
     )
 
 
-def process_environment(settings, *, pause_at=None, redis_url=None):
+def process_environment(
+    settings, *, pause_at=None, redis_url=None, test_analytics=False
+):
     values = {
         "event_worker_redis_operation_budget_ms": "EVENT_WORKER_REDIS_OPERATION_BUDGET_MS",
         "event_worker_redis_block_ms": "EVENT_WORKER_REDIS_BLOCK_MS",
@@ -100,6 +103,8 @@ def process_environment(settings, *, pause_at=None, redis_url=None):
     }
     if redis_url:
         env["REDIS_URL"] = redis_url
+    if test_analytics:
+        env["EVENT_WORKER_TEST_ANALYTICS"] = "1"
     if pause_at:
         env["EVENT_WORKER_TEST_PAUSE_AT"] = pause_at
     else:
@@ -182,7 +187,15 @@ def wait_for(predicate, *, timeout=15, interval=0.025):
     raise AssertionError("Timed out waiting for worker state")
 
 
-def start_process(tmp_path, settings, *, pause_at=None, redis_url=None, module=False):
+def start_process(
+    tmp_path,
+    settings,
+    *,
+    pause_at=None,
+    redis_url=None,
+    module=False,
+    test_analytics=False,
+):
     command = (
         [sys.executable, "-m", "app.worker"]
         if module
@@ -194,7 +207,12 @@ def start_process(tmp_path, settings, *, pause_at=None, redis_url=None, module=F
     process = subprocess.Popen(
         command,
         cwd=BACKEND,
-        env=process_environment(settings, pause_at=pause_at, redis_url=redis_url),
+        env=process_environment(
+            settings,
+            pause_at=pause_at,
+            redis_url=redis_url,
+            test_analytics=test_analytics,
+        ),
         stdout=stdout,
         stderr=stderr_file,
         text=True,
@@ -319,12 +337,22 @@ def test_real_worker_entrypoint_relays_reference_and_shuts_down_gracefully(
             "correlation_id": event.correlation_id,
         }
         assert not {"payload", "organization_id", "restaurant_id"}.intersection(fields)
+        wait_for(lambda: delivery_rows(event.event_id)[0]["status"] == "succeeded")
         stop_gracefully(process_state)
         rows = delivery_rows(event.event_id)
         assert len(rows) == 1
-        assert rows[0]["status"] == "pending"
-        assert rows[0]["attempt_count"] == 0
+        assert rows[0]["status"] == "succeeded"
+        assert rows[0]["attempt_count"] == 1
         assert row["published_at"] is not None
+        with engine.connect() as connection:
+            assert (
+                connection.scalar(
+                    select(func.count())
+                    .select_from(EventDiagnostic)
+                    .where(EventDiagnostic.event_id == event.event_id)
+                )
+                == 1
+            )
     finally:
         kill_process(process_state)
         delete_owned_stream(settings)
@@ -342,7 +370,7 @@ def test_worker_process_crash_after_claim_recovers_expired_delivery(tmp_path):
         kill_process(paused)
         wait_for(lambda: claim_expired(event.event_id))
 
-        restarted = start_process(tmp_path, settings, module=True)
+        restarted = start_process(tmp_path, settings)
         try:
             entries = wait_for(lambda: stream_entries(settings) or None)
             assert len(entries) == 1
@@ -379,7 +407,7 @@ def test_worker_process_crash_after_xadd_republishes_original_event_id(tmp_path)
         kill_process(paused)
         wait_for(lambda: claim_expired(event.event_id))
 
-        restarted = start_process(tmp_path, settings, module=True)
+        restarted = start_process(tmp_path, settings)
         try:
             entries = wait_for(
                 lambda: (
@@ -414,7 +442,7 @@ def test_consumer_groups_route_independently_reclaim_own_pel_and_rebuild_stream(
 ):
     event = append_event_for_test(create_scope(), completed=True)
     settings = worker_settings()
-    first = start_process(tmp_path, settings, module=True)
+    first = start_process(tmp_path, settings, test_analytics=True)
     try:
         # Either subscribed delivery's reference can complete analytics before
         # its own relay turn, so one or two initial transport entries are valid.
@@ -477,7 +505,7 @@ def test_consumer_groups_route_independently_reclaim_own_pel_and_rebuild_stream(
         published_count = len(stream_entries(settings))
         assert published_count in (1, 2)
 
-        second = start_process(tmp_path, settings, module=True)
+        second = start_process(tmp_path, settings, test_analytics=True)
         try:
 
             def changed_owner():
@@ -503,7 +531,7 @@ def test_consumer_groups_route_independently_reclaim_own_pel_and_rebuild_stream(
 
             # Deleting this one test-owned stream models Redis content/group loss.
             delete_owned_stream(settings)
-            third = start_process(tmp_path, settings, module=True)
+            third = start_process(tmp_path, settings, test_analytics=True)
             try:
                 rebuilt = wait_for(
                     lambda: (
@@ -655,7 +683,7 @@ def test_physical_redis_restart_recreates_groups_from_postgres(tmp_path):
     with owned_redis() as (container, port):
         redis_url = f"redis://127.0.0.1:{port}/0"
         settings = worker_settings(redis_url=SecretStr(redis_url))
-        first = start_process(tmp_path, settings, module=True, redis_url=redis_url)
+        first = start_process(tmp_path, settings, redis_url=redis_url)
         try:
             before = wait_for(lambda: stream_entries(settings) or None)
             assert len(before) == 1
@@ -687,9 +715,7 @@ def test_physical_redis_restart_recreates_groups_from_postgres(tmp_path):
                 timeout=20,
             )
 
-            restarted = start_process(
-                tmp_path, settings, module=True, redis_url=redis_url
-            )
+            restarted = start_process(tmp_path, settings, redis_url=redis_url)
             try:
                 after = wait_for(lambda: stream_entries(settings) or None)
                 assert len(after) == 1
@@ -903,7 +929,7 @@ def test_worker_redis_outage_recovers_without_spending_delivery_attempts(tmp_pat
         kill_process(unavailable)
         wait_for(lambda: claim_expired(event.event_id))
 
-        recovered = start_process(tmp_path, settings, module=True)
+        recovered = start_process(tmp_path, settings)
         try:
             entries = wait_for(lambda: stream_entries(settings) or None)
             assert len(entries) == 1

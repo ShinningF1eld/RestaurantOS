@@ -88,7 +88,35 @@ async def main() -> None:
     elif os.environ.get("EVENT_WORKER_TEST_ANALYTICS") == "1":
         execution = ConsumerExecutionService(
             AsyncSessionLocal,
-            registry=CONSUMERS,
+            registry={
+                "analytics": CONSUMERS["analytics"],
+                "alerts": None,
+                "notification_sink": None,
+            },
+            lease_seconds=settings.event_worker_claim_lease_seconds,
+            hooks=ExecutionHooks(
+                before_commit=before_commit, after_commit=after_commit
+            ),
+        )
+    elif os.environ.get("EVENT_WORKER_TEST_REAL_CONSUMER") in CONSUMERS:
+        selected = os.environ["EVENT_WORKER_TEST_REAL_CONSUMER"]
+        execution = ConsumerExecutionService(
+            AsyncSessionLocal,
+            registry={
+                name: handler if name == selected else None
+                for name, handler in CONSUMERS.items()
+            },
+            lease_seconds=settings.event_worker_claim_lease_seconds,
+            hooks=ExecutionHooks(
+                before_commit=before_commit, after_commit=after_commit
+            ),
+        )
+    else:
+        # Transport/recovery tests intentionally isolate the relay from feature
+        # effects. Consumer execution is covered separately with real handlers.
+        execution = ConsumerExecutionService(
+            AsyncSessionLocal,
+            registry={"analytics": None, "alerts": None, "notification_sink": None},
             lease_seconds=settings.event_worker_claim_lease_seconds,
             hooks=ExecutionHooks(
                 before_commit=before_commit, after_commit=after_commit
