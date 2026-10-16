@@ -137,8 +137,11 @@ scope, stages the immutable event and every subscribed delivery, and flushes.
 Any fan-out/constraint error propagates so the caller's transaction can roll
 back completely. Repositories do not commit. The T4 worker publishes minimal
 references after claiming delivery rows in PostgreSQL; `published_at` is only a
-transport observation, never business completion. No automatic pruning or Redis
-stream trimming is introduced.
+transport observation, never business completion. A consumer can replace the
+relay's claim and commit success before that observation is recorded; the stale
+relay update is then fenced out and `published_at` can remain null even on a
+succeeded delivery. Use delivery status and the committed receipt to determine
+processing completion. No automatic pruning or Redis stream trimming is introduced.
 
 
 ## T5 execution and operator recovery

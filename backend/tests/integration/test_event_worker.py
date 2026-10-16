@@ -33,6 +33,7 @@ from app.modules.events.domain.contracts import (
 )
 from app.modules.events.repo.models import EventDelivery
 from app.modules.events.repo.models import EventReceipt
+from app.modules.events.execution import ConsumerExecutionService
 from app.modules.events.repo.worker_queries import (
     claim_due_deliveries as claim_delivery_rows,
 )
@@ -321,14 +322,6 @@ def test_real_worker_entrypoint_relays_reference_and_shuts_down_gracefully(
     try:
         entries = wait_for(lambda: stream_entries(settings) or None)
         assert len(entries) == 1
-        row = wait_for(
-            lambda: (
-                delivery
-                if (delivery := delivery_rows(event.event_id)[0])["published_at"]
-                is not None
-                else None
-            )
-        )
         message_id, fields = entries[0]
         assert fields == {
             "event_id": str(event.event_id),
@@ -337,13 +330,15 @@ def test_real_worker_entrypoint_relays_reference_and_shuts_down_gracefully(
             "correlation_id": event.correlation_id,
         }
         assert not {"payload", "organization_id", "restaurant_id"}.intersection(fields)
+        # Consumption can replace the relay claim before its fenced publication
+        # observation commits. The stream reference and durable success prove
+        # delivery even when published_at remains null.
         wait_for(lambda: delivery_rows(event.event_id)[0]["status"] == "succeeded")
         stop_gracefully(process_state)
         rows = delivery_rows(event.event_id)
         assert len(rows) == 1
         assert rows[0]["status"] == "succeeded"
         assert rows[0]["attempt_count"] == 1
-        assert row["published_at"] is not None
         with engine.connect() as connection:
             assert (
                 connection.scalar(
@@ -356,6 +351,53 @@ def test_real_worker_entrypoint_relays_reference_and_shuts_down_gracefully(
     finally:
         kill_process(process_state)
         delete_owned_stream(settings)
+
+
+def test_consumption_before_publication_observation_preserves_durable_success():
+    event = append_event_for_test(create_scope())
+    settings = worker_settings()
+
+    async def consume_before_observation():
+        relay = EventWorkerService(AsyncSessionLocal)
+        claims = await relay.claim_due_deliveries(
+            owner="publication-race-relay",
+            limit=1,
+            lease_seconds=30,
+            republish_after_seconds=60,
+        )
+        assert len(claims) == 1
+        claim = claims[0]
+        redis = WorkerRedisTransport(settings)
+        await redis.open()
+        try:
+            streams = EventStreams(redis)
+            await streams.publish(claim)
+            entries = await redis.execute("XRANGE", streams.stream, "-", "+")
+            assert len(entries) == 1
+            # Hold the relay's observation until the real consumer has committed.
+            result = await ConsumerExecutionService(AsyncSessionLocal).execute(
+                event_id=event.event_id,
+                consumer="notification_sink",
+                reference=entries[0][1],
+                worker_id="publication-race-consumer",
+            )
+            assert result.acknowledge
+            assert result.outcome == "consumer_committed"
+            assert await relay.observe_publication(claim) is False
+        finally:
+            try:
+                await redis.execute("DEL", redis.stream_key())
+            finally:
+                await redis.close()
+
+    asyncio.run(consume_before_observation())
+    row = delivery_rows(event.event_id)[0]
+    assert row["status"] == "succeeded"
+    assert row["published_at"] is None
+    assert row["attempt_count"] == 1
+    with engine.connect() as connection:
+        assert connection.scalar(select(func.count()).select_from(EventReceipt)) == 1
+        assert connection.scalar(select(func.count()).select_from(EventDiagnostic)) == 1
 
 
 def test_worker_process_crash_after_claim_recovers_expired_delivery(tmp_path):
