@@ -25,6 +25,36 @@ from app.modules.inventory.service import (
     load_inventory_state,
 )
 from app.modules.inventory.domain.transitions import InventoryEpisodeFacts
+from app.modules.auth.domain.principal import AuthenticatedPrincipal
+from app.modules.tenancy.access import AccessService
+
+
+class AlertReadService:
+    """Resolve live user scope before any projection read or count."""
+
+    def __init__(
+        self, session: AsyncSession, principal: AuthenticatedPrincipal
+    ) -> None:
+        self.session = session
+        self.access = AccessService(session, principal)
+
+    async def active(
+        self, restaurant_id: int, limit: int, offset: int
+    ) -> tuple[list[dict[str, object]], int]:
+        context = await self.access.current()
+        await self.access.restaurant(context, restaurant_id, "inventory.read")
+        return await AlertProjectionRepository(self.session).active_page(
+            context.organization_id, restaurant_id, limit, offset
+        )
+
+    async def history(
+        self, restaurant_id: int, limit: int, offset: int
+    ) -> tuple[list[dict[str, object]], int]:
+        context = await self.access.current()
+        await self.access.restaurant(context, restaurant_id, "inventory.read")
+        return await AlertProjectionRepository(self.session).history_page(
+            context.organization_id, restaurant_id, limit, offset
+        )
 
 
 def _require_transaction(session: AsyncSession) -> None:

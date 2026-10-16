@@ -1,5 +1,47 @@
 # Alert and notification sink projections
 
+## User-facing inventory reads (issue #39)
+
+`GET /api/restaurants/{restaurant_id}/inventory/alerts` lists active projected
+episodes that still match an unresolved producer episode and live active/low
+inventory. Current ingredient name, unit, quantity and reorder threshold come
+from inventory, not cached projection values. Recovery, archive and supersession
+exclude old episodes even before the worker processes their events. New openings
+may remain absent until projection; the ingredient API's live `low_stock` flag
+continues to report the current stock condition. Reads never initialize or repair
+derived state and require neither Redis nor a worker.
+
+`GET /api/restaurants/{restaurant_id}/inventory/alerts/history` lists all projected
+episodes, including ongoing ones. Opening name/unit/quantity/threshold, start,
+resolution, reason, source and notification suppression are retained snapshots.
+Recorded history may lag producer resolution. Both endpoints resolve current
+membership, assignment and `inventory.read`; Owners cover their organization,
+Managers need assignment and Employees are forbidden. Foreign/unassigned branches
+return 404, forbidden capabilities or revoked membership 403, and invalid sessions
+401. No caller supplies an organization ID. Counts use the same scoped filters.
+
+Both accept `limit` (default 20, range 1–100) and nonnegative `offset` (default 0),
+returning `{items,total,limit,offset}`. Ordering is `opened_at DESC, episode_id
+DESC`. Offset pages may shift when episodes are added between requests. Decimal
+quantities are strings; timestamps carry UTC offsets. Active items expose
+`episode_id`, `ingredient_id`, `ingredient_name`, `unit`, `quantity`,
+`reorder_threshold`, `opened_at`, `notification_suppressed`. History items expose
+the same identities plus `opening_quantity`, `opening_threshold`, `opened_at`,
+`opening_source`, `notification_suppressed`, nullable `resolved_at` and nullable
+`resolution_reason` (`stock_recovered`, `threshold_changed`, `archived`). Actor,
+order, event, attempt and operator diagnostic details are not exposed.
+
+The inventory page places active alerts above ingredients and a collapsible
+paginated Alert history section. It refreshes every 15 seconds while visible,
+when returning to the visible tab, manually, and after successful local inventory
+writes; history is fetched only while expanded. Background reads preserve editor
+values/focus and physical-count versions. Failed reads retain visibly stale
+last-known data with retry; access loss clears protected data and stops polling.
+Scope changes discard prior data and obsolete responses. Baseline episodes read
+“Low when tracking started” at their observation time. There are no acknowledgement
+or dismissal controls. Successful refresh time is not a worker freshness guarantee;
+the separate five-second healthy processing target requires T11 measurement.
+
 Issue #37 installs the `alerts` and `notification_sink` consumers in
 `events.execution.CONSUMERS`. Both participate in the consumer execution
 service's PostgreSQL transaction. The effect, receipt, attempt outcome and

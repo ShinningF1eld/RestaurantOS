@@ -1,5 +1,29 @@
 # RestaurantOS current state
 
+## Milestone 8 Issue #39 T9 implementation
+
+On 2026-10-15 (Asia/Bangkok), T9 adds authenticated scoped active-alert and
+all-episode history reads under the existing restaurant inventory namespace.
+Both use default 20/max 100 `limit`/`offset`, scoped totals and newest opening/UUID
+ordering. Live stock and producer episode identity exclude recovered/archived/
+superseded alerts without waiting for the worker; history retains opening and
+baseline provenance. No new tables or migration.
+
+The inventory page places active alerts above ingredients with collapsible
+paginated history. Visible 15-second refresh, local-write/manual refresh and
+request fencing preserve editor values/focus and physical-count versions.
+Failed reads retain marked stale data with retry; access loss and restaurant
+changes clear scoped data. Baselines read “Low when tracking started.”
+
+All six issue criteria passed implementation review. Backend unit passed 282
+tests, final integration passed 328 tests with no Alembic model drift, and
+backend-static passed. Baseline, frontend tests (10 client/19 component),
+frontend-static and production build passed. Two fresh full Chromium runs passed
+29 tests each with a real standalone worker; expected-failure cleanup also passed.
+The [T9 verification](milestone8/verification-milestone8-issue39.md) records exact
+commands, initial failures/corrections, scope and limits. No application migration,
+initialization, commit or push. T10/T11, full M8 acceptance and remote CI remain open.
+
 ## Milestone 8 Issue #38 T8 implementation
 
 On 2026-10-15 (Asia/Bangkok), T8 adds trusted scoped `initialize` and

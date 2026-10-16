@@ -6,6 +6,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import { ApiError } from "@/lib/api/errors";
 import { inventoryApi } from "@/lib/api/inventory";
 import type { Ingredient, Movement } from "@/types/inventory";
+import InventoryAlerts from "./InventoryAlerts";
 
 const control =
   "w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100";
@@ -126,6 +127,18 @@ export default function InventoryManager({
   restaurantId: number;
   canManage: boolean;
 }) {
+  return (
+    <InventoryManagerContent key={restaurantId} restaurantId={restaurantId} canManage={canManage} />
+  );
+}
+
+function InventoryManagerContent({
+  restaurantId,
+  canManage,
+}: {
+  restaurantId: number;
+  canManage: boolean;
+}) {
   const [items, setItems] = useState<Ingredient[]>([]);
   const [ingredientOffset, setIngredientOffset] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -141,29 +154,53 @@ export default function InventoryManager({
   const [history, setHistory] = useState<Movement[]>([]);
   const [historyError, setHistoryError] = useState("");
   const [offset, setOffset] = useState(0);
+  const [refreshToken, setRefreshToken] = useState(0);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const accessLost = useRef(false);
+  const loadGeneration = useRef(0);
+  const onAccessLost = useCallback(() => {
+    accessLost.current = true;
+    ++loadGeneration.current;
+    setItems([]);
+    setHistory([]);
+    setEditor(null);
+    setSelected(null);
+    setHistoryItem(null);
+    setAccessDenied(true);
+  }, []);
   const pending = useRef<{ signature: string; key: string } | null>(null);
   const locked = busy || loading;
 
   const load = useCallback(
     async (showLoading = true) => {
+      if (accessLost.current) return;
+      const request = ++loadGeneration.current;
       if (showLoading) setLoading(true);
       try {
-        setItems(await inventoryApi(restaurantId).list(ingredientOffset));
+        const rows = await inventoryApi(restaurantId).list(ingredientOffset);
+        if (request !== loadGeneration.current) return;
+        setItems(rows);
         setError("");
       } catch (failure) {
+        if (request !== loadGeneration.current) return;
+        if (failure instanceof ApiError && [401, 403, 404].includes(failure.status)) {
+          onAccessLost();
+          return;
+        }
         setError(errorMessage(failure, "Could not load inventory."));
       } finally {
-        setLoading(false);
+        if (request === loadGeneration.current) setLoading(false);
       }
     },
-    [restaurantId, ingredientOffset],
+    [restaurantId, ingredientOffset, onAccessLost],
   );
 
   useEffect(() => {
     const refresh = () => {
       if (!busy && document.visibilityState === "visible") void load(false);
     };
-    const timer = window.setInterval(refresh, 30_000);
+    if (accessDenied) return;
+    const timer = window.setInterval(refresh, 15_000);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
     return () => {
@@ -171,28 +208,21 @@ export default function InventoryManager({
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [busy, load]);
+  }, [busy, load, accessDenied]);
 
   useEffect(() => {
     let active = true;
-    void inventoryApi(restaurantId)
-      .list(ingredientOffset)
-      .then((rows) => {
-        if (active) {
-          setItems(rows);
-          setError("");
-        }
-      })
-      .catch((failure: unknown) => {
-        if (active) setError(errorMessage(failure, "Could not load inventory."));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+    void Promise.resolve().then(() => {
+      if (active) void load();
+    });
+    const invalidate = () => {
+      ++loadGeneration.current;
+    };
     return () => {
       active = false;
+      invalidate();
     };
-  }, [restaurantId, ingredientOffset]);
+  }, [load]);
 
   function keyFor(payload: object) {
     const signature = JSON.stringify(payload);
@@ -208,9 +238,15 @@ export default function InventoryManager({
     setMessage("");
     try {
       await action();
+      if (accessLost.current) return;
       pending.current = null;
-      await load();
+      setRefreshToken((token) => token + 1);
+      await load(false);
     } catch (failure) {
+      if (failure instanceof ApiError && [401, 403, 404].includes(failure.status)) {
+        onAccessLost();
+        return;
+      }
       setError(errorMessage(failure, "Could not save inventory."));
       // Retain the key after uncertain server failures so retrying cannot
       // record a second movement if the first response was lost.
@@ -350,6 +386,8 @@ export default function InventoryManager({
     setIngredientOffset(nextOffset);
   }
 
+  if (accessDenied)
+    return <p role="alert">Inventory is unavailable. Your access may have changed.</p>;
   if (loading && items.length === 0) return <p role="status">Loading inventory…</p>;
 
   const activeCount = items.filter((item) => item.is_active).length;
@@ -357,6 +395,11 @@ export default function InventoryManager({
 
   return (
     <div className="space-y-6" aria-busy={locked}>
+      <InventoryAlerts
+        restaurantId={restaurantId}
+        refreshToken={refreshToken}
+        onAccessLost={onAccessLost}
+      />
       {loading && (
         <p className="sr-only" role="status">
           Refreshing inventory…

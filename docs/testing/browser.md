@@ -16,6 +16,7 @@ excluded from Playwright discovery. Retries are disabled so failures remain visi
 | Lost order response, duplicate submission and original idempotent result | `order-inventory.spec.ts` committed-write retry case |
 | Recipe validation, saving and stock calculations | `recipes.spec.ts` recipe case |
 | Inventory edits/history, waste/count/refresh/archive/restore and idempotent lost-response retries | `auth.spec.ts` inventory cases |
+| Worker-projected inventory alerts/history, pagination, visible refresh with editor focus, stale-error retry and live role revocation | `alerts.spec.ts` with the standalone worker and real API/PostgreSQL/Redis |
 | Proven warm catalog hits, live stock and committed menu/item edits | `milestone7.spec.ts` inspects the owned Redis payload, reads through Chromium and checks the rendered stock/menu UI |
 | Normal/degraded login throttles, physical Redis loss/restart and recovery with surviving local history | `milestone7.spec.ts` uses the login UI, existing session/refresh cookies and actual API transition events |
 
@@ -26,6 +27,10 @@ CI host, then run `python scripts/run-browser-tests.py` using the backend test
 environment. The supplied database is only a template. The runner allocates and
 migrates a random database, copies frontend source without `.env` files, uses
 random API/web ports, and sets the same API address at build time and runtime.
+The runner starts a separate `app.worker` process using only its isolated
+database/Redis configuration and terminates it alongside the API on success or
+failure. Startup never applies migrations; the runner migrates its disposable
+database before either process starts. Authentication traces remain disabled.
 The browser runner also allocates its own nonpersistent Redis container with a
 random loopback port pinned across stop/start. It reuses the backend physical
 outage helper; browser tests cannot stop the gate's Redis or developer services.

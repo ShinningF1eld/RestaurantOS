@@ -210,6 +210,7 @@ def main():
                 )
             env["PLAYWRIGHT_API_LOG"] = str(frontend.parent / "browser-api.log")
             with open(env["PLAYWRIGHT_API_LOG"], "w+", encoding="utf-8") as log:
+                worker = None
                 server = subprocess.Popen(
                     [
                         sys.executable,
@@ -228,6 +229,13 @@ def main():
                     stderr=log,
                 )
                 try:
+                    worker = subprocess.Popen(
+                        [sys.executable, "-m", "app.worker"],
+                        cwd=frontend.parent,
+                        env=env,
+                        stdout=log,
+                        stderr=log,
+                    )
                     for _ in range(150):
                         if server.poll() is not None:
                             raise RuntimeError(
@@ -241,6 +249,10 @@ def main():
                             time.sleep(0.2)
                     else:
                         raise RuntimeError("Isolated test API did not become healthy")
+                    if worker.poll() is not None:
+                        raise RuntimeError(
+                            "Isolated event worker exited before browser tests"
+                        )
                     command = [npm, "run", "test:e2e", "--"]
                     if args.inject_failure:
                         command.append("diagnostic-failure.spec.ts")
@@ -248,6 +260,13 @@ def main():
                         command.extend(["--grep", args.grep])
                     browser_tests(command, cwd=frontend, env=env, artifacts=artifacts)
                 finally:
+                    if worker is not None:
+                        worker.terminate()
+                        try:
+                            worker.wait(timeout=10)
+                        except subprocess.TimeoutExpired:
+                            worker.kill()
+                            worker.wait()
                     server.terminate()
                     try:
                         server.wait(timeout=10)
