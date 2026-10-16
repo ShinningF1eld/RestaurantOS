@@ -12,6 +12,49 @@ Environment: Windows, Python 3.12.13 (`backend/.venv-m6-dev`), Node 24.14.1,
 installed locked dependencies, PostgreSQL 16/Redis 7 on disposable Compose services,
 production Next.js 16.3.7 and Chromium. Authentication traces remain disabled.
 
+## CI investigation, 2026-10-16 (UTC)
+
+The push [CI run 38755497431](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/38755497431)
+for `8817c1a` failed only `backend-integration` (327 passed, one failed), which
+also failed the aggregate acceptance check. The failure was
+`test_start_real_worker_after_baseline_then_resume_business_writes` asserting
+that the baseline alert's `resolved_at` was non-null. It was not the earlier
+Redis cleanup timeout recorded below.
+
+The test waited for a notification stub and two alert episodes, but those facts
+do not establish that the separate baseline-resolution delivery has committed.
+A controlled disposable PostgreSQL/Redis rehearsal held that delivery pending:
+both original readiness checks passed with an unresolved projected baseline.
+Releasing the delivery resolved that same baseline without maintenance or repair.
+Ten ordinary repetitions of the original test passed, consistent with the
+timing-dependent failure. The temporary ordering probe was removed afterward.
+
+The test now waits for all retained deliveries to succeed before asserting the
+same exact notification count, episode count, baseline resolution and episode
+identity. No production, schema, API, dependency-lock or migration change.
+On Linux/Python 3.12 with committed hash-checked dependencies, backend static
+checks and 282 unit tests passed. The corrected maintenance and alert projection
+suites passed all 25 tests against disposable services, followed by ten separate
+passing invocations of the corrected worker-start regression. The commands include:
+
+```bash
+backend/.venv/bin/python -m pip install --require-hashes -r backend/requirements-dev.txt
+backend/.venv/bin/python scripts/validate.py --gate backend-static --gate backend-unit --no-install
+backend/.venv/bin/python scripts/validate.py --gate backend-integration --no-install
+# Within the runner's disposable services/database helpers, after upgrade head:
+python -m pytest tests/integration/test_event_maintenance.py tests/integration/test_alert_projection.py -q
+python -m pytest tests/integration/test_event_maintenance.py::test_start_real_worker_after_baseline_then_resume_business_writes -q
+```
+
+The full integration gate also passed: 328 tests and `alembic check` with no
+new upgrade operations. That run collected tests before the synchronization edit;
+the 25-test focused suite and ten regression repetitions exercised the corrected
+source. All disposable database/Compose resources were removed on completion.
+`git diff --check` passed.
+
+This is partial validation; remote CI has not been rerun and no commit or push
+was performed. No application database was migrated or initialized.
+
 ## Result
 
 All six issue criteria passed implementation review and final execution. No

@@ -390,8 +390,14 @@ def test_start_real_worker_after_baseline_then_resume_business_writes(
             ).status_code
             == 201
         )
-        wait_for(lambda: len(rows("notification_stubs")) == 1)
-        wait_for(lambda: len(rows("alert_episodes")) == 2)
+        # The new episode and its notification can arrive before the separate
+        # baseline-resolution delivery. Wait for all effects to commit before
+        # asserting the final projection state.
+        wait_for(
+            lambda: all(r["status"] == "succeeded" for r in rows("event_deliveries"))
+        )
+        assert len(rows("notification_stubs")) == 1
+        assert len(rows("alert_episodes")) == 2
         assert rows("notification_stubs")[0]["outcome"] == "created"
         baseline = next(
             r for r in rows("alert_episodes") if r["notification_suppressed"]
