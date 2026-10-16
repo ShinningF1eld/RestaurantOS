@@ -55,6 +55,44 @@ source. All disposable database/Compose resources were removed on completion.
 This is partial validation; remote CI has not been rerun and no commit or push
 was performed. No application database was migrated or initialized.
 
+## Postmerge worker CI investigation, 2026-10-16 (UTC)
+
+The `main` push [run 38881860131](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/38881860131)
+at merge commit `e33c418` failed the worker entrypoint test (327 tests passed).
+The Redis reference was present; the timeout was specifically the subsequent
+wait for non-null `published_at`, not the wait for processing success.
+
+The consumer can replace the relay claim after XADD and commit its receipt and
+effect before the relay records publication. The old relay token then fails the
+publication-update fence. A null transport observation is valid on a succeeded
+delivery; extending the timeout cannot make that stale update succeed. The
+entrypoint test now checks the actual reference, durable success, one attempt,
+one diagnostic effect and graceful shutdown, without requiring `published_at`.
+
+A new deterministic PostgreSQL/Redis regression publishes a reference, executes
+the real notification consumer, then attempts the relay observation. It verifies
+that the stale update returns false while success, receipt and diagnostic remain
+committed and `published_at` stays null. This regression passed, and ten separate
+invocations of the corrected production-entrypoint test passed. The events API
+contract now explains this ordering. No production/schema/dependency change and
+no application migration or initialization.
+
+An initial version of the new regression incorrectly decoded already decoded
+Redis fields; that test-only mistake was corrected before final validation. The
+earlier full run was interrupted so final validation would collect the correction;
+its disposable resources were cleaned up normally. Final validation uses:
+
+```bash
+backend/.venv/bin/python scripts/validate.py --gate backend-static --gate backend-unit --gate backend-integration --no-install
+```
+
+Final source passed Ruff lint/format, mypy (163 application sources), all 282
+unit tests and all 329 integration tests, followed by `alembic check` with no new
+upgrade operations. Disposable databases and Compose resources were removed;
+`git diff --check` passed. This is partial backend validation, not full milestone
+acceptance. The correction remains local and uncommitted; no new remote CI run
+or application-database operation was performed.
+
 ## Result
 
 All six issue criteria passed implementation review and final execution. No
