@@ -13,6 +13,7 @@ from app.modules.events.execution import (
     CONSUMERS,
     ConsumerExecutionService,
     ExecutionHooks,
+    EventTransientFailure,
 )
 from app.modules.tenancy.repo.models import Organization
 from app.modules.events.worker.runtime import EventWorker, WorkerHooks
@@ -72,7 +73,18 @@ async def main() -> None:
 
     settings = get_settings()
     execution = None
-    if os.environ.get("EVENT_WORKER_TEST_EFFECTS") == "1":
+    if os.environ.get("EVENT_WORKER_TEST_POISON_SINK") == "1":
+
+        async def poison_sink(session, event):
+            raise EventTransientFailure("test event-specific failure")
+
+        execution = ConsumerExecutionService(
+            AsyncSessionLocal,
+            registry={**CONSUMERS, "notification_sink": poison_sink},
+            lease_seconds=settings.event_worker_claim_lease_seconds,
+            jitter=lambda: 0,
+        )
+    elif os.environ.get("EVENT_WORKER_TEST_EFFECTS") == "1":
         execution = ConsumerExecutionService(
             AsyncSessionLocal,
             registry={

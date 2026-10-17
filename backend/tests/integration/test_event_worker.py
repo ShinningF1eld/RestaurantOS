@@ -785,6 +785,27 @@ def test_physical_redis_restart_recreates_groups_from_postgres(tmp_path):
                 group_rows = wait_for(lambda: asyncio.run(rebuilt_groups()) or None)
                 assert {row["name"] for row in group_rows} == set(GROUPS)
                 stop_gracefully(restarted)
+                consumer = start_process(
+                    tmp_path, settings, redis_url=redis_url, module=True
+                )
+                try:
+                    wait_for(
+                        lambda: (
+                            delivery_rows(event.event_id)[0]["status"] == "succeeded"
+                        )
+                    )
+                    stop_gracefully(consumer)
+                    with engine.connect() as db:
+                        assert (
+                            db.scalar(select(func.count()).select_from(EventReceipt))
+                            == 1
+                        )
+                        assert (
+                            db.scalar(select(func.count()).select_from(EventDiagnostic))
+                            == 1
+                        )
+                finally:
+                    kill_process(consumer)
             finally:
                 kill_process(restarted)
         finally:

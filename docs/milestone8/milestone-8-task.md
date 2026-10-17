@@ -3,7 +3,7 @@
 Status: Published
 Source: docs/milestone8/milestone-8-design.md, approved revision 1 (2026-10-11); RestaurantOS_Master_Roadmap.md, Milestone 8.
 Inspected revision: 156badacb0dba913d3548389cb1c08d34316539b; working tree initially clean.
-Updated: 2026-10-14 (UTC)
+Updated: 2026-10-17 (Asia/Bangkok)
 Target: ShinningF1eld/RestaurantOS
 GitHub milestone: [Milestone 8 Reliable background jobs and domain events](https://github.com/ShinningF1eld/RestaurantOS/milestone/3) (GitHub milestone number 3; product milestone 8).
 Publication authorization: user requested creation of milestone-8-task.md and GitHub issues with acceptance criteria, all assigned to GitHub Milestone 8.
@@ -48,6 +48,17 @@ integrity violations; serialization/deadlock failures remain retryable.
 See [T5 verification](verification-milestone8-issue35.md) for current results.
 
 ## Coverage and sequencing
+
+T10 implementation (2026-10-17): local uncommitted regression/gate/cleanup work
+and the acceptance review are recorded in
+[issue #40 verification](verification-milestone8-issue40.md). Existing slice
+coverage is reused, with cross-feature actual outcomes, real-clock retry/restart
+and required cleanup probes added. Final local results, final PR CI and T11
+freshness/operational evidence are separate; T10/M8 acceptance is not inferred
+from historical pass counts or a coverage map.
+Final full locked-install local validation passed all ten gates; criteria 1–5
+below are checked against that dated execution/review. Criterion 6 stays open
+because final PR CI has not run for the uncommitted change.
 
 T1 establishes shared contracts and durable storage. T2 and T4 can proceed independently after T1; T3 follows T2 and T5 follows T4. Analytics T6 and alerts/sink T7 can proceed independently once producers and delivery execution exist. T8 integrates maintenance initialization/rebuild; T9 completes alert API/UI; T10 verifies full workflows and gates; T11 records measured freshness and acceptance evidence. Each slice includes its own critical regressions rather than deferring correctness to T10.
 
@@ -453,11 +464,11 @@ Integrate missing cross-feature/process/browser regression coverage into scripts
 
 ## Acceptance criteria
 
-- [ ] Actual API/worker process cases cover commit-before-publication death, consumer death before commit/after commit-before-ACK, ambiguous publish/ACK, pending reclaim and Redis restart/content loss; every committed subscribed fact reaches one consumer outcome.
-- [ ] Prove independent-consumer poison isolation, eight attempts/durable backoff across restart, infrastructure outage recovery without allowance exhaustion, unsupported version failure, safe replay and expired claim fencing. Concurrency tests demonstrate overlap at locks/barriers, not sleeps.
-- [ ] Cover transaction/audit/event rollback, no-op/idempotent producers, analytics tombstones/rebuild/daily-row overlap, alert close-before-open/new-episode history and replenishment/stub timing, baseline suppression/rerun, scoped/revoked alert reads and browser refresh/error/form behavior.
-- [ ] Existing required gates include worker suites rather than an optional extra command. Keep guarded _test databases, isolated Compose namespaces/random ports and production browser source copies; cleanup owns only test resources and succeeds on injected failures. Auth traces remain disabled.
-- [ ] Clean/seeded legacy upgrade and alembic check preserve old untracked menus/unprocessed orders and stock/replay history plus new M8 downgrade guards. Extend worker entrypoint image smoke when the backend runtime image is changed; startup never migrates.
+- [x] Actual API/worker process cases cover commit-before-publication death, consumer death before commit/after commit-before-ACK, ambiguous publish/ACK, pending reclaim and Redis restart/content loss; every committed subscribed fact reaches one consumer outcome.
+- [x] Prove independent-consumer poison isolation, eight attempts/durable backoff across restart, infrastructure outage recovery without allowance exhaustion, unsupported version failure, safe replay and expired claim fencing. Concurrency tests demonstrate overlap at locks/barriers, not sleeps.
+- [x] Cover transaction/audit/event rollback, no-op/idempotent producers, analytics tombstones/rebuild/daily-row overlap, alert close-before-open/new-episode history and replenishment/stub timing, baseline suppression/rerun, scoped/revoked alert reads and browser refresh/error/form behavior.
+- [x] Existing required gates include worker suites rather than an optional extra command. Keep guarded _test databases, isolated Compose namespaces/random ports and production browser source copies; cleanup owns only test resources and succeeds on injected failures. Auth traces remain disabled.
+- [x] Clean/seeded legacy upgrade and alembic check preserve old untracked menus/unprocessed orders and stock/replay history plus new M8 downgrade guards. Extend worker entrypoint image smoke when the backend runtime image is changed; startup never migrates.
 - [ ] Full ./scripts/validate.ps1 with locked installs passes on Python 3.12/Node 24 and final complete PR CI passes all ten shared gates under unchanged Milestone 6 acceptance enforcement. Record commands/revisions/outcomes/omissions; partial or historical runs cannot mark M8 accepted.
 
 ## Verification

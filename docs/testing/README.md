@@ -60,6 +60,12 @@ Local Windows uses junctions for isolated frontend dependencies; Linux uses syml
 
 ## Layer ownership and regression maps
 
+[Milestone 8's regression map](milestone8.md) maps R1–R14 to the existing
+required gates, including real API/worker crash recovery, real-clock retries
+across restart, retained effects and injected service/worker/browser cleanup.
+The browser gate now includes the expected-failure cleanup probe; its safe
+artifacts are separate from the ordinary workflow results.
+
 T9 adds `integration/test_alert_reads.py` for inventory alert permissions,
 revocation, scoped counts/pages, live-stock fencing and immutable/baseline history.
 `InventoryAlerts.test.tsx` and `InventoryManager.test.tsx` exercise visible polling,

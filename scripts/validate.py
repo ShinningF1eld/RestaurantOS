@@ -1,6 +1,7 @@
 """Shared local/CI quality gates. Default: all gates on disposable services."""
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -9,6 +10,7 @@ import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
+from xml.etree import ElementTree
 
 from test_support.redis_environment import redis_environment
 
@@ -93,6 +95,51 @@ def backend_tests(label, selectors, env):
     )
 
 
+def browser_cleanup_probe(env):
+    """Require the intended browser failure and successful resource teardown."""
+
+    def containers():
+        return set(
+            subprocess.check_output(
+                ["docker", "ps", "-aq", "--filter", "name=^/restaurantos-auth-outage-"],
+                text=True,
+            ).splitlines()
+        )
+
+    before_containers = containers()
+    before_copies = set(ROOT.glob(".m6-browser-*"))
+    report = ROOT / "test-results/browser-cleanup/results.xml"
+    cleanup = report.with_name("cleanup-complete.json")
+    report.unlink(missing_ok=True)
+    cleanup.unlink(missing_ok=True)
+    result = subprocess.run(
+        [sys.executable, "scripts/run-browser-tests.py", "--inject-failure"],
+        cwd=ROOT,
+        env=env,
+        check=False,
+    )
+    if (
+        containers() - before_containers
+        or set(ROOT.glob(".m6-browser-*")) - before_copies
+    ):
+        raise RuntimeError("Browser failure leaked owned containers or source copies")
+    if result.returncode != 1 or not report.is_file() or not cleanup.is_file():
+        raise RuntimeError("Browser cleanup probe did not reach its intended failure")
+    if json.loads(cleanup.read_text(encoding="utf-8")) != {"cleanup_completed": True}:
+        raise RuntimeError("Browser cleanup did not complete")
+    tests = list(ElementTree.parse(report).iter("testcase"))
+    if (
+        len(tests) != 1
+        or tests[0].get("name") != "diagnostic failure"
+        or tests[0].find("failure") is None
+    ):
+        raise RuntimeError("Browser cleanup probe failed for an unexpected reason")
+    print(
+        "PASS: intentional browser failure propagated with owned resource cleanup",
+        flush=True,
+    )
+
+
 def gate(name, env):
     npm = shutil.which("npm") or "npm"
     python = sys.executable
@@ -126,6 +173,13 @@ def gate(name, env):
         run(python, "-m", "ruff", "check", "app", "tests", cwd=BACKEND)
         run(python, "-m", "ruff", "format", "--check", "app", "tests", cwd=BACKEND)
         run(python, "-m", "mypy", "app", cwd=BACKEND)
+        harness = [
+            "scripts/validate.py",
+            "scripts/run-browser-tests.py",
+            "scripts/test_support/processes.py",
+        ]
+        run(python, "-m", "ruff", "check", "--target-version", "py312", *harness)
+        run(python, "-m", "ruff", "format", "--check", *harness)
     elif name == "frontend-static":
         for script in ("lint", "format:check", "typecheck"):
             run(npm, "run", script, cwd=FRONTEND)
@@ -172,6 +226,7 @@ def gate(name, env):
         run(python, "scripts/verify-migrations.py", env=env)
     elif name == "browser":
         run(python, "scripts/run-browser-tests.py", env=env)
+        browser_cleanup_probe(env)
     elif name == "image":
         arguments = []
         if env.get("TEST_POSTGRES_CONTAINER"):

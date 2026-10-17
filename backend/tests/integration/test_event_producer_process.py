@@ -11,16 +11,28 @@ from pathlib import Path
 from uuid import uuid4
 
 import httpx
+import pytest
 from sqlalchemy import text
 
 from conftest import engine
 from integration.test_event_producers import tracked_order, events, assert_fanout
+from integration.test_event_worker import (
+    delete_owned_stream,
+    kill_process,
+    process_phase,
+    start_process,
+    stop_gracefully,
+    wait_for,
+    worker_settings,
+)
 
 
+@pytest.mark.parametrize("recovery", ["direct", "ambiguous_publish", "stream_loss"])
 def test_api_death_after_commit_leaves_complete_recoverable_fanout(
     authenticated_client,
     auth_user,
     tmp_path,
+    recovery,
 ):
     _, _, _, order = tracked_order(authenticated_client)
     baseline = {e["event_id"] for e in events()}
@@ -130,6 +142,65 @@ def test_api_death_after_commit_leaves_complete_recoverable_fanout(
             )
             assert len([e for e in events() if e["event_id"] not in baseline]) == 3
             assert_fanout()
+            # Complete the physical API crash scenario through the production
+            # handlers, rather than stopping at recoverable delivery rows.
+            settings = worker_settings()
+            if recovery != "direct":
+                relay = start_process(tmp_path, settings, pause_at="after_publish")
+                try:
+                    process_phase(relay, "after_publish")
+                finally:
+                    kill_process(relay)
+                if recovery == "stream_loss":
+                    delete_owned_stream(settings)
+            worker = start_process(tmp_path, settings, module=True)
+            try:
+
+                def complete():
+                    with engine.connect() as db:
+                        return db.scalar(
+                            text(
+                                "SELECT count(*) > 0 AND bool_and(status='succeeded') "
+                                "FROM event_deliveries"
+                            )
+                        )
+
+                wait_for(complete, timeout=30)
+                stop_gracefully(worker)
+                with engine.connect() as db:
+                    assert (
+                        db.scalar(
+                            text(
+                                "SELECT count(*) FROM event_deliveries d "
+                                "LEFT JOIN event_receipts r ON r.event_id=d.event_id "
+                                "AND r.consumer_name=d.consumer_name WHERE r.event_id IS NULL"
+                            )
+                        )
+                        == 0
+                    )
+                    assert db.scalar(
+                        text("SELECT count(*) FROM event_receipts")
+                    ) == db.scalar(text("SELECT count(*) FROM event_deliveries"))
+                    assert db.scalar(text("SELECT count(*) FROM alert_episodes")) == 1
+                    assert (
+                        db.scalar(
+                            text(
+                                "SELECT count(*) FROM notification_stubs WHERE outcome='created'"
+                            )
+                        )
+                        == 1
+                    )
+                    assert (
+                        db.scalar(
+                            text(
+                                "SELECT count(*) FROM event_diagnostics WHERE correlation_id='crash-accept'"
+                            )
+                        )
+                        == 1
+                    )
+            finally:
+                kill_process(worker)
+                delete_owned_stream(settings)
         finally:
             if process.poll() is None:
                 process.kill()
