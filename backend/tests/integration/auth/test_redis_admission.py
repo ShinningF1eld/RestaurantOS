@@ -356,6 +356,21 @@ def test_refresh_known_family_accounting_and_storage_error_release(
     async def scenario():
         async with app.router.lifespan_context(app):
             subject = app.state.auth_limiter
+            redis = subject._redis()
+            server_seconds, _ = await redis.execute("TIME")
+            # This case counts charges within one window. A real minute
+            # boundary during ten rotations legitimately expires earlier ones.
+            # Use the first fixed window [epoch, server-now + ten minutes),
+            # keeping production Lua/server time, limits and deadlines intact.
+            # Boundary expiry is exercised separately above.
+            window_end = int(server_seconds) + 600
+            monkeypatch.setattr(
+                subject,
+                "settings",
+                subject.settings.model_copy(
+                    update={"auth_refresh_window_seconds": window_end}
+                ),
+            )
             issued = await service.login(
                 auth_user["email"], auth_user["password"], "ip"
             )
@@ -364,6 +379,15 @@ def test_refresh_known_family_accounting_and_storage_error_release(
                 issued = await service.refresh_session(issued.refresh_token, "ip")
             family_bucket = subject.refresh_family(str(issued.principal.session_id))
             assert len((await state(subject, family_bucket))[0]) == 10
+            recorded = await redis.execute(
+                "ZRANGE",
+                redis.namespace("auth", 1) + family_bucket[0].key,
+                0,
+                -1,
+                "WITHSCORES",
+            )
+            assert {int(score) for _, score in recorded} == {window_end * 1000}
+            assert int((await redis.execute("TIME"))[0]) < window_end
             with pytest.raises(RateLimitError):
                 await service.refresh_session(issued.refresh_token, "ip")
             assert len((await state(subject, subject.refresh_ip("ip")))[0]) == 11

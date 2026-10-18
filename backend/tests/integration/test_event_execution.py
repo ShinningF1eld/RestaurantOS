@@ -33,6 +33,7 @@ from test_event_worker import (
     BACKEND,
     append_event_for_test,
     create_scope,
+    delete_owned_stream,
     delivery_rows,
     kill_process,
     process_environment,
@@ -612,3 +613,79 @@ def test_cli_driver_authentication_errors_are_redacted():
     assert "Traceback" not in result.stderr
     assert "redaction-probe" not in result.stderr
     assert "asyncpg" not in result.stderr
+
+
+def test_real_poison_worker_restart_preserves_eight_attempts_and_other_consumer(
+    tmp_path, monkeypatch
+):
+    """Real time/backoff and process restart complement the controlled-clock cases."""
+    event = append_event_for_test(create_scope(), completed=True)
+    settings = worker_settings()
+    monkeypatch.setenv("EVENT_WORKER_TEST_POISON_SINK", "1")
+    first = start_process(tmp_path, settings)
+    restarted = None
+    repaired = None
+    try:
+        # Restart during the longer fourth delay. Earlier controlled-clock
+        # tests check every due boundary; here the process owns the real clock.
+        wait_for(
+            lambda: (
+                (row := delivery_rows(event.event_id)[1])["attempt_count"] == 4
+                and row["claim_token"] is None
+            ),
+            timeout=35,
+        )
+        before = delivery_rows(event.event_id)[1]
+        assert before["next_attempt_at"] > datetime.now(UTC)
+        kill_process(first)
+        restarted = start_process(tmp_path, settings)
+        wait_for(
+            lambda: delivery_rows(event.event_id)[1]["status"] == "failed",
+            timeout=150,
+        )
+        kill_process(restarted)
+        rows = delivery_rows(event.event_id)
+        assert rows[0]["status"] == "succeeded" and rows[0]["attempt_count"] == 1
+        assert rows[1]["attempt_count"] == 8
+        with engine.connect() as db:
+            attempts = (
+                db.execute(
+                    text(
+                        "SELECT a.started_at,a.finished_at FROM event_delivery_attempts a "
+                        "WHERE delivery_id=:delivery ORDER BY attempt_number"
+                    ),
+                    {"delivery": rows[1]["id"]},
+                )
+                .mappings()
+                .all()
+            )
+            assert len(attempts) == 8
+            for index, (previous, following) in enumerate(zip(attempts, attempts[1:])):
+                assert following["started_at"] >= previous["finished_at"] + timedelta(
+                    seconds=RetryPolicy().delay_seconds(index + 1, 0)
+                )
+            assert db.scalar(text("SELECT count(*) FROM event_receipts")) == 1
+        assert asyncio.run(
+            EventOperatorService(AsyncSessionLocal).replay(
+                rows[1]["id"], reason="T10 repaired test handler"
+            )
+        )
+        monkeypatch.delenv("EVENT_WORKER_TEST_POISON_SINK")
+        repaired = start_process(tmp_path, settings, module=True)
+        wait_for(
+            lambda: all(
+                r["status"] == "succeeded" for r in delivery_rows(event.event_id)
+            )
+        )
+        with engine.connect() as db:
+            assert db.scalar(text("SELECT count(*) FROM event_receipts")) == 2
+            assert db.scalar(text("SELECT count(*) FROM event_diagnostics")) == 1
+            assert db.scalar(text("SELECT count(*) FROM event_delivery_replays")) == 1
+            assert db.scalar(text("SELECT count(*) FROM event_delivery_attempts")) == 10
+    finally:
+        kill_process(first)
+        if restarted is not None:
+            kill_process(restarted)
+        if repaired is not None:
+            kill_process(repaired)
+        delete_owned_stream(settings)

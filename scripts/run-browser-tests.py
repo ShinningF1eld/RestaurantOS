@@ -1,6 +1,7 @@
 """Run Chromium using a disposable database, production build and ports."""
 
 import argparse
+import json
 import os
 import re
 import runpy
@@ -16,6 +17,7 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 from test_support.disposable_postgres import disposable_database
+from test_support.processes import stop_processes
 from test_support.redis_environment import redis_environment
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -151,7 +153,11 @@ def main():
     while web_port == api_port:
         web_port = free_port()
     origin, api = f"http://localhost:{web_port}", f"http://localhost:{api_port}"
-    artifacts = ROOT / "test-results" / "browser"
+    artifacts = (
+        ROOT
+        / "test-results"
+        / ("browser-cleanup" if args.inject_failure else "browser")
+    )
     artifacts.mkdir(parents=True, exist_ok=True)
     owned_redis = runpy.run_path(str(BACKEND / "tests/support/owned_redis.py"))[
         "owned_redis"
@@ -260,19 +266,7 @@ def main():
                         command.extend(["--grep", args.grep])
                     browser_tests(command, cwd=frontend, env=env, artifacts=artifacts)
                 finally:
-                    if worker is not None:
-                        worker.terminate()
-                        try:
-                            worker.wait(timeout=10)
-                        except subprocess.TimeoutExpired:
-                            worker.kill()
-                            worker.wait()
-                    server.terminate()
-                    try:
-                        server.wait(timeout=10)
-                    except subprocess.TimeoutExpired:
-                        server.kill()
-                        server.wait()
+                    stop_processes(worker, server)
     print("PASS: isolated Chromium suite and cleanup")
 
 
@@ -280,5 +274,12 @@ if __name__ == "__main__":
     try:
         main()
     except subprocess.CalledProcessError as error:
+        if "--inject-failure" in sys.argv and "test:e2e" in error.cmd:
+            # Reached only after all nested finally/context cleanup completed.
+            # A build, Docker teardown, process wait or database-drop failure
+            # cannot create this attestation for the expected assertion error.
+            (ROOT / "test-results/browser-cleanup/cleanup-complete.json").write_text(
+                json.dumps({"cleanup_completed": True}), encoding="utf-8"
+            )
         print(f"FAIL: browser subprocess returned {error.returncode}", file=sys.stderr)
         raise SystemExit(error.returncode) from None

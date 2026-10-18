@@ -899,6 +899,15 @@ passed, including real worker effects and expected-failure cleanup. See
 [issue #39 verification](docs/milestone8/verification-milestone8-issue39.md).
 No schema or application cutover change. T10/T11 and full M8 acceptance remain open.
 
+T10 implementation (2026-10-17): cross-feature crash recovery, real-clock
+poison-worker restart/replay, physical Redis recovery outcomes and required
+worker/service/browser cleanup regressions extend the existing shared gates.
+The unchanged ten-gate CI aggregate is checked by executable policy tests.
+See [issue #40 verification](docs/milestone8/verification-milestone8-issue40.md)
+for current execution results and open final-CI criteria; the
+[regression map](docs/testing/milestone8.md) identifies R1–R14 coverage.
+No application cutover, runtime/schema/API change or M8 completion is claimed.
+
 ### Recommended evolution
 
 1. PostgreSQL transactional outbox as the source of publishable events.

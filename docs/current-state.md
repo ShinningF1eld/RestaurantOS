@@ -1,5 +1,32 @@
 # RestaurantOS current state
 
+## Milestone 8 Issue #40 T10 implementation
+
+Implemented locally on 2026-10-17: cross-feature API-death recovery now completes
+through actual worker effects after direct recovery, ambiguous publication and
+stream loss. A real-clock poison worker restarts during backoff and preserves
+eight attempts, successful-consumer isolation and safe replay. Physical Redis
+restart coverage also checks the final durable sink outcome.
+
+Shared gates include CI/discovery/cleanup policy regressions, actual owned
+worker/database/service failure cleanup, static checks of the modified harness,
+and a required intended-failure Chromium cleanup probe with separate safe
+artifacts. Browser cleanup attempts every owned process even if one fails.
+Full validation also exposed an existing refresh-accounting test's assumption
+that rotations stay within one fixed minute window. Its test-only setup now
+establishes a known open window with real Redis time; quotas, Lua, deadlines and
+the separate boundary-expiry regression remain intact.
+No production business/schema/API/UI/image/dependency change or application
+database operation. See [the T10 verification](milestone8/verification-milestone8-issue40.md)
+for current commands/results/omissions and [the regression map](testing/milestone8.md).
+The full locked-install command passed all ten local gates on Python 3.12 / Node
+24: 294 unit, 333 integration, 10 client, 19 component and 29 Chromium cases,
+required browser failure cleanup, clean/legacy migrations and image smoke.
+The failed auth accounting run and ten passing focused correction/boundary
+repetitions remain documented. Criteria 1–5 pass local review; criterion 6 remains
+open for final PR CI. #41 freshness/operational evidence and M8 acceptance remain
+open. No commit or push has been performed.
+
 ## Milestone 8 Issue #39 T9 implementation
 
 On 2026-10-15 (Asia/Bangkok), T9 adds authenticated scoped active-alert and

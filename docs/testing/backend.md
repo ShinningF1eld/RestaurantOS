@@ -112,9 +112,10 @@ Milestone 8 T3 event producers are covered by `unit/test_event_producers.py`,
 correlation, lifecycle/tombstone snapshots, catalog revisions and overlapping
 no-op edits, episode boundaries/retries, legacy low state, actual PostgreSQL
 insertion/flush rollback and an API killed after commit with Redis unavailable.
-The crash test inspects durable pending fan-out using a fresh connection; it
-claims no worker effects. Worker delivery/retry/receipt/recovery execution remains
-in later Milestone 8 tasks.
+T10 extends that crash test through the production worker: direct recovery,
+ambiguous publication and stream loss all finish with one receipt per delivery
+and actual alert, notification and diagnostic outcomes. See the
+[M8 regression map](milestone8.md) for the complete cross-slice coverage.
 
 
 Milestone 8 T5 execution tests in `integration/test_event_execution.py` exercise
@@ -133,3 +134,11 @@ subprocesses verify status, safe inspect, role provenance, retained history,
 invalid replay rejection and redaction. Run these through the existing
 `backend-unit`, `backend-integration` and `backend-static` gates; no optional gate
 or new application schema is introduced by T5.
+
+T10 adds a real-clock poison-worker restart regression alongside those
+controlled-clock cases. The worker exhausts eight attempts with durable due
+times, while analytics succeeds once, then a repaired production handler
+completes only the replayed delivery. `test_validation_cleanup.py` injects a
+failure after real worker startup in a separate disposable Compose/database
+scope and verifies cleanup. Pure `test_validation_policy.py` protects the broad
+integration selector, ten-gate CI aggregate and cleanup failure paths.
