@@ -3,7 +3,7 @@
 Status: Published
 Source: docs/milestone8/milestone-8-design.md, approved revision 1 (2026-10-11); RestaurantOS_Master_Roadmap.md, Milestone 8.
 Inspected revision: 156badacb0dba913d3548389cb1c08d34316539b; working tree initially clean.
-Updated: 2026-10-17 (Asia/Bangkok)
+Updated: 2026-10-19 (Asia/Bangkok)
 Target: ShinningF1eld/RestaurantOS
 GitHub milestone: [Milestone 8 Reliable background jobs and domain events](https://github.com/ShinningF1eld/RestaurantOS/milestone/3) (GitHub milestone number 3; product milestone 8).
 Publication authorization: user requested creation of milestone-8-task.md and GitHub issues with acceptance criteria, all assigned to GitHub Milestone 8.
@@ -493,16 +493,26 @@ Add a reproducible healthy-load commit-to-effect workload and retained report, o
 
 ## Acceptance criteria
 
-- [ ] Record dataset/event mix, load/concurrency, environment/tool versions, worker tuning and code revision; measure commit-to-completion P50/P95/P99 and misses against the five-second healthy target for subscribed consumers with a documented reproducible command.
-- [ ] Report real target misses/regressions and consumer-specific outcomes, backlog depth/oldest age, retries/failures, retained database counts and Redis stream size. Distinguish worker latency from the UI's 15-second visible refresh cadence; claim no outage-time guarantee.
-- [ ] Demonstrate status/inspect/replay after repair, graceful/forced shutdown, Redis content loss/recovery and reconcile/rebuild/initialization using executable commands and safe correlated facts; document original/replay identities and per-consumer recovery.
-- [ ] Document selected settings/CLI/API contracts, deployment boundary, maintenance write pause/backup, nonpersistent recoverable Redis, baseline suppression and storage-growth/no-pruning limitations. Dashboard stays on live SQL; external notifications/M9 deployment/M10 tracing/M11 broader analytics remain deferred.
+- [x] Record dataset/event mix, load/concurrency, environment/tool versions, worker tuning and code revision; measure commit-to-completion P50/P95/P99 and misses against the five-second healthy target for subscribed consumers with a documented reproducible command.
+- [x] Report real target misses/regressions and consumer-specific outcomes, backlog depth/oldest age, retries/failures, retained database counts and Redis stream size. Distinguish worker latency from the UI's 15-second visible refresh cadence; claim no outage-time guarantee.
+- [x] Demonstrate status/inspect/replay after repair, graceful/forced shutdown, Redis content loss/recovery and reconcile/rebuild/initialization using executable commands and safe correlated facts; document original/replay identities and per-consumer recovery.
+- [x] Document selected settings/CLI/API contracts, deployment boundary, maintenance write pause/backup, nonpersistent recoverable Redis, baseline suppression and storage-growth/no-pruning limitations. Dashboard stays on live SQL; external notifications/M9 deployment/M10 tracing/M11 broader analytics remain deferred.
 - [ ] Map all R1–R14 and the three roadmap exit criteria to dated passing evidence: no silently lost committed events in tested failures, duplicate-safe analytics/notifications and safe inspect/replay. Include final local full gates and complete final PR CI evidence before marking M8 complete.
-- [ ] Keep application database actual revision/cutover evidence distinct from repository migration head; accurately report omissions and unresolved risks. Correct M8-scoped documentation without claiming unrelated stale roadmap/current-state evidence verified.
+- [x] Keep application database actual revision/cutover evidence distinct from repository migration head; accurately report omissions and unresolved risks. Correct M8-scoped documentation without claiming unrelated stale roadmap/current-state evidence verified.
 
 ## Verification
 
 Re-run the documented measurement and operator procedures on isolated services; review retained output against all requirements and roadmap exit criteria, final CI and README claims.
+
+T11 evidence (2026-10-19): five isolated cells completed 1,440 events / 1,980
+subscribed effects with correct totals/episodes/stubs/diagnostics and zero charged
+retries/failures. The [retained report](performance-milestone8.md) records real
+five-second misses, including rare 60-second recovery tails even in the light
+cell. No earlier comparable M8 baseline exists; no regression/speedup claim is
+made. The [review](verification-milestone8-issue41.md) passes criteria 1–4/6 as
+evidence requirements and maps all requirements/exits to current passing local
+gates. Criterion 5 has full local validation but untested final PR CI and remains
+open. No M8 completion, application cutover, commit or push is claimed.
 
 <!-- github-plan: docs/milestone8/milestone-8-design.md | T11 -->
 

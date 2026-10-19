@@ -170,7 +170,42 @@ replays, pending/successful targets, nonexistent targets and blank reasons are
 rejected. Repair the handler before replaying; replay cannot rewrite a bad event.
 No manual deletion of retained records is part of recovery.
 
-## Consumer execution and retries
+## Backlog, failed work and Redis-loss incident sequence
+
+1. Run `status` and retain its safe JSON with observation time and release revision.
+   Compare per-consumer pending depth/oldest age, retries and failures over time.
+   Stream size measures retained transport, not unfinished work; successful rows
+   remain retained. A growing depth/age with available dependencies can indicate
+   offered load above the configured relay/consumer capacity. Compare the
+   documented measured workload before changing settings. A paused worker has no
+   freshness guarantee.
+2. If Redis reports unavailable, restore the configured Redis service and start
+   the standalone worker; do not replay every pending row or reset its due times.
+   PostgreSQL due/claim/recovery scans reconstruct unfinished subscriptions after
+   content loss, recreate groups and retain the event UUID. Existing successful
+   receipts remain authoritative. Observe falling PostgreSQL pending depth and
+   each consumer's receipt outcomes, then reconcile analytics in the intended scope.
+3. For a failed delivery, obtain its UUID from trusted database inspection and run
+   `inspect DELIVERY_UUID`. Retain event/delivery/correlation, consumer, safe error
+   category, cycle and attempts. Distinguish an unsupported contract, constraint
+   failure, event transient failure and shared dependency outage. Repair the cause
+   in reviewed code/configuration before replay; do not rewrite the immutable event.
+4. Run `replay DELIVERY_UUID --reason "Reviewed handler repair"` once. Retain the
+   returned replay UUID. Inspect again after recovery: the original event,
+   correlation, earlier attempts and other consumers' receipts stay unchanged;
+   only the selected failed consumer starts a new retry cycle. Repeated replay of
+   pending/successful work must be rejected, not used to accelerate a backlog.
+5. For graceful shutdown use Ctrl+C/SIGTERM and wait for zero exit. After a forced
+   stop, restart and allow persisted claims/pending idle thresholds to expire;
+   do not delete claims, receipts or attempts. Check final effects/receipts rather
+   than interpreting an ACK or an empty stream as completion.
+
+The [isolated executable rehearsal](../testing/event-freshness-benchmark.md)
+retains these identities and per-consumer facts. Physical restart and precise
+in-flight crash boundaries are exercised in the shared integration gate.
+Never delete the developer Redis database/volume to rehearse a failure.
+
+## Consumer execution details
 
 A short transaction locks the delivery, checks its due time/receipt, allocates a
 unique attempt and fenced lease, and records `processing`. A second transaction
@@ -216,6 +251,12 @@ attempt. Original correlation accompanies relay, execution and replay logs;
 attempt UUID/ordinal/cycle and replay UUID extend the logging allowlist.
 
 ## Validation
+
+For a reproducible isolated healthy-load measurement and actual CLI
+failure/repair/replay/stream-loss/maintenance rehearsal, use
+[the freshness procedure](../testing/event-freshness-benchmark.md).
+Its [dated report](../milestone8/performance-milestone8.md) separates real misses,
+observation uncertainty and UI refresh. It does not establish deployment capacity.
 
 Worker behavior is covered by the `backend-unit`, `backend-integration`, and
 `backend-static` gates. Integration tests use the repository's disposable

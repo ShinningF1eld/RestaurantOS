@@ -1,6 +1,12 @@
 # Testing strategy and quality gates
 
 Supported baselines: Python 3.12, Node.js 24, PostgreSQL 16, and Redis 7.
+
+Milestone 8's [event freshness workload](event-freshness-benchmark.md) provides
+reproducible commit-to-effect measurements and isolated operator rehearsals.
+It complements the required gates; running it alone does not establish milestone
+acceptance. Dated results and remaining CI boundaries are in the
+[issue #41 review](../milestone8/verification-milestone8-issue41.md).
 Use Docker Desktop/Compose v2 and install Chromium once with
 `cd frontend; npx playwright install chromium` after `npm ci`.
 

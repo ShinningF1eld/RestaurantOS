@@ -177,6 +177,7 @@ def gate(name, env):
             "scripts/validate.py",
             "scripts/run-browser-tests.py",
             "scripts/test_support/processes.py",
+            "scripts/benchmark-event-freshness.py",
         ]
         run(python, "-m", "ruff", "check", "--target-version", "py312", *harness)
         run(python, "-m", "ruff", "format", "--check", *harness)

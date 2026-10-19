@@ -1,5 +1,10 @@
 # Alert and notification sink projections
 
+The [processing measurement](../milestone8/performance-milestone8.md) is separate
+from visible inventory refresh every 15 seconds. Five-second healthy worker
+freshness is a measured target; it does not promise a five-second screen update
+or completion during outages. The dashboard continues using live SQL.
+
 ## User-facing inventory reads (issue #39)
 
 `GET /api/restaurants/{restaurant_id}/inventory/alerts` lists active projected

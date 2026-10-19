@@ -1,0 +1,117 @@
+{
+  "sample": {
+    "event_id": "25654cbb-8674-4ee0-8529-e4571b26cdb1",
+    "consumer_name": "notification_sink",
+    "status": "succeeded",
+    "correlation_id": "freshness-7435e638b8094ca4ad565dc179b22f13",
+    "event_type": "order.accepted.v1",
+    "outcome": "processed",
+    "upper_ms": 72454.35970000018,
+    "lower_ms": 72335.93530000054,
+    "commit_bracket_ms": 1.0935000000245054,
+    "observation_bracket_ms": 117.33089999961521
+  },
+  "safe_worker_trace": [
+    {
+      "timestamp": "2026-10-19T04:40:55.739924+00:00",
+      "message": "event_worker_reference_routed",
+      "consumer_name": "notification_sink",
+      "outcome": "delivery_missing_or_busy",
+      "event_id": "25654cbb-8674-4ee0-8529-e4571b26cdb1",
+      "correlation_id": "freshness-7435e638b8094ca4ad565dc179b22f13",
+      "transport_message_id": "1792384855575-0"
+    },
+    {
+      "timestamp": "2026-10-19T04:40:55.740604+00:00",
+      "message": "event_worker_publication_observed",
+      "consumer_name": "notification_sink",
+      "outcome": "published",
+      "event_id": "25654cbb-8674-4ee0-8529-e4571b26cdb1",
+      "correlation_id": "freshness-7435e638b8094ca4ad565dc179b22f13",
+      "transport_message_id": "1792384855575-0"
+    },
+    {
+      "timestamp": "2026-10-19T04:40:55.741271+00:00",
+      "message": "event_worker_reference_routed",
+      "consumer_name": "alerts",
+      "outcome": "unsubscribed_acknowledged",
+      "event_id": "25654cbb-8674-4ee0-8529-e4571b26cdb1",
+      "correlation_id": "freshness-7435e638b8094ca4ad565dc179b22f13",
+      "transport_message_id": "1792384855575-0"
+    },
+    {
+      "timestamp": "2026-10-19T04:40:55.741795+00:00",
+      "message": "event_worker_reference_routed",
+      "consumer_name": "analytics",
+      "outcome": "unsubscribed_acknowledged",
+      "event_id": "25654cbb-8674-4ee0-8529-e4571b26cdb1",
+      "correlation_id": "freshness-7435e638b8094ca4ad565dc179b22f13",
+      "transport_message_id": "1792384855575-0"
+    },
+    {
+      "timestamp": "2026-10-19T04:41:56.869624+00:00",
+      "message": "event_worker_publication_observed",
+      "consumer_name": "notification_sink",
+      "outcome": "published",
+      "event_id": "25654cbb-8674-4ee0-8529-e4571b26cdb1",
+      "correlation_id": "freshness-7435e638b8094ca4ad565dc179b22f13",
+      "transport_message_id": "1792384916740-0"
+    },
+    {
+      "timestamp": "2026-10-19T04:41:56.872336+00:00",
+      "message": "event_worker_reference_routed",
+      "consumer_name": "alerts",
+      "outcome": "unsubscribed_acknowledged",
+      "event_id": "25654cbb-8674-4ee0-8529-e4571b26cdb1",
+      "correlation_id": "freshness-7435e638b8094ca4ad565dc179b22f13",
+      "transport_message_id": "1792384916740-0"
+    },
+    {
+      "timestamp": "2026-10-19T04:41:56.873390+00:00",
+      "message": "event_worker_reference_routed",
+      "consumer_name": "analytics",
+      "outcome": "unsubscribed_acknowledged",
+      "event_id": "25654cbb-8674-4ee0-8529-e4571b26cdb1",
+      "correlation_id": "freshness-7435e638b8094ca4ad565dc179b22f13",
+      "transport_message_id": "1792384916740-0"
+    },
+    {
+      "timestamp": "2026-10-19T04:41:56.882253+00:00",
+      "message": "event_consumer_attempt",
+      "consumer_name": "notification_sink",
+      "outcome": "started",
+      "event_id": "25654cbb-8674-4ee0-8529-e4571b26cdb1",
+      "correlation_id": "freshness-7435e638b8094ca4ad565dc179b22f13",
+      "attempt_id": "41cc5309-a961-4987-a73a-a77d6b7999e8",
+      "attempt_number": 1
+    },
+    {
+      "timestamp": "2026-10-19T04:41:56.939693+00:00",
+      "message": "event_consumer_attempt",
+      "consumer_name": "notification_sink",
+      "outcome": "consumer_committed",
+      "event_id": "25654cbb-8674-4ee0-8529-e4571b26cdb1",
+      "correlation_id": "freshness-7435e638b8094ca4ad565dc179b22f13",
+      "attempt_id": "41cc5309-a961-4987-a73a-a77d6b7999e8",
+      "attempt_number": 1
+    },
+    {
+      "timestamp": "2026-10-19T04:41:56.940772+00:00",
+      "message": "event_worker_reference_routed",
+      "consumer_name": "notification_sink",
+      "outcome": "consumer_committed",
+      "event_id": "25654cbb-8674-4ee0-8529-e4571b26cdb1",
+      "correlation_id": "freshness-7435e638b8094ca4ad565dc179b22f13",
+      "transport_message_id": "1792384916740-0"
+    },
+    {
+      "timestamp": "2026-10-19T04:41:56.987699+00:00",
+      "message": "event_worker_reference_routed",
+      "consumer_name": "notification_sink",
+      "outcome": "durable_receipt_acknowledged",
+      "event_id": "25654cbb-8674-4ee0-8529-e4571b26cdb1",
+      "correlation_id": "freshness-7435e638b8094ca4ad565dc179b22f13",
+      "transport_message_id": "1792384855575-0"
+    }
+  ]
+}

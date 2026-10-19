@@ -1,5 +1,38 @@
 # RestaurantOS current state
 
+## Milestone 8 Issue #41 T11 evidence
+
+Measured/reviewed locally on 2026-10-19 (Asia/Bangkok), from initially clean
+`88eee5483838f531e446969e731a34d2dcbeee29`. A guarded disposable workload exercises
+all eight contracts through the unchanged production worker and three consumers.
+Five retained cells contain 1,440 events / 1,980 correct unique effects. Original
+paced repetitions at four events/second have pooled P95 16.268s analytics,
+18.168s alerts and 17.352s sink, with 1,125 proven five-second misses out of 1,320.
+The lighter two-events/second check has P95 below five seconds but two 61–64s
+outliers. At 16 events/second, P95 is 68–69s and the maximum is 121.475s.
+All cells drain with zero pending work, charged retries or failed deliveries.
+
+The [report and raw samples](milestone8/performance-milestone8.md) retain workload,
+environment/source fingerprint, latency intervals, target misses, backlog/age,
+retained counts, stream size and safe correlated tail evidence. Actual CLI
+status/inspect/repair/replay preserves original event/correlation and successful
+analytics while recording a new replay ID; queued-work forced stop/stream loss,
+graceful shutdown and scoped initialize/rerun/rebuild/reconcile passed separately
+from the healthy latency samples. Default tuning is unchanged. Available
+dependencies do not establish the five-second processing target; the UI's
+visible 15-second refresh is a separate cadence.
+
+The full locked-install command passed all ten local gates: 298 unit, 333
+integration, 10 client, 19 component and 29 Chromium cases, plus cleanup probes,
+static/build, migration/backup-restore and image checks. The
+[acceptance review](milestone8/verification-milestone8-issue41.md) maps R1–R14 and
+the three roadmap exits to dated evidence. Criteria 1–4/6 pass their evidence
+requirements; criterion 5 retains untested final complete PR CI. M8 is not marked
+complete, and measured target misses remain an operational risk.
+No production/schema/API/UI/dependency change, application revision inspection,
+application migration/cutover, commit or push occurred. Repository/test head
+`c3d8e1f52a74` is not evidence of the actual application revision.
+
 ## Milestone 8 Issue #40 T10 implementation
 
 Implemented locally on 2026-10-17: cross-feature API-death recovery now completes

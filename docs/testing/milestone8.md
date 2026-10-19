@@ -1,5 +1,13 @@
 # Milestone 8 regression map
 
+The [issue #41 report](../milestone8/verification-milestone8-issue41.md) adds dated
+R1–R14/roadmap exit-criterion evidence and explicitly retains the final PR CI
+boundary. The [freshness procedure](event-freshness-benchmark.md) measures all
+eight event types through the three production consumers; its separate CLI
+rehearsal exercises failed inspection/repair/replay, queued-work forced stop,
+stream loss, graceful shutdown and scoped maintenance. Timing-bound and
+nearest-rank/missing-sample rules have database-free unit regressions.
+
 The authoritative scope is [approved design revision 1](../milestone8/milestone-8-design.md).
 This map identifies executable coverage, not a claim that every gate or milestone
 exit criterion has passed. See [issue #40 verification](../milestone8/verification-milestone8-issue40.md)
