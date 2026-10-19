@@ -141,6 +141,47 @@ logs, and no remaining RestaurantOS `-m app.worker` process. Allocated database
 contexts assert their drop; full normal/injected-failure cleanup probes passed.
 HEAD is still the comparison base and all changes remain uncommitted.
 
+## Publication and CI follow-up (2026-10-19)
+
+After the measurement review above, the user authorized committing/pushing a
+new branch and verifying CI before production optimization. Commit `58f043d`
+publishes the measured baseline on `codex/m8-issue41-evidence` in
+[draft PR #53](https://github.com/ShinningF1eld/RestaurantOS/pull/53).
+The original report's uncommitted/untested-CI statements describe its earlier
+measurement-time snapshot; current publication/check results belong to this
+follow-up and the PR's current-head checks.
+
+[Initial PR CI run 140](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/39233534423)
+passed nine gates and failed browser (28 passed, one failed), so the unchanged
+`Milestone 6 acceptance` aggregate correctly failed. `alerts.spec.ts` expected
+history `resolution_reason=stock_recovered`, but the value remained null when
+the general 15-second assertion budget expired. This is consistent with the
+already measured 60-second recovery tails; the CI artifact has no worker trace
+to identify the precise cause of that instance.
+
+The test-only follow-up assigns 90-second budgets specifically to the four
+worker-projection polls in the three alert workflows, allowing the existing
+60-second pending/stall recovery plus relay/processing. Each workflow's total
+budget retains its original 60 seconds for other work plus the explicit
+projection allowances (two for the first case, one for each other case).
+All expected values, UI refresh/error/form/access assertions, normal assertion
+timeouts, zero Playwright retries, production worker settings and five-second
+benchmark target are preserved. The performance finding above remains open;
+this change does not claim to fix production freshness. Installed Next.js
+Playwright guidance was consulted before the frontend test edit.
+
+The follow-up uses this affected-gate command (explicitly partial); its local
+outcome and complete new-head CI outcome are reported on PR #53:
+
+```powershell
+backend/.venv-m6-dev/Scripts/python.exe scripts/validate.py --gate baseline --gate frontend-static --gate frontend-tests --gate browser --no-install
+```
+
+The browser gate includes a production build, every normal workflow and the
+required intended-failure cleanup probe. No gate, expected condition or aggregate
+enforcement is removed. The new-head full CI run is required before claiming a
+passing published baseline.
+
 ## Operational finding: five-second target misses with unchanged defaults
 
 This is an observed limitation of the base worker, not a regression introduced

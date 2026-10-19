@@ -11,15 +11,24 @@ import {
   writeHeaders,
 } from "./milestone5-fixtures";
 
+// Projection correctness permits the worker's 60s pending/stall recovery plus
+// relay/processing time. The separate freshness benchmark retains its 5s target.
+const workerProjectionWaitMs = 90_000;
+
 test("inventory alerts show real worker history, retain forms and recover from refresh failure", async ({
   page,
   account,
 }) => {
+  test.setTimeout(60_000 + 2 * workerProjectionWaitMs);
   await signIn(page, account);
   const { restaurantId } = await catalog(page);
   const stock = await ingredient(page, restaurantId, "Alert rice", "2");
   const url = `${api}/api/restaurants/${restaurantId}/inventory/alerts`;
-  await expect.poll(async () => (await (await page.request.get(url)).json()).total).toBe(1);
+  await expect
+    .poll(async () => (await (await page.request.get(url)).json()).total, {
+      timeout: workerProjectionWaitMs,
+    })
+    .toBe(1);
   await page.goto(`/restaurants/${restaurantId}/inventory`);
   const alerts = page.getByRole("region", { name: "Inventory alerts" });
   await expect(alerts).toContainText("Alert rice");
@@ -68,6 +77,7 @@ test("inventory alerts show real worker history, retain forms and recover from r
     .poll(
       async () =>
         (await (await page.request.get(url + "/history")).json()).items[0].resolution_reason,
+      { timeout: workerProjectionWaitMs },
     )
     .toBe("stock_recovered");
   await alerts.getByRole("button", { name: "Alert history", exact: true }).click();
@@ -79,11 +89,16 @@ test("inventory alerts clear protected data when the current role loses access",
   page,
   account,
 }) => {
+  test.setTimeout(60_000 + workerProjectionWaitMs);
   await signIn(page, account);
   const { restaurantId } = await catalog(page);
   await ingredient(page, restaurantId, "Private alert", "1");
   const url = `${api}/api/restaurants/${restaurantId}/inventory/alerts`;
-  await expect.poll(async () => (await (await page.request.get(url)).json()).total).toBe(1);
+  await expect
+    .poll(async () => (await (await page.request.get(url)).json()).total, {
+      timeout: workerProjectionWaitMs,
+    })
+    .toBe(1);
   await page.goto(`/restaurants/${restaurantId}/inventory`);
   const alerts = page.getByRole("region", { name: "Inventory alerts" });
   await expect(alerts).toContainText("Private alert");
@@ -104,6 +119,7 @@ test("inventory alert history paginates all ongoing episodes without mixing bran
   page,
   account,
 }) => {
+  test.setTimeout(60_000 + workerProjectionWaitMs);
   await signIn(page, account);
   const { restaurantId } = await catalog(page);
   for (let index = 0; index < 21; index++) {
@@ -112,7 +128,11 @@ test("inventory alert history paginates all ongoing episodes without mixing bran
   const { restaurantId: otherId } = await catalog(page);
   await ingredient(page, otherId, "Other branch only", "1");
   const url = `${api}/api/restaurants/${restaurantId}/inventory/alerts/history`;
-  await expect.poll(async () => (await (await page.request.get(url)).json()).total).toBe(21);
+  await expect
+    .poll(async () => (await (await page.request.get(url)).json()).total, {
+      timeout: workerProjectionWaitMs,
+    })
+    .toBe(21);
   await page.goto(`/restaurants/${restaurantId}/inventory`);
   await page.getByRole("button", { name: "Alert history", exact: true }).click();
   const history = page.locator("#alert-history");
