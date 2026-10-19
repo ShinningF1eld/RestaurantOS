@@ -11,7 +11,7 @@ import subprocess
 import sys
 import threading
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -32,7 +32,7 @@ from app.modules.events.domain.contracts import (
     OrderSubmittedPayload,
 )
 from app.modules.events.repo.models import EventDelivery
-from app.modules.events.repo.models import EventReceipt
+from app.modules.events.repo.models import EventReceipt, EventDeliveryAttempt
 from app.modules.events.execution import ConsumerExecutionService
 from app.modules.events.repo.worker_queries import (
     claim_due_deliveries as claim_delivery_rows,
@@ -716,6 +716,160 @@ def test_same_consumer_retries_transient_pending_reference_failures(
 
     try:
         asyncio.run(consume_until_recovered())
+    finally:
+        delete_owned_stream(settings)
+
+
+@pytest.mark.parametrize("after_busy", ["release", "not_due", "ownership_lost"])
+def test_busy_delivery_revisited_without_stalling_fresh_work(after_busy, monkeypatch):
+    scope = create_scope()
+    blocked = append_event_for_test(scope)
+    fresh = append_event_for_test(scope)
+    settings = worker_settings(
+        event_worker_pending_idle_ms=60000, event_worker_redis_block_ms=1000
+    )
+
+    async def scenario():
+        worker = EventWorker(settings, AsyncSessionLocal, worker_id="busy-retry")
+        stop = asyncio.Event()
+        busy_seen = asyncio.Event()
+        fresh_done = asyncio.Event()
+        revisited = asyncio.Event()
+        recovered = asyncio.Event()
+        ownership_transferred = asyncio.Event()
+        original_execute = worker.execution.execute
+        original_pending = worker.streams.pending_reference
+        original_ack = worker.streams.acknowledge
+        blocked_id = None
+
+        async def observe_execute(**arguments):
+            result = await original_execute(**arguments)
+            if arguments["event_id"] == blocked.event_id:
+                if result.outcome == "delivery_missing_or_busy":
+                    busy_seen.set()
+                elif result.outcome == "subscribed_delivery_not_due":
+                    revisited.set()
+            return result
+
+        async def observe_pending(group, consumer, message_id):
+            if message_id == blocked_id and after_busy == "ownership_lost":
+                await ownership_transferred.wait()
+            result = await original_pending(group, consumer, message_id)
+            if message_id == blocked_id and after_busy == "ownership_lost":
+                assert result is None
+                revisited.set()
+            return result
+
+        async def observe_ack(group, message_id):
+            result = await original_ack(group, message_id)
+            if message_id == blocked_id:
+                recovered.set()
+            else:
+                fresh_done.set()
+            return result
+
+        monkeypatch.setattr(worker.execution, "execute", observe_execute)
+        monkeypatch.setattr(worker.streams, "pending_reference", observe_pending)
+        monkeypatch.setattr(worker.streams, "acknowledge", observe_ack)
+        task = None
+        try:
+            await worker.redis.open()
+            await worker.streams.ensure_groups()
+            async with AsyncSessionLocal() as locked, locked.begin():
+                delivery = await locked.scalar(
+                    select(EventDelivery)
+                    .where(
+                        EventDelivery.event_id == blocked.event_id,
+                        EventDelivery.consumer_name == "notification_sink",
+                    )
+                    .with_for_update()
+                )
+                for event in (blocked, fresh):
+                    message_id = await worker.redis.execute(
+                        "XADD",
+                        worker.streams.stream,
+                        "*",
+                        *[
+                            value
+                            for key in (
+                                "event_id",
+                                "event_type",
+                                "schema_version",
+                                "correlation_id",
+                            )
+                            for value in (key, str(getattr(event, key)))
+                        ],
+                    )
+                    if event is blocked:
+                        blocked_id = str(message_id)
+                task = asyncio.create_task(
+                    worker._consumer_loop("notification_sink", stop)
+                )
+                await asyncio.wait_for(busy_seen.wait(), 5)
+                # The real delivery lock is still held when unrelated work commits.
+                await asyncio.wait_for(fresh_done.wait(), 5)
+                async with AsyncSessionLocal() as check:
+                    assert (
+                        await check.scalar(
+                            select(func.count())
+                            .select_from(EventDeliveryAttempt)
+                            .where(EventDeliveryAttempt.delivery_id == delivery.id)
+                        )
+                        == 0
+                    )
+                if after_busy == "not_due":
+                    delivery.next_attempt_at = datetime.now(UTC) + timedelta(minutes=5)
+                elif after_busy == "ownership_lost":
+                    await worker.streams.claim_pending(
+                        "notification_sink",
+                        "other-owner",
+                        min_idle_ms=0,
+                        message_ids=[blocked_id],
+                    )
+                    ownership_transferred.set()
+            # No relay/recovery loop is running. Only the short local revisit can
+            # complete this original PEL reference before the 60-second reclaim.
+            await asyncio.wait_for(
+                (recovered if after_busy == "release" else revisited).wait(), 5
+            )
+            async with AsyncSessionLocal() as check:
+                attempts = await check.scalar(
+                    select(func.count())
+                    .select_from(EventDeliveryAttempt)
+                    .where(EventDeliveryAttempt.delivery_id == delivery.id)
+                )
+                receipts = await check.scalar(
+                    select(func.count())
+                    .select_from(EventReceipt)
+                    .where(EventReceipt.event_id == blocked.event_id)
+                )
+                assert attempts == receipts == (1 if after_busy == "release" else 0)
+                if after_busy == "release":
+                    assert (
+                        await check.scalar(
+                            select(func.count())
+                            .select_from(EventDiagnostic)
+                            .where(EventDiagnostic.event_id == blocked.event_id)
+                        )
+                        == 1
+                    )
+            assert (
+                len(
+                    await worker.redis.execute(
+                        "XRANGE", worker.streams.stream, "-", "+"
+                    )
+                )
+                == 2
+            )
+        finally:
+            ownership_transferred.set()
+            stop.set()
+            if task is not None:
+                await asyncio.wait_for(task, 3)
+            await worker.redis.close()
+
+    try:
+        asyncio.run(scenario())
     finally:
         delete_owned_stream(settings)
 

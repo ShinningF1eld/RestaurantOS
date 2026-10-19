@@ -1,5 +1,9 @@
 """Pure worker transport/configuration contracts; no service connections."""
 
+import asyncio
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
 import pytest
 from pydantic import ValidationError
 from redis.exceptions import ResponseError
@@ -13,12 +17,15 @@ from app.modules.events.worker.redis import (
     create_worker_client,
 )
 from app.modules.events.worker.streams import (
+    EventStreams,
+    StreamMessage,
     GROUPS,
     _group_names,
     _group_pending_counts,
     _pending_messages,
     _stream_messages,
 )
+from app.modules.events.worker.runtime import EventWorker, _ReferenceRetry
 from app.redis.adapter import create_client
 
 
@@ -111,3 +118,88 @@ def test_subscription_groups_are_fixed_and_stream_parser_is_bounded():
         ("1-0", "worker-old", 90000),
         ("2-0", "worker-new", 3),
     ]
+
+
+@pytest.mark.parametrize("full_queue", [False, True])
+def test_busy_revisits_are_bounded_and_interleave_new_reads(
+    unit_settings, monkeypatch, full_queue
+):
+    async def scenario():
+        worker = EventWorker(
+            unit_settings.model_copy(update={"event_worker_recovery_batch_size": 2}),
+            None,
+        )
+        stop = asyncio.Event()
+        busy = StreamMessage("1-0", {})
+        fresh = StreamMessage("2-0", {})
+        other_busy = StreamMessage("3-0", {})
+        overflow = StreamMessage("4-0", {})
+        tracked = [busy, other_busy] if full_queue else [busy]
+        routed = []
+        delays = []
+        reads = 0
+
+        def ready_immediately(count, ready_at):
+            delays.append(round((ready_at - asyncio.get_running_loop().time()) * 1000))
+            return _ReferenceRetry(count, 0)
+
+        monkeypatch.setattr(
+            "app.modules.events.worker.runtime._ReferenceRetry", ready_immediately
+        )
+
+        async def route(message, group):
+            routed.append(message.message_id)
+            return message is not fresh
+
+        async def read_new(group, consumer, *, count, block_ms):
+            nonlocal reads
+            reads += 1
+            if reads == 1:
+                assert count == 2
+                return tracked
+            if reads == 2:
+                assert count == 2
+                assert block_ms == 0
+                return [overflow, fresh] if full_queue else [fresh]
+            if all(routed.count(message.message_id) == 21 for message in tracked):
+                assert count == 2
+                stop.set()
+            return []
+
+        async def pending(group, consumer, message_id):
+            return next(
+                message for message in tracked if message.message_id == message_id
+            )
+
+        pending_reference = AsyncMock(side_effect=pending)
+        worker.streams = SimpleNamespace(
+            ensure_groups=AsyncMock(),
+            pending_page=AsyncMock(return_value=[]),
+            pending_reference=pending_reference,
+            read_new=read_new,
+        )
+        monkeypatch.setattr(worker, "_route_message", route)
+        await asyncio.wait_for(worker._consumer_loop("notification_sink", stop), 5)
+        assert routed.count("1-0") == 21
+        assert routed.index("2-0") < len(routed) - 1
+        assert pending_reference.await_count == 20 * len(tracked)
+        assert sorted(delays) == sorted(([50, 100, 200] + [250] * 17) * len(tracked))
+        if full_queue:
+            assert routed.count("3-0") == 21
+            assert routed.count("4-0") == 1
+
+    asyncio.run(scenario())
+
+
+def test_zero_block_reads_omit_redis_block_instead_of_waiting_forever():
+    async def scenario():
+        transport = SimpleNamespace(
+            stream_key=lambda: "test:events", execute=AsyncMock(return_value=[])
+        )
+        streams = EventStreams(transport)
+        await streams.read_new("alerts", "owner", count=1, block_ms=0)
+        assert "BLOCK" not in transport.execute.call_args.args
+        await streams.read_new("alerts", "owner", count=1, block_ms=50)
+        assert transport.execute.call_args.args[6:8] == ("BLOCK", 50)
+
+    asyncio.run(scenario())

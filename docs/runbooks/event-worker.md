@@ -107,6 +107,18 @@ attempt held the delivery lock, and eventually ACKs old references after complet
 The idle threshold and page limit bound repeated reads of unfinished work. Groups acknowledge
 non-subscribed messages without effects.
 
+For `delivery_missing_or_busy`, the current owner also revisits the original
+pending reference after 50, 100, 200, then 250 ms, up to 20 revisits. Each revisit
+reloads the reference only if the same Redis consumer still owns it and repeats
+the normal PostgreSQL due/claim/receipt checks. One due busy reference is serviced
+before each normal bounded pending/new-message pass; blocking reads shorten to
+the nearest revisit deadline (or become nonblocking when already due).
+At most `EVENT_WORKER_RECOVERY_BATCH_SIZE` busy references are held per group;
+overflow or exhausted references stay pending for normal durable recovery.
+These revisits create no processing attempts while the delivery remains locked.
+Persisted failure deadlines, eight-attempt policy, infrastructure backoff, relay
+cadence and abandoned-owner reclaim thresholds are unchanged.
+
 PostgreSQL scans are the source of recovery after Redis connection failure or
 content loss. The recovery loop logs stream length, group pending count, unfinished
 deliveries and retained event/delivery/receipt/attempt counts. If the stream is

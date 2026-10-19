@@ -1,5 +1,10 @@
 # Event processing freshness measurement
 
+The [first busy-reference follow-up](../milestone8/performance-milestone8-busy-retry.md)
+repeats all five commands below with only output paths changed. Original raw cells
+remain intact; the comparison retains source fingerprints, unchanged settings,
+improved tails and worsened paced/pressure percentiles.
+
 Run from the repository root with the supported Python 3.12 environment, Docker
 Desktop and committed dependencies. The runner starts a unique Compose project
 with random loopback ports, allocates a guarded `_test` database, migrates only

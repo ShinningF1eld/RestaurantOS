@@ -1,5 +1,29 @@
 # RestaurantOS current state
 
+## Milestone 8 first freshness follow-up: busy references
+
+Implemented and measured locally on 2026-10-19, uncommitted above
+`3c0da95ffebcdd20b499d39cc2be9d9407a8833a`. Same-owner busy Stream references
+receive at most 20 short 50–250 ms revisits, with bounded residency and new-message
+progress; authoritative due/claim/receipt checks and normal recovery remain.
+Relay cadence, failure backoff/attempt limits, business/API/UI/schema/config and
+dependencies are unchanged. No application-database operation occurred.
+
+The unchanged five-cell benchmark produced 1,980 correct effects with no healthy
+charged retries, failures or unfinished work. Light has zero five-second upper
+exceedances and max 3.809s versus two proven misses/max 63.967s before. Paced pooled
+P95 worsened to 18.670s analytics / 20.094s alerts / 19.447s sink, while overall
+paced max fell from 73.511s to 22.245s. Pressure P95 worsened to 74–75s; max fell
+from 121.475s to 77.913s. The five-second target is still unmet at those loads;
+these serial observations do not establish a general throughput improvement.
+See the [comparison and raw samples](milestone8/performance-milestone8-busy-retry.md).
+
+All ten locked-install local gates passed: 301 unit, 336 integration, 10 client,
+19 component and 29 Chromium cases, plus migrations/backup-restore, cleanup,
+static/build and image checks. The [compatibility review](milestone8/verification-milestone8-busy-retry.md)
+separates functional passes from the performance failure and untested new-head CI.
+The previously published baseline's CI does not validate these uncommitted changes.
+
 ## Milestone 8 Issue #41 T11 evidence
 
 Measured/reviewed locally on 2026-10-19 (Asia/Bangkok), from initially clean

@@ -1,0 +1,46 @@
+{
+  "source_cell": "light",
+  "sample": {
+    "event_id": "abbce8e3-5e7c-4fee-af2a-3dd230faeb60",
+    "consumer_name": "notification_sink",
+    "status": "succeeded",
+    "correlation_id": "freshness-e8b02cea2f0842b6bc40b17475b17856",
+    "event_type": "order.submitted.v1",
+    "outcome": "processed",
+    "upper_ms": 2404.0292000026966,
+    "lower_ms": 2285.009100000025,
+    "commit_bracket_ms": 2.28870000137249,
+    "observation_bracket_ms": 116.73140000129933
+  },
+  "busy_to_processed_route_log_ms": 1560.486,
+  "safe_worker_trace": [
+    {
+      "timestamp": "2026-10-19T11:40:10.584529+00:00",
+      "message": "event_worker_publication_observed",
+      "consumer_name": "notification_sink",
+      "outcome": "published",
+      "event_id": "abbce8e3-5e7c-4fee-af2a-3dd230faeb60",
+      "correlation_id": "freshness-e8b02cea2f0842b6bc40b17475b17856",
+      "transport_message_id": "1792410010387-0"
+    },
+    {
+      "timestamp": "2026-10-19T11:40:10.592945+00:00",
+      "message": "event_worker_reference_routed",
+      "consumer_name": "notification_sink",
+      "outcome": "delivery_missing_or_busy",
+      "event_id": "abbce8e3-5e7c-4fee-af2a-3dd230faeb60",
+      "correlation_id": "freshness-e8b02cea2f0842b6bc40b17475b17856",
+      "transport_message_id": "1792410010387-0"
+    },
+    {
+      "timestamp": "2026-10-19T11:40:12.153431+00:00",
+      "message": "event_worker_reference_routed",
+      "consumer_name": "notification_sink",
+      "outcome": "consumer_committed",
+      "event_id": "abbce8e3-5e7c-4fee-af2a-3dd230faeb60",
+      "correlation_id": "freshness-e8b02cea2f0842b6bc40b17475b17856",
+      "transport_message_id": "1792410010387-0"
+    }
+  ],
+  "interpretation": "The same PEL reference was revisited and processed; these log times are not producer commit timestamps. The sample retains the full commit-to-receipt latency bounds. The competing lock holder is not identified."
+}

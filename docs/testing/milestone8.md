@@ -1,5 +1,14 @@
 # Milestone 8 regression map
 
+The first freshness follow-up adds bounded same-owner busy-reference revisits.
+`unit/test_event_worker.py` checks the 20-revisit cap, interleaved new reads and
+Redis nonblocking-read semantics. `integration/test_event_worker.py` holds a real
+delivery row lock until an unrelated event commits, then proves short recovery
+without relay/reclaim, no charged attempts while locked, preserved future due
+times and refusal to process a reference transferred to another Redis owner.
+The original crash, outage, poison/backoff, duplicate, replay and stream-loss
+suites remain required.
+
 The [issue #41 report](../milestone8/verification-milestone8-issue41.md) adds dated
 R1–R14/roadmap exit-criterion evidence and explicitly retains the final PR CI
 boundary. The [freshness procedure](event-freshness-benchmark.md) measures all
