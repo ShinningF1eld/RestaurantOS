@@ -5,6 +5,13 @@ repeats all five commands below with only output paths changed. Original raw cel
 remain intact; the comparison retains source fingerprints, unchanged settings,
 improved tails and worsened paced/pressure percentiles.
 
+The subsequent relay-draining experiment keeps the busy-reference change and
+repeats the same five commands, changing only output paths to
+`test-results/relay-drain-<cell>.json`. The scan setting remains 1,500 ms, now used
+for empty relay claims and the independent recovery loop; successful nonempty
+relay batches yield and immediately check for more work. See the
+[relay comparison](../milestone8/performance-milestone8-relay-drain.md).
+
 Run from the repository root with the supported Python 3.12 environment, Docker
 Desktop and committed dependencies. The runner starts a unique Compose project
 with random loopback ports, allocates a guarded `_test` database, migrates only

@@ -63,7 +63,7 @@ than initial backoff.
 | `EVENT_WORKER_CLAIM_BATCH_SIZE` | 10 | 1–100 | Maximum PostgreSQL deliveries claimed per relay batch. |
 | `EVENT_WORKER_RELAY_CONCURRENCY` | 2 | 1–16 | Maximum concurrent publications in the batch. |
 | `EVENT_WORKER_CLAIM_LEASE_SECONDS` | 30 | 1–600 | Ownership lease, based on PostgreSQL `now()`. |
-| `EVENT_WORKER_RECOVERY_SCAN_INTERVAL_MS` | 1,500 | 1–60,000 | Relay and PostgreSQL recovery scan interval. |
+| `EVENT_WORKER_RECOVERY_SCAN_INTERVAL_MS` | 1,500 | 1–60,000 | Idle relay wait and independent PostgreSQL recovery scan interval. |
 | `EVENT_WORKER_RECOVERY_BATCH_SIZE` | 10 | 1–100 | Bound for group reads, pending scans, and stream-loss recovery per pass. |
 | `EVENT_WORKER_REPUBLISH_STALL_SECONDS` | 60 | 1–3,600 | Delay before an observed but unfinished publication is eligible again. |
 | `EVENT_WORKER_REDIS_BLOCK_MS` | 1,000 | 1–9,000 | Blocking `XREADGROUP` duration; must be below the operation deadline. |
@@ -91,6 +91,15 @@ and lease, commits, and then contacts Redis. Publication observation updates are
 conditional on the same token and owner and an unexpired lease. A former owner
 cannot change state after a newer claim takes over.
 
+After a successful nonempty batch, the relay yields to other loops and checks
+for another bounded batch immediately, including after a partial batch. It uses
+the scan-interval wait only after an empty claim result. Batch size, publication
+concurrency and leases remain unchanged. Publication failures still apply the
+existing infrastructure backoff/cooldown; stop is checked between batches.
+The existing expired-attempt recovery call still runs once per relay pass, so
+it also runs more frequently during backlog. The independent recovery loop keeps
+its configured scan interval.
+
 If Redis stores an `XADD` but the response is lost, the delivery remains
 recoverable. After lease or stalled-publication eligibility, a retry may create a
 new Redis Stream ID carrying the same PostgreSQL event UUID. Infrastructure
@@ -116,8 +125,8 @@ the nearest revisit deadline (or become nonblocking when already due).
 At most `EVENT_WORKER_RECOVERY_BATCH_SIZE` busy references are held per group;
 overflow or exhausted references stay pending for normal durable recovery.
 These revisits create no processing attempts while the delivery remains locked.
-Persisted failure deadlines, eight-attempt policy, infrastructure backoff, relay
-cadence and abandoned-owner reclaim thresholds are unchanged.
+Persisted failure deadlines, eight-attempt policy, infrastructure backoff and
+abandoned-owner reclaim thresholds are unchanged.
 
 PostgreSQL scans are the source of recovery after Redis connection failure or
 content loss. The recovery loop logs stream length, group pending count, unfinished

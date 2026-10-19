@@ -139,8 +139,10 @@ recovery rechecks sufficiently idle entries even when owned by the current
 consumer, so early references can later be acknowledged after completion.
 
 The worker's PostgreSQL relay claims at most 10 deliveries at once with two
-concurrent publications, a 30-second lease, and `SKIP LOCKED` selection. Recovery
-scans every 1,500 ms in batches of 10; a publication is considered stalled after
+concurrent publications, a 30-second lease, and `SKIP LOCKED` selection. After a
+successful nonempty batch it yields and checks for more work immediately; an
+empty claim result waits 1,500 ms. The independent recovery loop scans every
+1,500 ms in batches of 10; a publication is considered stalled after
 60 seconds. Abandoned Redis pending entries become reclaimable after 60,000 ms.
 Infrastructure backoff doubles from 1,000 to at most 30,000 ms. Graceful worker
 shutdown allows 10 seconds before cancelling remaining loops. Each value has a

@@ -1,5 +1,13 @@
 # Milestone 8 regression map
 
+The relay scheduling follow-up adds pure full/partial-batch draining, empty-queue
+waiting, transport/PostgreSQL/internal failure-backoff and stop-between-batches
+cases in `unit/test_event_worker.py`. Its real PostgreSQL/Redis case in
+`integration/test_event_worker.py` publishes five deliveries in 2/2/1 batches
+before the first idle wait, retaining publication observations, cleared relay
+claims and zero consumer attempts. Existing crash, fencing, outage and poison
+backoff cases remain required.
+
 The first freshness follow-up adds bounded same-owner busy-reference revisits.
 `unit/test_event_worker.py` checks the 20-revisit cap, interleaved new reads and
 Redis nonblocking-read semantics. `integration/test_event_worker.py` holds a real

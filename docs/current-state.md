@@ -1,5 +1,30 @@
 # RestaurantOS current state
 
+## Milestone 8 relay scheduling experiment and cloud handoff
+
+On 2026-10-19 the busy-reference work was committed/pushed as `b9b6931` on
+`codex/m8-worker-throughput`. The separate `codex/m8-relay-drain` continuation
+preserves that checkpoint and publishes relay scheduling, tests and evidence for
+cloud continuation. A successful nonempty relay batch now yields and immediately
+checks for more work; empty claims retain the 1,500 ms wait. Other tuning,
+producer/business/consumer/auth/API/UI/schema/dependency contracts remain unchanged.
+
+All five unchanged benchmark cells completed 1,980 correct effects with no healthy
+charged retries/failures/missing or pending work after drain. Paced pooled P95
+is 3.952s analytics / 6.293s alerts / 37.125s sink: analytics/alerts improve, but
+the sink regresses from 19.447s. The five-second target is still unmet. All light
+upper bounds are below 3.805s; pressure P95 is 44.165/45.719/61.717s.
+See the [comparison](milestone8/performance-milestone8-relay-drain.md).
+
+All ten local gates have passing evidence across an initial locked-install run
+and unchanged retry: 307 unit, 337 integration, 10 client, 19 component, 29 browser
+cases plus static/build/migrations/cleanup/image checks. The first run failed one
+existing auth bucket assertion; it passed unchanged on retry, with exact cause
+unverified. New-branch CI remains to be checked. No application DB operation,
+deployment, merge or M8 completion is claimed. Follow the structured
+[cloud handoff](milestone8/cloud-handoff-worker-freshness.md) and
+[verification](milestone8/verification-milestone8-relay-drain.md).
+
 ## Milestone 8 first freshness follow-up: busy references
 
 Implemented and measured locally on 2026-10-19, uncommitted above

@@ -1194,3 +1194,60 @@ def test_relay_claim_batch_stays_bounded_with_significant_backlog():
             .where(EventDelivery.claim_owner == "bounded-backlog-worker")
         )
     assert claimed == 10
+
+
+def test_relay_publishes_real_backlog_in_bounded_batches_before_idle(monkeypatch):
+    scope = create_scope()
+    events = [append_event_for_test(scope) for _ in range(5)]
+    settings = worker_settings(
+        event_worker_claim_batch_size=2,
+        event_worker_relay_concurrency=2,
+        event_worker_claim_lease_seconds=30,
+        event_worker_recovery_scan_interval_ms=1500,
+    )
+
+    async def scenario():
+        worker = EventWorker(settings, AsyncSessionLocal)
+        stop = asyncio.Event()
+        batches = []
+        original_claim = worker.event_service.claim_due_deliveries
+
+        async def claim(**arguments):
+            result = await original_claim(**arguments)
+            batches.append(len(result))
+            return result
+
+        async def idle(stop_event, delay_ms):
+            assert delay_ms == 1500
+            assert batches == [2, 2, 1, 0]
+            entries = await worker.redis.execute(
+                "XRANGE", worker.streams.stream, "-", "+"
+            )
+            assert len(entries) == 5
+            async with AsyncSessionLocal() as session:
+                rows = list(await session.scalars(select(EventDelivery)))
+                assert {row.event_id for row in rows} == {
+                    event.event_id for event in events
+                }
+                assert all(row.published_at is not None for row in rows)
+                assert all(
+                    row.claim_token is None and row.claim_owner is None for row in rows
+                )
+                assert all(
+                    row.status == "pending" and row.attempt_count == 0 for row in rows
+                )
+            stop_event.set()
+
+        monkeypatch.setattr(worker.event_service, "claim_due_deliveries", claim)
+        monkeypatch.setattr(worker, "_wait", idle)
+        try:
+            await worker.redis.open()
+            await asyncio.wait_for(worker._relay_loop(stop), 10)
+        finally:
+            stop.set()
+            await worker.redis.close()
+
+    try:
+        asyncio.run(scenario())
+    finally:
+        delete_owned_stream(settings)

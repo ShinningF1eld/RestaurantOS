@@ -273,6 +273,12 @@ class EventWorker:
                         backoff = self._next_backoff(backoff)
                         continue
                 backoff = self._initial_backoff()
+                if claims:
+                    # Each batch stays bounded, but available work should not
+                    # wait for the idle scan interval. Let other loops run before
+                    # checking stop and claiming another batch.
+                    await asyncio.sleep(0)
+                    continue
                 await self._wait(
                     stop, self.settings.event_worker_recovery_scan_interval_ms
                 )
