@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -272,6 +273,12 @@ class EventWorker:
                         backoff = self._next_backoff(backoff)
                         continue
                 backoff = self._initial_backoff()
+                if claims:
+                    # Each batch stays bounded, but available work should not
+                    # wait for the idle scan interval. Let other loops run before
+                    # checking stop and claiming another batch.
+                    await asyncio.sleep(0)
+                    continue
                 await self._wait(
                     stop, self.settings.event_worker_recovery_scan_interval_ms
                 )
@@ -434,6 +441,23 @@ class EventWorker:
         cursor = "-"
         backoff = self._initial_backoff()
         retries: dict[str, _ReferenceRetry] = {}
+        busy_retries: dict[str, _ReferenceRetry] = {}
+
+        async def route(message: StreamMessage, busy_count: int = 0) -> None:
+            if await self._route_message(message, group):
+                # Brief lock contention is not a failed processing attempt. Limit
+                # both resident references and revisits; durable recovery remains
+                # the fallback for missing rows or sustained contention.
+                count = busy_count + 1
+                if count <= 20 and (
+                    len(busy_retries) < self.settings.event_worker_recovery_batch_size
+                ):
+                    busy_retries[message.message_id] = _ReferenceRetry(
+                        count,
+                        asyncio.get_running_loop().time()
+                        + min(50 * 2 ** min(count - 1, 3), 250) / 1000,
+                    )
+
         while not stop.is_set():
             try:
                 await self.streams.ensure_groups()
@@ -457,7 +481,7 @@ class EventWorker:
                         )
                         if pending_message is not None:
                             message = pending_message
-                            await self._route_message(pending_message, group)
+                            await route(pending_message)
                     except (
                         DependencyUnavailable,
                         WorkerRedisFailure,
@@ -476,6 +500,33 @@ class EventWorker:
                     backoff = self._initial_backoff()
                     continue
 
+                if busy_retries:
+                    message_id, retry = min(
+                        busy_retries.items(), key=lambda entry: entry[1].ready_at
+                    )
+                    if retry.ready_at <= asyncio.get_running_loop().time():
+                        busy_retries.pop(message_id)
+                        message = StreamMessage(message_id, {})
+                        try:
+                            pending_message = await self.streams.pending_reference(
+                                group, consumer, message_id
+                            )
+                            if pending_message is not None:
+                                message = pending_message
+                                await route(message, retry.failure_count)
+                        except (
+                            DependencyUnavailable,
+                            WorkerRedisFailure,
+                            SQLAlchemyError,
+                            OSError,
+                            TimeoutError,
+                        ) as error:
+                            self._schedule_reference_retry(
+                                message, group, error, retries
+                            )
+                        if retries:
+                            continue
+
                 pending = await self.streams.pending_page(
                     group,
                     cursor=cursor,
@@ -486,8 +537,10 @@ class EventWorker:
                     for message in await self._claim_abandoned(
                         pending, group=group, consumer=consumer
                     ):
+                        if message.message_id in busy_retries:
+                            continue
                         try:
-                            await self._route_message(message, group)
+                            await route(message)
                         except (
                             DependencyUnavailable,
                             WorkerRedisFailure,
@@ -502,15 +555,28 @@ class EventWorker:
                     cursor = "-"
                 if retries:
                     continue
+                block_ms = self.settings.event_worker_redis_block_ms
+                if busy_retries:
+                    remaining_ms = max(
+                        0,
+                        math.ceil(
+                            (
+                                min(retry.ready_at for retry in busy_retries.values())
+                                - asyncio.get_running_loop().time()
+                            )
+                            * 1000
+                        ),
+                    )
+                    block_ms = min(block_ms, remaining_ms)
                 messages = await self.streams.read_new(
                     group,
                     consumer,
                     count=self.settings.event_worker_recovery_batch_size,
-                    block_ms=self.settings.event_worker_redis_block_ms,
+                    block_ms=block_ms,
                 )
                 for message in messages:
                     try:
-                        await self._route_message(message, group)
+                        await route(message)
                     except (
                         DependencyUnavailable,
                         WorkerRedisFailure,
@@ -569,13 +635,14 @@ class EventWorker:
             message_ids=abandoned,
         )
 
-    async def _route_message(self, message: StreamMessage, group: ConsumerName) -> None:
+    async def _route_message(self, message: StreamMessage, group: ConsumerName) -> bool:
+        """Route normally and report only a potentially transient delivery lock."""
         raw_event_id = message.fields.get("event_id")
         try:
             event_id = UUID(raw_event_id or "")
         except (ValueError, TypeError):
             self._log_bad_reference(message, group, "invalid_event_id")
-            return
+            return False
         result = await self.execution.execute(
             event_id=event_id,
             consumer=group,
@@ -596,6 +663,7 @@ class EventWorker:
                 "outcome": result.outcome,
             },
         )
+        return result.outcome == "delivery_missing_or_busy"
 
     def _log_bad_reference(
         self, message: StreamMessage, group: ConsumerName, category: str

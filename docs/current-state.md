@@ -1,5 +1,112 @@
 # RestaurantOS current state
 
+## Milestone 8 local continuation: worker database pool
+
+On 2026-10-20 the user continued locally. Both preserved pushed checkpoint heads
+were unchanged and passed all ten CI gates plus `Milestone 6 acceptance`.
+The `codex/m8-worker-db-pool` follow-up gives each standalone worker
+invocation its own bounded PostgreSQL pool: six connections by default, no
+overflow, five-second checkout timeout, pre-ping and disposal on exit. API pooling,
+business/handler/transaction/retry/fencing/schema/API/UI behavior is unchanged.
+
+Fresh relay and relay-without-busy-revisits controls reproduced sink P95
+28.226s/28.780s. The unchanged five-cell benchmark with worker pooling completed
+1,980 correct effects, zero five-second exceedances and a worst bound of 2.009s.
+Pooled paced P95 is 1.639s analytics / 1.614s alerts / 1.687s sink; pressure is
+1.655/1.674/1.794s. This removes a test-mode `NullPool` connection penalty;
+normal-mode workers already pooled connections, so equivalent production speedup
+or deployment capacity is not established. See [measurements](milestone8/performance-milestone8-worker-db-pool.md)
+and [current gate/review evidence](milestone8/verification-milestone8-worker-db-pool.md).
+The complete locked-install ten-gate command passed: 312 unit, 339 integration,
+10 client, 19 component and 29 Chromium tests, plus static/build, migrations,
+intentional-failure cleanup and runtime-image checks. The user subsequently
+authorized committing and merging the stacked branches into main. New-source
+PR CI must pass before merging; publication checks are recorded in the branch PR.
+No application migration, deployment or M8 completion is claimed.
+
+## Milestone 8 relay scheduling experiment and cloud handoff
+
+On 2026-10-19 the busy-reference work was committed/pushed as `b9b6931` on
+`codex/m8-worker-throughput`. The separate `codex/m8-relay-drain` continuation
+preserves that checkpoint and publishes relay scheduling, tests and evidence for
+cloud continuation. A successful nonempty relay batch now yields and immediately
+checks for more work; empty claims retain the 1,500 ms wait. Other tuning,
+producer/business/consumer/auth/API/UI/schema/dependency contracts remain unchanged.
+
+All five unchanged benchmark cells completed 1,980 correct effects with no healthy
+charged retries/failures/missing or pending work after drain. Paced pooled P95
+is 3.952s analytics / 6.293s alerts / 37.125s sink: analytics/alerts improve, but
+the sink regresses from 19.447s. The five-second target is still unmet. All light
+upper bounds are below 3.805s; pressure P95 is 44.165/45.719/61.717s.
+See the [comparison](milestone8/performance-milestone8-relay-drain.md).
+
+All ten local gates have passing evidence across an initial locked-install run
+and unchanged retry: 307 unit, 337 integration, 10 client, 19 component, 29 browser
+cases plus static/build/migrations/cleanup/image checks. The first run failed one
+existing auth bucket assertion; it passed unchanged on retry, with exact cause
+unverified. Both checkpoint CI runs were confirmed passing on 2026-10-20;
+see the newer local continuation above. No application DB operation,
+deployment, merge or M8 completion is claimed. Follow the structured
+[cloud handoff](milestone8/cloud-handoff-worker-freshness.md) and
+[verification](milestone8/verification-milestone8-relay-drain.md).
+
+## Milestone 8 first freshness follow-up: busy references
+
+Implemented and measured locally on 2026-10-19, uncommitted above
+`3c0da95ffebcdd20b499d39cc2be9d9407a8833a`. Same-owner busy Stream references
+receive at most 20 short 50–250 ms revisits, with bounded residency and new-message
+progress; authoritative due/claim/receipt checks and normal recovery remain.
+Relay cadence, failure backoff/attempt limits, business/API/UI/schema/config and
+dependencies are unchanged. No application-database operation occurred.
+
+The unchanged five-cell benchmark produced 1,980 correct effects with no healthy
+charged retries, failures or unfinished work. Light has zero five-second upper
+exceedances and max 3.809s versus two proven misses/max 63.967s before. Paced pooled
+P95 worsened to 18.670s analytics / 20.094s alerts / 19.447s sink, while overall
+paced max fell from 73.511s to 22.245s. Pressure P95 worsened to 74–75s; max fell
+from 121.475s to 77.913s. The five-second target is still unmet at those loads;
+these serial observations do not establish a general throughput improvement.
+See the [comparison and raw samples](milestone8/performance-milestone8-busy-retry.md).
+
+All ten locked-install local gates passed: 301 unit, 336 integration, 10 client,
+19 component and 29 Chromium cases, plus migrations/backup-restore, cleanup,
+static/build and image checks. The [compatibility review](milestone8/verification-milestone8-busy-retry.md)
+separates functional passes from the performance failure and untested new-head CI.
+The previously published baseline's CI does not validate these uncommitted changes.
+
+## Milestone 8 Issue #41 T11 evidence
+
+Measured/reviewed locally on 2026-10-19 (Asia/Bangkok), from initially clean
+`88eee5483838f531e446969e731a34d2dcbeee29`. A guarded disposable workload exercises
+all eight contracts through the unchanged production worker and three consumers.
+Five retained cells contain 1,440 events / 1,980 correct unique effects. Original
+paced repetitions at four events/second have pooled P95 16.268s analytics,
+18.168s alerts and 17.352s sink, with 1,125 proven five-second misses out of 1,320.
+The lighter two-events/second check has P95 below five seconds but two 61–64s
+outliers. At 16 events/second, P95 is 68–69s and the maximum is 121.475s.
+All cells drain with zero pending work, charged retries or failed deliveries.
+
+The [report and raw samples](milestone8/performance-milestone8.md) retain workload,
+environment/source fingerprint, latency intervals, target misses, backlog/age,
+retained counts, stream size and safe correlated tail evidence. Actual CLI
+status/inspect/repair/replay preserves original event/correlation and successful
+analytics while recording a new replay ID; queued-work forced stop/stream loss,
+graceful shutdown and scoped initialize/rerun/rebuild/reconcile passed separately
+from the healthy latency samples. Default tuning is unchanged. Available
+dependencies do not establish the five-second processing target; the UI's
+visible 15-second refresh is a separate cadence.
+
+The full locked-install command passed all ten local gates: 298 unit, 333
+integration, 10 client, 19 component and 29 Chromium cases, plus cleanup probes,
+static/build, migration/backup-restore and image checks. The
+[acceptance review](milestone8/verification-milestone8-issue41.md) maps R1–R14 and
+the three roadmap exits to dated evidence. Criteria 1–4/6 pass their evidence
+requirements; criterion 5 retains untested final complete PR CI. M8 is not marked
+complete, and measured target misses remain an operational risk.
+No production/schema/API/UI/dependency change, application revision inspection,
+application migration/cutover, commit or push occurred. Repository/test head
+`c3d8e1f52a74` is not evidence of the actual application revision.
+
 ## Milestone 8 Issue #40 T10 implementation
 
 Implemented locally on 2026-10-17: cross-feature API-death recovery now completes

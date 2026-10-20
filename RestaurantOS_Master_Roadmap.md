@@ -908,6 +908,26 @@ for current execution results and open final-CI criteria; the
 [regression map](docs/testing/milestone8.md) identifies R1–R14 coverage.
 No application cutover, runtime/schema/API change or M8 completion is claimed.
 
+T11 evidence (2026-10-19): [issue #41 review](docs/milestone8/verification-milestone8-issue41.md)
+and [retained freshness results](docs/milestone8/performance-milestone8.md) map
+R1–R14 and all three exits to dated local execution. All ten full locked-install
+gates passed; 1,980 measured consumer effects completed correctly. Default tuning
+misses the five-second target at the documented paced/pressure loads, and the
+lighter check still has two 61–64s outliers despite P95 below five seconds.
+Actual scoped CLI repair/replay, stream-loss recovery, shutdown and maintenance
+rehearsals are retained. No application cutover or commit/push; final complete PR
+CI remains untested, so M8 acceptance stays open. Storage pruning, external
+messaging, deployment, full tracing and broader analytics remain deferred.
+
+Local worker-pool follow-up (2026-10-20): the same five benchmark cells complete
+1,980 correct effects with zero five-second exceedances, maximum 2.009s. Fresh
+relay and busy-removal controls both reproduce the sink backlog. A bounded pool
+per worker invocation removes the test-only per-transaction connection penalty;
+normal-mode workers already pooled connections. No equal production speedup,
+deployment capacity, application cutover or M8 completion is claimed. See the
+[comparison](docs/milestone8/performance-milestone8-worker-db-pool.md) and
+[current verification](docs/milestone8/verification-milestone8-worker-db-pool.md).
+
 ### Recommended evolution
 
 1. PostgreSQL transactional outbox as the source of publishable events.
@@ -917,11 +937,16 @@ No application cutover, runtime/schema/API change or M8 completion is claimed.
 
 ### Initial events
 
+The [approved Milestone 8 design](docs/milestone8/milestone-8-design.md) governs
+this list, adding deletion and inventory-state facts to the earlier proposal.
+
 - `order.submitted.v1`
 - `order.accepted.v1`
 - `order.completed.v1`
 - `order.cancelled.v1`
+- `order.deleted.v1`
 - `menu.updated.v1`
+- `inventory.state_changed.v1`
 - `inventory.low.v1`
 
 ### Initial consumers

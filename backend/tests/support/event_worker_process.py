@@ -5,9 +5,11 @@ import json
 import os
 import signal
 
+from sqlalchemy.ext.asyncio import async_sessionmaker
+
 from app.core.config import get_settings
 from app.core.logging import configure_json_logging
-from app.db.database import AsyncSessionLocal, engine
+from app.db.worker import create_worker_engine
 from app.modules.events.repo.worker_queries import DeliveryClaim
 from app.modules.events.execution import (
     CONSUMERS,
@@ -72,6 +74,8 @@ async def main() -> None:
         await pause("after_commit", claim.event.event_id, claim.token)
 
     settings = get_settings()
+    engine = create_worker_engine(settings)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
     execution = None
     if os.environ.get("EVENT_WORKER_TEST_POISON_SINK") == "1":
 
@@ -79,14 +83,14 @@ async def main() -> None:
             raise EventTransientFailure("test event-specific failure")
 
         execution = ConsumerExecutionService(
-            AsyncSessionLocal,
+            sessions,
             registry={**CONSUMERS, "notification_sink": poison_sink},
             lease_seconds=settings.event_worker_claim_lease_seconds,
             jitter=lambda: 0,
         )
     elif os.environ.get("EVENT_WORKER_TEST_EFFECTS") == "1":
         execution = ConsumerExecutionService(
-            AsyncSessionLocal,
+            sessions,
             registry={
                 "analytics": test_effect,
                 "alerts": test_effect,
@@ -99,7 +103,7 @@ async def main() -> None:
         )
     elif os.environ.get("EVENT_WORKER_TEST_ANALYTICS") == "1":
         execution = ConsumerExecutionService(
-            AsyncSessionLocal,
+            sessions,
             registry={
                 "analytics": CONSUMERS["analytics"],
                 "alerts": None,
@@ -113,7 +117,7 @@ async def main() -> None:
     elif os.environ.get("EVENT_WORKER_TEST_REAL_CONSUMER") in CONSUMERS:
         selected = os.environ["EVENT_WORKER_TEST_REAL_CONSUMER"]
         execution = ConsumerExecutionService(
-            AsyncSessionLocal,
+            sessions,
             registry={
                 name: handler if name == selected else None
                 for name, handler in CONSUMERS.items()
@@ -127,7 +131,7 @@ async def main() -> None:
         # Transport/recovery tests intentionally isolate the relay from feature
         # effects. Consumer execution is covered separately with real handlers.
         execution = ConsumerExecutionService(
-            AsyncSessionLocal,
+            sessions,
             registry={"analytics": None, "alerts": None, "notification_sink": None},
             lease_seconds=settings.event_worker_claim_lease_seconds,
             hooks=ExecutionHooks(
@@ -136,9 +140,9 @@ async def main() -> None:
         )
     configure_json_logging(level=settings.log_level)
     try:
-        await EventWorker(
-            settings, AsyncSessionLocal, hooks=hooks, execution=execution
-        ).run(stop)
+        await EventWorker(settings, sessions, hooks=hooks, execution=execution).run(
+            stop
+        )
     finally:
         await engine.dispose()
 

@@ -1,5 +1,37 @@
 # Milestone 8 regression map
 
+The worker database-pool follow-up adds `unit/test_worker_database.py` for bounded
+resources and disposal on normal/failed startup. Real PostgreSQL cases in
+`integration/test_worker_database.py` check connection reuse, clean transaction
+state, replacement of a terminated idle connection, disposal and independent
+event-loop invocations. Crash-boundary helper processes use the same worker pool
+factory, retaining the existing actual-effect, receipt, replay and fencing checks.
+
+The relay scheduling follow-up adds pure full/partial-batch draining, empty-queue
+waiting, transport/PostgreSQL/internal failure-backoff and stop-between-batches
+cases in `unit/test_event_worker.py`. Its real PostgreSQL/Redis case in
+`integration/test_event_worker.py` publishes five deliveries in 2/2/1 batches
+before the first idle wait, retaining publication observations, cleared relay
+claims and zero consumer attempts. Existing crash, fencing, outage and poison
+backoff cases remain required.
+
+The first freshness follow-up adds bounded same-owner busy-reference revisits.
+`unit/test_event_worker.py` checks the 20-revisit cap, interleaved new reads and
+Redis nonblocking-read semantics. `integration/test_event_worker.py` holds a real
+delivery row lock until an unrelated event commits, then proves short recovery
+without relay/reclaim, no charged attempts while locked, preserved future due
+times and refusal to process a reference transferred to another Redis owner.
+The original crash, outage, poison/backoff, duplicate, replay and stream-loss
+suites remain required.
+
+The [issue #41 report](../milestone8/verification-milestone8-issue41.md) adds dated
+R1–R14/roadmap exit-criterion evidence and explicitly retains the final PR CI
+boundary. The [freshness procedure](event-freshness-benchmark.md) measures all
+eight event types through the three production consumers; its separate CLI
+rehearsal exercises failed inspection/repair/replay, queued-work forced stop,
+stream loss, graceful shutdown and scoped maintenance. Timing-bound and
+nearest-rank/missing-sample rules have database-free unit regressions.
+
 The authoritative scope is [approved design revision 1](../milestone8/milestone-8-design.md).
 This map identifies executable coverage, not a claim that every gate or milestone
 exit criterion has passed. See [issue #40 verification](../milestone8/verification-milestone8-issue40.md)

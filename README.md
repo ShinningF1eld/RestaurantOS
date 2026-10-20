@@ -75,6 +75,23 @@ and baseline provenance. Visible pages refresh every 15 seconds without resettin
 editors, retain clearly marked stale data on failures, and clear protected data
 when access is lost. See the [alert read contract](docs/api/alert-projection.md).
 
+Milestone 8 T11 adds an isolated [freshness benchmark](docs/testing/event-freshness-benchmark.md)
+and [retained results](docs/milestone8/performance-milestone8.md). In three paced
+runs at four events/second, pooled P95 was 16.268s for analytics, 18.168s for alerts
+and 17.352s for the sink. At two events/second, P95 was below five seconds but
+two effects still took 61–64s. The faster 16-events/second cell reached 121.475s.
+All 1,980 measured effects completed correctly with no charged retries/failures;
+these results do not establish consistent five-second freshness or deployment
+capacity. All ten full local gates passed; final PR CI and M8 acceptance remain
+open. See the [issue #41 review](docs/milestone8/verification-milestone8-issue41.md).
+
+The [2026-10-20 worker-pool follow-up](docs/milestone8/performance-milestone8-worker-db-pool.md)
+meets five seconds for all 1,980 measured effects (maximum 2.009s) with the same
+workload. It removes a test-mode connection penalty; normal-mode workers already
+pooled connections, so this does not establish equivalent production speedup.
+See its [verification](docs/milestone8/verification-milestone8-worker-db-pool.md)
+for current gates and remaining acceptance boundaries.
+
 ## Prerequisites
 
 - Python 3.12 (the supported documentation and CI version)

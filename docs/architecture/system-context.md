@@ -1,10 +1,11 @@
 # System context
 
-Last updated: 2026-10-02 (module organization; runtime boundaries unchanged).
+Last updated: 2026-10-19 (Milestone 8 runtime and operations boundaries).
 
 RestaurantOS currently runs as a small modular-monolith-shaped application: one
-Next.js frontend, one FastAPI process, and one PostgreSQL database. Only the
-database is containerized for local development.
+Next.js frontend, one FastAPI API, one PostgreSQL database and a separately
+started event worker. Local Compose supplies PostgreSQL and nonpersistent Redis;
+the API, frontend and worker normally run on the host.
 
 ```mermaid
 flowchart LR
@@ -12,6 +13,9 @@ flowchart LR
     W -->|HTTP JSON<br/>NEXT_PUBLIC_API_URL| A[FastAPI API :8000]
     A -->|SQLAlchemy async<br/>DATABASE_URL| P[(PostgreSQL 16<br/>host :5433 / container :5432)]
     D[Developer or CI] -->|Alembic| P
+    A -->|Cache/auth admission| R[(Redis 7)]
+    B[Standalone event worker] -->|Outbox, receipts, projections| P
+    B -->|Recoverable Streams| R
 ```
 
 ## Runtime responsibilities
@@ -24,7 +28,9 @@ flowchart LR
 | Repositories | Focused SQLAlchemy persistence and analytics queries without HTTP knowledge |
 | PostgreSQL | Operational records, users, session families, refresh-token digests and auth rate counters |
 | Alembic | Ordered schema creation and future schema evolution |
-| Docker Compose | Local PostgreSQL lifecycle only |
+| Docker Compose | Local PostgreSQL and Redis lifecycle |
+| Event worker | PostgreSQL outbox relay/recovery and independent analytics, alerts and notification-sink groups |
+| Redis Streams | Recoverable references; PostgreSQL owns facts, retries and completion |
 
 ## Boundaries and dependencies
 
@@ -66,8 +72,9 @@ so it does not open a transaction on a business command's session.
   a custom CSRF header. Production cookies require HTTPS on one shared host.
 - Business routes require active identity and organization membership, then
   enforce Owner/Manager/Employee capabilities and restaurant assignments.
-- There is no Redis, worker,
-  object storage, or external payment provider in the current system.
+- Redis cache/auth adapters and the standalone event worker have independent
+  bounded pools and failure policies. API business writes commit their events
+  without worker publication. There is no object storage or external payment provider.
 - `/health` is a process liveness response and does not query dependencies.
   No readiness endpoint is claimed or added in Milestone 0.
 - Structured JSON logging includes a validated or generated request ID, which
@@ -76,10 +83,20 @@ so it does not open a transaction on a business command's session.
 
 ## Deployment context
 
-There are no backend or frontend Dockerfiles and no deployed environment is
-defined in this repository. GitHub Actions provides validation only. Production
-containerization, release migrations, deployment, and observability remain
-later roadmap milestones.
+The backend has a locked-dependency nonroot runtime Dockerfile; there is no
+frontend Dockerfile or deployed environment. GitHub Actions provides validation.
+The worker's host entrypoint does not establish container orchestration or M9
+deployment. Startup never migrates; application migration/cutover requires the
+[backup, write-pause and initialization procedure](../runbooks/event-maintenance.md).
+
+M8 effects and receipts commit atomically per consumer. Revision watermarks and
+episode identities fence stale facts. The dashboard stays on live SQL; low-stock
+notifications are durable local stubs. Baselines suppress notifications until a
+new episode, and no event/receipt/history or Stream pruning runs. Retained storage
+growth is an operational limitation. External messaging, M9 deployment, M10 full
+tracing and M11 broader analytics remain deferred. The
+[freshness report](../milestone8/performance-milestone8.md) measures this local
+configuration separately from the UI's 15-second visible polling cadence.
 
 
 Business access resolves active organization membership and branch assignments

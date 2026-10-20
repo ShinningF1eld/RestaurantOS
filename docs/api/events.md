@@ -1,5 +1,11 @@
 # Domain event and delivery contracts
 
+Operational freshness is measured at committed consumer receipt visibility;
+event occurrence/recording and receipt timestamps are not commit timestamps.
+The [measurement procedure](../testing/event-freshness-benchmark.md) and
+[dated results](../milestone8/performance-milestone8.md) report the five-second
+healthy target without an outage guarantee. Existing HTTP contracts are unchanged.
+
 This contract defines the PostgreSQL outbox records introduced for Milestone 8
 Issues #31–#35, including Redis Streams transport and consumer orchestration. Events are immutable facts.
 Producers append an event and its fixed consumer delivery rows in the business
