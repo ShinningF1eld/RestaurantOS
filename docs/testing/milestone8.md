@@ -1,5 +1,12 @@
 # Milestone 8 regression map
 
+The worker database-pool follow-up adds `unit/test_worker_database.py` for bounded
+resources and disposal on normal/failed startup. Real PostgreSQL cases in
+`integration/test_worker_database.py` check connection reuse, clean transaction
+state, replacement of a terminated idle connection, disposal and independent
+event-loop invocations. Crash-boundary helper processes use the same worker pool
+factory, retaining the existing actual-effect, receipt, replay and fencing checks.
+
 The relay scheduling follow-up adds pure full/partial-batch draining, empty-queue
 waiting, transport/PostgreSQL/internal failure-backoff and stop-between-batches
 cases in `unit/test_event_worker.py`. Its real PostgreSQL/Redis case in

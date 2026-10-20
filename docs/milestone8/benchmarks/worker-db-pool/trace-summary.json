@@ -1,0 +1,472 @@
+{
+  "method": "Wall-clock structured log stage approximations; publication observation may follow consumer start. These are not commit-to-receipt measurements. Full benchmark bounds remain authoritative.",
+  "cells": {
+    "control-paced": {
+      "analytics": {
+        "outcomes": {
+          "unsubscribed_acknowledged": 280,
+          "consumer_committed": 80,
+          "durable_receipt_acknowledged": 80
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 80,
+            "p50_s": 1.0894,
+            "p95_s": 1.6373,
+            "max_s": 1.7028
+          },
+          "attempt_start_to_completion_log": {
+            "n": 80,
+            "p50_s": 0.2291,
+            "p95_s": 0.3554,
+            "max_s": 0.4268
+          }
+        }
+      },
+      "alerts": {
+        "outcomes": {
+          "unsubscribed_acknowledged": 320,
+          "consumer_committed": 80,
+          "durable_receipt_acknowledged": 40
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 80,
+            "p50_s": 1.2325,
+            "p95_s": 1.5965,
+            "max_s": 1.7634
+          },
+          "attempt_start_to_completion_log": {
+            "n": 80,
+            "p50_s": 0.2189,
+            "p95_s": 0.4192,
+            "max_s": 0.5451
+          }
+        }
+      },
+      "notification_sink": {
+        "outcomes": {
+          "consumer_committed": 280,
+          "durable_receipt_acknowledged": 119,
+          "unsubscribed_acknowledged": 40
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 280,
+            "p50_s": 18.7129,
+            "p95_s": 27.1841,
+            "max_s": 28.8057
+          },
+          "attempt_start_to_completion_log": {
+            "n": 280,
+            "p50_s": 0.133,
+            "p95_s": 0.3088,
+            "max_s": 0.433
+          }
+        }
+      }
+    },
+    "no-busy-paced": {
+      "alerts": {
+        "outcomes": {
+          "unsubscribed_acknowledged": 320,
+          "consumer_committed": 80,
+          "durable_receipt_acknowledged": 40
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 80,
+            "p50_s": 1.2384,
+            "p95_s": 1.6349,
+            "max_s": 1.7483
+          },
+          "attempt_start_to_completion_log": {
+            "n": 80,
+            "p50_s": 0.2145,
+            "p95_s": 0.3802,
+            "max_s": 0.4604
+          }
+        }
+      },
+      "analytics": {
+        "outcomes": {
+          "consumer_committed": 80,
+          "unsubscribed_acknowledged": 280,
+          "durable_receipt_acknowledged": 80
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 80,
+            "p50_s": 1.0231,
+            "p95_s": 1.6497,
+            "max_s": 1.8158
+          },
+          "attempt_start_to_completion_log": {
+            "n": 80,
+            "p50_s": 0.2116,
+            "p95_s": 0.3909,
+            "max_s": 0.5524
+          }
+        }
+      },
+      "notification_sink": {
+        "outcomes": {
+          "consumer_committed": 280,
+          "durable_receipt_acknowledged": 120,
+          "unsubscribed_acknowledged": 40
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 280,
+            "p50_s": 19.1983,
+            "p95_s": 27.3904,
+            "max_s": 29.0906
+          },
+          "attempt_start_to_completion_log": {
+            "n": 280,
+            "p50_s": 0.1368,
+            "p95_s": 0.318,
+            "max_s": 0.4911
+          }
+        }
+      }
+    },
+    "paced-1": {
+      "alerts": {
+        "outcomes": {
+          "unsubscribed_acknowledged": 320,
+          "consumer_committed": 80,
+          "durable_receipt_acknowledged": 40,
+          "delivery_missing_or_busy": 1
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 80,
+            "p50_s": 0.0699,
+            "p95_s": 0.1113,
+            "max_s": 0.1187
+          },
+          "attempt_start_to_completion_log": {
+            "n": 80,
+            "p50_s": 0.0218,
+            "p95_s": 0.0331,
+            "max_s": 0.0359
+          }
+        }
+      },
+      "analytics": {
+        "outcomes": {
+          "unsubscribed_acknowledged": 280,
+          "consumer_committed": 80,
+          "durable_receipt_acknowledged": 80,
+          "delivery_missing_or_busy": 5
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 80,
+            "p50_s": 0.0573,
+            "p95_s": 0.0993,
+            "max_s": 0.1136
+          },
+          "attempt_start_to_completion_log": {
+            "n": 80,
+            "p50_s": 0.0242,
+            "p95_s": 0.0478,
+            "max_s": 0.0643
+          }
+        }
+      },
+      "notification_sink": {
+        "outcomes": {
+          "consumer_committed": 280,
+          "durable_receipt_acknowledged": 120,
+          "unsubscribed_acknowledged": 40,
+          "delivery_missing_or_busy": 15
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 280,
+            "p50_s": 0.1225,
+            "p95_s": 0.1945,
+            "max_s": 0.2336
+          },
+          "attempt_start_to_completion_log": {
+            "n": 280,
+            "p50_s": 0.0161,
+            "p95_s": 0.0278,
+            "max_s": 0.0569
+          }
+        }
+      }
+    },
+    "paced-2": {
+      "analytics": {
+        "outcomes": {
+          "unsubscribed_acknowledged": 280,
+          "consumer_committed": 80,
+          "durable_receipt_acknowledged": 80,
+          "delivery_missing_or_busy": 9
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 80,
+            "p50_s": 0.0616,
+            "p95_s": 0.0975,
+            "max_s": 0.1275
+          },
+          "attempt_start_to_completion_log": {
+            "n": 80,
+            "p50_s": 0.0247,
+            "p95_s": 0.0372,
+            "max_s": 0.0557
+          }
+        }
+      },
+      "alerts": {
+        "outcomes": {
+          "unsubscribed_acknowledged": 320,
+          "consumer_committed": 80,
+          "durable_receipt_acknowledged": 40,
+          "delivery_missing_or_busy": 2
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 80,
+            "p50_s": 0.0713,
+            "p95_s": 0.1096,
+            "max_s": 0.1295
+          },
+          "attempt_start_to_completion_log": {
+            "n": 80,
+            "p50_s": 0.023,
+            "p95_s": 0.0341,
+            "max_s": 0.0394
+          }
+        }
+      },
+      "notification_sink": {
+        "outcomes": {
+          "consumer_committed": 280,
+          "durable_receipt_acknowledged": 120,
+          "unsubscribed_acknowledged": 40,
+          "delivery_missing_or_busy": 19
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 280,
+            "p50_s": 0.1305,
+            "p95_s": 0.2004,
+            "max_s": 0.2373
+          },
+          "attempt_start_to_completion_log": {
+            "n": 280,
+            "p50_s": 0.0163,
+            "p95_s": 0.028,
+            "max_s": 0.0575
+          }
+        }
+      }
+    },
+    "paced-3": {
+      "alerts": {
+        "outcomes": {
+          "unsubscribed_acknowledged": 320,
+          "consumer_committed": 80,
+          "durable_receipt_acknowledged": 40
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 80,
+            "p50_s": 0.0717,
+            "p95_s": 0.1089,
+            "max_s": 0.1382
+          },
+          "attempt_start_to_completion_log": {
+            "n": 80,
+            "p50_s": 0.0229,
+            "p95_s": 0.0348,
+            "max_s": 0.04
+          }
+        }
+      },
+      "analytics": {
+        "outcomes": {
+          "consumer_committed": 80,
+          "durable_receipt_acknowledged": 80,
+          "unsubscribed_acknowledged": 280,
+          "delivery_missing_or_busy": 5
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 80,
+            "p50_s": 0.054,
+            "p95_s": 0.0923,
+            "max_s": 0.1023
+          },
+          "attempt_start_to_completion_log": {
+            "n": 80,
+            "p50_s": 0.0234,
+            "p95_s": 0.0436,
+            "max_s": 0.0618
+          }
+        }
+      },
+      "notification_sink": {
+        "outcomes": {
+          "consumer_committed": 280,
+          "durable_receipt_acknowledged": 120,
+          "unsubscribed_acknowledged": 40,
+          "delivery_missing_or_busy": 22
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 280,
+            "p50_s": 0.1297,
+            "p95_s": 0.1957,
+            "max_s": 0.2334
+          },
+          "attempt_start_to_completion_log": {
+            "n": 280,
+            "p50_s": 0.0162,
+            "p95_s": 0.0267,
+            "max_s": 0.0543
+          }
+        }
+      }
+    },
+    "pressure": {
+      "analytics": {
+        "outcomes": {
+          "unsubscribed_acknowledged": 280,
+          "consumer_committed": 80,
+          "durable_receipt_acknowledged": 79
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 80,
+            "p50_s": 0.2732,
+            "p95_s": 0.4595,
+            "max_s": 0.5572
+          },
+          "attempt_start_to_completion_log": {
+            "n": 80,
+            "p50_s": 0.0274,
+            "p95_s": 0.0752,
+            "max_s": 0.1062
+          }
+        }
+      },
+      "alerts": {
+        "outcomes": {
+          "unsubscribed_acknowledged": 319,
+          "consumer_committed": 80,
+          "durable_receipt_acknowledged": 40,
+          "delivery_missing_or_busy": 2
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 80,
+            "p50_s": 0.2594,
+            "p95_s": 0.432,
+            "max_s": 0.5577
+          },
+          "attempt_start_to_completion_log": {
+            "n": 80,
+            "p50_s": 0.028,
+            "p95_s": 0.0791,
+            "max_s": 0.1065
+          }
+        }
+      },
+      "notification_sink": {
+        "outcomes": {
+          "consumer_committed": 280,
+          "durable_receipt_acknowledged": 119,
+          "unsubscribed_acknowledged": 40,
+          "delivery_missing_or_busy": 7
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 280,
+            "p50_s": 0.5204,
+            "p95_s": 0.8968,
+            "max_s": 1.0527
+          },
+          "attempt_start_to_completion_log": {
+            "n": 280,
+            "p50_s": 0.0159,
+            "p95_s": 0.0637,
+            "max_s": 0.0939
+          }
+        }
+      }
+    },
+    "light": {
+      "alerts": {
+        "outcomes": {
+          "unsubscribed_acknowledged": 160,
+          "consumer_committed": 40,
+          "durable_receipt_acknowledged": 20
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 40,
+            "p50_s": 0.0738,
+            "p95_s": 0.1135,
+            "max_s": 0.1176
+          },
+          "attempt_start_to_completion_log": {
+            "n": 40,
+            "p50_s": 0.0233,
+            "p95_s": 0.0377,
+            "max_s": 0.0422
+          }
+        }
+      },
+      "analytics": {
+        "outcomes": {
+          "consumer_committed": 40,
+          "unsubscribed_acknowledged": 140,
+          "durable_receipt_acknowledged": 40,
+          "delivery_missing_or_busy": 8
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 40,
+            "p50_s": 0.0572,
+            "p95_s": 0.1004,
+            "max_s": 0.1033
+          },
+          "attempt_start_to_completion_log": {
+            "n": 40,
+            "p50_s": 0.0241,
+            "p95_s": 0.035,
+            "max_s": 0.045
+          }
+        }
+      },
+      "notification_sink": {
+        "outcomes": {
+          "consumer_committed": 140,
+          "durable_receipt_acknowledged": 60,
+          "unsubscribed_acknowledged": 20,
+          "delivery_missing_or_busy": 11
+        },
+        "stages": {
+          "publication_observation_to_attempt_start": {
+            "n": 140,
+            "p50_s": 0.1336,
+            "p95_s": 0.1993,
+            "max_s": 0.2406
+          },
+          "attempt_start_to_completion_log": {
+            "n": 140,
+            "p50_s": 0.0168,
+            "p95_s": 0.028,
+            "max_s": 0.0473
+          }
+        }
+      }
+    }
+  }
+}

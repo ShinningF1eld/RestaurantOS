@@ -85,6 +85,13 @@ these results do not establish consistent five-second freshness or deployment
 capacity. All ten full local gates passed; final PR CI and M8 acceptance remain
 open. See the [issue #41 review](docs/milestone8/verification-milestone8-issue41.md).
 
+The [2026-10-20 worker-pool follow-up](docs/milestone8/performance-milestone8-worker-db-pool.md)
+meets five seconds for all 1,980 measured effects (maximum 2.009s) with the same
+workload. It removes a test-mode connection penalty; normal-mode workers already
+pooled connections, so this does not establish equivalent production speedup.
+See its [verification](docs/milestone8/verification-milestone8-worker-db-pool.md)
+for current gates and remaining acceptance boundaries.
+
 ## Prerequisites
 
 - Python 3.12 (the supported documentation and CI version)

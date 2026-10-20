@@ -1,5 +1,12 @@
 # Cloud handoff: finish Milestone 8 worker freshness
 
+Continuation note, 2026-10-20: the user cancelled cloud transfer and continued
+locally. Both preserved checkpoint CI runs passed. The busy-removal control and
+bounded worker-pool follow-up are now recorded in
+[the local comparison](performance-milestone8-worker-db-pool.md) and
+[verification](verification-milestone8-worker-db-pool.md). Use those newer results
+before repeating the historical plan below; final PR CI/M8 acceptance remain open.
+
 Prepared 2026-10-19 (Asia/Bangkok). The user is shutting down the local PC and
 wants this work continued in cloud mode. Everything needed to reproduce the
 workload is in Git; do not depend on local Docker Desktop, local databases,

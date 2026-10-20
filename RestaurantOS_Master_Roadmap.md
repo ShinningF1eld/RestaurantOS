@@ -919,6 +919,15 @@ rehearsals are retained. No application cutover or commit/push; final complete P
 CI remains untested, so M8 acceptance stays open. Storage pruning, external
 messaging, deployment, full tracing and broader analytics remain deferred.
 
+Local worker-pool follow-up (2026-10-20): the same five benchmark cells complete
+1,980 correct effects with zero five-second exceedances, maximum 2.009s. Fresh
+relay and busy-removal controls both reproduce the sink backlog. A bounded pool
+per worker invocation removes the test-only per-transaction connection penalty;
+normal-mode workers already pooled connections. No equal production speedup,
+deployment capacity, application cutover or M8 completion is claimed. See the
+[comparison](docs/milestone8/performance-milestone8-worker-db-pool.md) and
+[current verification](docs/milestone8/verification-milestone8-worker-db-pool.md).
+
 ### Recommended evolution
 
 1. PostgreSQL transactional outbox as the source of publishable events.

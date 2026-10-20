@@ -1,5 +1,13 @@
 # Event processing freshness measurement
 
+The worker database-pool follow-up retains the same five commands and workload.
+The standalone worker now owns a bounded pool even in `ENVIRONMENT=test`; the
+HTTP test adapter still uses `NullPool` to support independent TestClient loops.
+Earlier measurements therefore include per-transaction connection establishment
+that normal-mode workers did not incur. Compare these results as a worker
+resource-lifecycle correction, not as proof of an equal production speedup.
+See [the pool comparison](../milestone8/performance-milestone8-worker-db-pool.md).
+
 The [first busy-reference follow-up](../milestone8/performance-milestone8-busy-retry.md)
 repeats all five commands below with only output paths changed. Original raw cells
 remain intact; the comparison retains source fingerprints, unchanged settings,

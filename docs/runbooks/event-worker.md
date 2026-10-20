@@ -42,6 +42,15 @@ on it. Startup performs no migration and does not require Redis to be reachable
 before the process is launched. Logs use the application's structured JSON
 format and never include the Redis URL, payload, or raw driver exception.
 
+Each `run_worker` invocation also owns a PostgreSQL connection pool on its own
+event loop, disposed on exit. Its maximum is
+`4 + EVENT_WORKER_RELAY_CONCURRENCY` (six by default), with no overflow and a
+five-second checkout timeout. Three serial consumer loops, publication
+observations and the recovery scan share this bound. Idle connections are checked
+before reuse; failed checkouts follow the existing infrastructure retry policy.
+Account for this per-process maximum when budgeting database connections across
+workers. The API's test-only `NullPool` and production pool are unchanged.
+
 Send Ctrl+C/SIGINT or SIGTERM for graceful shutdown. New loop iterations stop,
 in-flight tasks receive up to `EVENT_WORKER_SHUTDOWN_GRACE_SECONDS` (10 seconds
 by default), and remaining tasks are cancelled. If the process is forcibly

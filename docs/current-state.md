@@ -1,5 +1,29 @@
 # RestaurantOS current state
 
+## Milestone 8 local continuation: worker database pool
+
+On 2026-10-20 the user continued locally. Both preserved pushed checkpoint heads
+were unchanged and passed all ten CI gates plus `Milestone 6 acceptance`.
+The `codex/m8-worker-db-pool` follow-up gives each standalone worker
+invocation its own bounded PostgreSQL pool: six connections by default, no
+overflow, five-second checkout timeout, pre-ping and disposal on exit. API pooling,
+business/handler/transaction/retry/fencing/schema/API/UI behavior is unchanged.
+
+Fresh relay and relay-without-busy-revisits controls reproduced sink P95
+28.226s/28.780s. The unchanged five-cell benchmark with worker pooling completed
+1,980 correct effects, zero five-second exceedances and a worst bound of 2.009s.
+Pooled paced P95 is 1.639s analytics / 1.614s alerts / 1.687s sink; pressure is
+1.655/1.674/1.794s. This removes a test-mode `NullPool` connection penalty;
+normal-mode workers already pooled connections, so equivalent production speedup
+or deployment capacity is not established. See [measurements](milestone8/performance-milestone8-worker-db-pool.md)
+and [current gate/review evidence](milestone8/verification-milestone8-worker-db-pool.md).
+The complete locked-install ten-gate command passed: 312 unit, 339 integration,
+10 client, 19 component and 29 Chromium tests, plus static/build, migrations,
+intentional-failure cleanup and runtime-image checks. The user subsequently
+authorized committing and merging the stacked branches into main. New-source
+PR CI must pass before merging; publication checks are recorded in the branch PR.
+No application migration, deployment or M8 completion is claimed.
+
 ## Milestone 8 relay scheduling experiment and cloud handoff
 
 On 2026-10-19 the busy-reference work was committed/pushed as `b9b6931` on
@@ -20,7 +44,8 @@ All ten local gates have passing evidence across an initial locked-install run
 and unchanged retry: 307 unit, 337 integration, 10 client, 19 component, 29 browser
 cases plus static/build/migrations/cleanup/image checks. The first run failed one
 existing auth bucket assertion; it passed unchanged on retry, with exact cause
-unverified. New-branch CI remains to be checked. No application DB operation,
+unverified. Both checkpoint CI runs were confirmed passing on 2026-10-20;
+see the newer local continuation above. No application DB operation,
 deployment, merge or M8 completion is claimed. Follow the structured
 [cloud handoff](milestone8/cloud-handoff-worker-freshness.md) and
 [verification](milestone8/verification-milestone8-relay-drain.md).
