@@ -15,7 +15,10 @@ and account disable effective on subsequent requests without waiting for JWT
 expiry. An already authorized operation can still finish.
 
 Use host-only HttpOnly SameSite=Lax cookies: `ros_access` at `/`, `ros_refresh`
-at `/auth`, both Secure in production. No token enters JavaScript storage or
+at `/auth` by default, both Secure in production. A gateway that strips a public
+`/backend` prefix requires `AUTH_REFRESH_COOKIE_PATH=/backend/auth` for issuance
+and deletion; backend routes remain `/auth`. The setting permits safe path
+segments ending in `/auth`, never the root path. No token enters JavaScript storage or
 response JSON. All unsafe requests require a trusted Origin and
 `X-CSRF-Protection: 1`. Credentialed CORS allowlists exact origins.
 

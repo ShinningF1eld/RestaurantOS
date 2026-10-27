@@ -59,3 +59,45 @@ def test_production_accepts_secure_exact_origin(unit_settings_kwargs):
     assert settings.auth_cookie_secure
     assert settings.auth_jwt_secret.get_secret_value() not in repr(settings)
     assert settings.auth_rate_limit_secret.get_secret_value() not in repr(settings)
+
+
+def test_refresh_cookie_path_defaults_to_local_auth(monkeypatch, unit_settings_kwargs):
+    monkeypatch.delenv("AUTH_REFRESH_COOKIE_PATH", raising=False)
+    assert (
+        Settings(_env_file=None, **unit_settings_kwargs).auth_refresh_cookie_path
+        == "/auth"
+    )
+
+
+@pytest.mark.parametrize("path", ["/auth", "/backend/auth", "/gateway-v1/api_2/auth"])
+def test_refresh_cookie_path_loads_from_environment(
+    monkeypatch, unit_settings_kwargs, path
+):
+    monkeypatch.setenv("AUTH_REFRESH_COOKIE_PATH", path)
+    assert (
+        Settings(_env_file=None, **unit_settings_kwargs).auth_refresh_cookie_path
+        == path
+    )
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "",
+        "/",
+        "auth",
+        "//auth",
+        "/backend/../auth",
+        "/backend/auth/",
+        "/backend/auth?x=1",
+        "/backend/auth#fragment",
+        "/backend/auth; Secure",
+        "/backend/%61uth",
+        "/backend/ auth",
+        "/backend/auth\r\nX-Test: yes",
+        "https://example.test/auth",
+    ],
+)
+def test_unsafe_refresh_cookie_paths_are_rejected(unit_settings_kwargs, path):
+    with pytest.raises(ValidationError, match="Refresh cookie path"):
+        Settings(_env_file=None, **unit_settings_kwargs, auth_refresh_cookie_path=path)

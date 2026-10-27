@@ -46,6 +46,7 @@ class TestDatabase:
                 "TEST_DATABASE_URL": self.async_url,
                 "ENVIRONMENT": "test",
                 "AUTH_COOKIE_SECURE": "false",
+                "AUTH_REFRESH_COOKIE_PATH": "/auth",
                 "AUTH_TRUSTED_ORIGINS": '["http://localhost:3000"]',
                 "AUTH_JWT_SECRET": jwt_secret,
                 "AUTH_RATE_LIMIT_SECRET": rate_limit_secret,

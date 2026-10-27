@@ -38,6 +38,14 @@ each at least 32 bytes generated from a secure source. Never reuse example value
 `AUTH_TRUSTED_ORIGINS` is a JSON list of exact browser origins.
 `AUTH_COOKIE_SECURE=true` is mandatory in production.
 
+`AUTH_REFRESH_COOKIE_PATH` defaults to `/auth`. Behind a same-origin gateway
+stripping `/backend`, set it to `/backend/auth`, build the frontend with
+`NEXT_PUBLIC_API_URL=/backend`, and supply its private `API_URL` at runtime.
+Issuance and deletion use the same browser-visible path. Change this setting
+as a controlled routing cutover: cookies previously issued at another path are
+not removed by deletion at the new path and users may need to sign in again.
+This configuration alone does not establish a verified HTTPS gateway deployment.
+
 Defaults: `AUTH_ACCESS_SECONDS=600`, `AUTH_SESSION_SECONDS=604800`;
 `AUTH_LOGIN_EMAIL_LIMIT=5`, `AUTH_LOGIN_IP_LIMIT=30`,
 `AUTH_LOGIN_WINDOW_SECONDS=60`, `AUTH_LOGIN_IP_WINDOW_SECONDS=900`;

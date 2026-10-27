@@ -1,5 +1,37 @@
 # RestaurantOS current state
 
+## Milestone 9 S1 routing preparation (partial)
+
+On 2026-10-27, the first routing preparation change adds validated
+`AUTH_REFRESH_COOKIE_PATH` (default `/auth`, `/backend/auth` for a gateway
+stripping `/backend`). Cookie issuance, rotation, logout and invalid-refresh
+cleanup share this path. Backend routes, session rules and schema are unchanged.
+The homepage no longer probes localhost or displays API availability; it contains
+static workspace text. Existing SSR access-cookie-only/no-store behavior remains.
+Environment examples, the auth contract, ADR 0003 and runbook describe configuration
+and cookie-path cutover limits. Disposable tests explicitly retain `/auth`.
+
+Backend static checks, 329 unit tests, frontend static checks, component/client
+tests and the production frontend build passed using installed dependencies
+(locked installation was omitted). Commands and limits:
+
+- `./scripts/validate.ps1 -Gate backend-static,backend-unit,frontend-static,frontend-tests,frontend-build -NoInstall`:
+  backend-static passed, then stopped during the stalled unit run.
+- `./scripts/validate.ps1 -Gate frontend-static,frontend-tests,frontend-build -NoInstall`:
+  static/tests passed; the isolated build failed within the sandbox.
+- `./scripts/validate.ps1 -Gate backend-unit,frontend-build -NoInstall` outside
+  the sandbox: both passed (329 unit tests and production build).
+- `./scripts/validate.ps1 -Gate backend-integration,browser -NoInstall`:
+  failed before tests started because Docker was unavailable.
+- Changed Python files passed Ruff lint/format; `git diff --check` passed.
+
+The Windows sandbox stalled creating an
+asyncio socket pair; the backend-unit gate passed outside it. Integration/browser
+validation could not start because the Docker Linux engine pipe was unavailable,
+including outside the sandbox. New HTTP cookie regressions are therefore unverified.
+No application database migration, provisioning, deployment or S1 completion is
+claimed; the HTTPS gateway/browser and ARM evidence remain later S1 work.
+
 ## Milestone 8 local continuation: worker database pool
 
 On 2026-10-20 the user continued locally. Both preserved pushed checkpoint heads

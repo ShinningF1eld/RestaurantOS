@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     auth_cookie_secure: bool = Field(
         default=False, validation_alias="AUTH_COOKIE_SECURE"
     )
+    auth_refresh_cookie_path: str = Field(
+        default="/auth", validation_alias="AUTH_REFRESH_COOKIE_PATH"
+    )
     auth_jwt_issuer: str = "restaurantos"
     auth_jwt_audience: str = "restaurantos-browser"
     auth_access_seconds: int = Field(default=600, gt=0)
@@ -148,6 +151,17 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_log_level(cls, value: object) -> object:
         return value.upper() if isinstance(value, str) else value
+
+    @field_validator("auth_refresh_cookie_path")
+    @classmethod
+    def validate_refresh_cookie_path(cls, value: str) -> str:
+        import re
+
+        if not re.fullmatch(r"(?:/[A-Za-z0-9_-]+)*/auth", value):
+            raise ValueError(
+                "Refresh cookie path must be /auth or a gateway prefix ending in /auth"
+            )
+        return value
 
     @field_validator("environment", mode="before")
     @classmethod

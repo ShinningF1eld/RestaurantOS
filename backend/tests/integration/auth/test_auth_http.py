@@ -657,23 +657,72 @@ def test_successful_logins_do_not_consume_failure_quota(auth_user):
     assert scalar("SELECT count(*) FROM auth_rate_limit_buckets") == 0
 
 
-def test_secure_cookie_flags_and_matching_logout_deletion(monkeypatch, auth_user):
+@pytest.mark.parametrize("path", ["/auth", "/backend/auth"])
+def test_secure_cookie_flags_and_matching_logout_deletion(monkeypatch, auth_user, path):
     monkeypatch.setattr(get_settings(), "auth_cookie_secure", True)
+    monkeypatch.setattr(get_settings(), "auth_refresh_cookie_path", path)
     with TestClient(app, base_url="https://testserver") as client:
         response = login(client, auth_user)
         assert response.status_code == 200
         for value in response.headers.get_list("set-cookie"):
             assert "Secure" in value and "HttpOnly" in value and "SameSite=lax" in value
-        logout = client.post("/auth/logout", headers=HEADERS)
+        # Simulate the gateway's stripped backend request. Browser path matching
+        # through the real HTTPS gateway is verified separately in S1.
+        token = client.cookies.get("ros_refresh")
+        issued = next(
+            value
+            for value in response.headers.get_list("set-cookie")
+            if value.startswith("ros_refresh=")
+        )
+        assert f"Path={path}" in issued
+        rotated = client.post(
+            "/auth/refresh", headers={**HEADERS, "Cookie": f"ros_refresh={token}"}
+        )
+        assert rotated.status_code == 200
+        refreshed = next(
+            value
+            for value in rotated.headers.get_list("set-cookie")
+            if value.startswith("ros_refresh=")
+        )
+        assert f"Path={path}" in refreshed
+        assert client.cookies.get("ros_refresh") != token
+        token = client.cookies.get("ros_refresh")
+        logout = client.post(
+            "/auth/logout", headers={**HEADERS, "Cookie": f"ros_refresh={token}"}
+        )
         assert logout.status_code == 204
-        for name, path in [("ros_access", "/"), ("ros_refresh", "/auth")]:
+        for name, cookie_path in [("ros_access", "/"), ("ros_refresh", path)]:
             cookie = next(
                 value
                 for value in logout.headers.get_list("set-cookie")
                 if value.startswith(name + "=")
             )
-            assert "Max-Age=0" in cookie and "Path=" + path in cookie
+            assert "Max-Age=0" in cookie and "Path=" + cookie_path in cookie
             assert "Secure" in cookie and "HttpOnly" in cookie
+        assert (
+            scalar("SELECT count(*) FROM auth_sessions WHERE revoked_at IS NULL") == 0
+        )
+
+
+@pytest.mark.parametrize("path", ["/auth", "/backend/auth"])
+def test_invalid_refresh_clears_configured_cookie_path(monkeypatch, path):
+    monkeypatch.setattr(get_settings(), "auth_cookie_secure", True)
+    monkeypatch.setattr(get_settings(), "auth_refresh_cookie_path", path)
+    with TestClient(app, base_url="https://testserver") as client:
+        response = client.post(
+            "/auth/refresh",
+            headers={**HEADERS, "Cookie": "ros_refresh=unknown-token"},
+        )
+    assert response.status_code == 401
+    for name, cookie_path in [("ros_access", "/"), ("ros_refresh", path)]:
+        cookie = next(
+            value
+            for value in response.headers.get_list("set-cookie")
+            if value.startswith(name + "=")
+        )
+        assert f"Path={cookie_path}" in cookie and "Max-Age=0" in cookie
+        assert "Secure" in cookie and "HttpOnly" in cookie
+        assert "SameSite=lax" in cookie and "Domain=" not in cookie
 
 
 def test_auth_password_and_tokens_are_absent_from_logs(auth_user, caplog):

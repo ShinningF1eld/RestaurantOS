@@ -86,6 +86,7 @@ def pytest_configure(config: pytest.Config) -> None:
     os.environ["AUTH_RATE_LIMIT_SECRET"] = secrets.token_urlsafe(48)
     os.environ["AUTH_TRUSTED_ORIGINS"] = '["http://localhost:3000"]'
     os.environ["AUTH_COOKIE_SECURE"] = "false"
+    os.environ["AUTH_REFRESH_COOKIE_PATH"] = "/auth"
     os.environ.update(
         AUTH_LOGIN_EMAIL_LIMIT="5",
         AUTH_LOGIN_IP_LIMIT="30",

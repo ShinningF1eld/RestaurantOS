@@ -1,26 +1,6 @@
 import Link from "next/link";
 
-export const dynamic = "force-dynamic";
-
-async function getData() {
-  try {
-    const response = await fetch("http://localhost:8000/api/test");
-
-    if (!response.ok) {
-      throw new Error("Failed to Fetch API");
-    }
-
-    return response.json();
-  } catch {
-    return {
-      message: "Backend API offline",
-    };
-  }
-}
-
-export default async function Home() {
-  const data = await getData();
-
+export default function Home() {
   return (
     <main className="min-h-screen bg-stone-50 px-6 py-8 text-slate-950">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col">
@@ -42,7 +22,7 @@ export default async function Home() {
 
         <section className="grid flex-1 items-center gap-8 py-12 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
-            <p className="text-sm font-medium text-emerald-700">API status: {data.message}</p>
+            <p className="text-sm font-medium text-emerald-700">Your restaurant workspace</p>
 
             <h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
               Run service, tables, menus, stock, and staff from one quiet command center.
