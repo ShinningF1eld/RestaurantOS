@@ -1,10 +1,21 @@
-# Backend production image
+# Production application images
 
-`backend/Dockerfile` builds the API from Python 3.12 and installs only the
-hash-locked runtime set in `backend/requirements.txt`. It copies the application
+`backend/Dockerfile` uses dependency/runtime stages on the same pinned Python 3.12
+base. It installs binary wheels from the hash-locked `backend/requirements.txt`,
+without bytecode, into a prefix copied to the runtime. Missing platform wheels
+fail the build rather than resolving new versions or compiling source packages.
+It copies the application
 and Alembic migration files, runs as UID/GID 10001, and starts Uvicorn directly.
-The image has an HTTP `/health` check. Its startup command does not run Alembic;
+The API explicitly uses `--no-proxy-headers` and has an HTTP `/health` check.
+Its startup command does not run Alembic;
 database migrations remain an explicit operation.
+
+API and worker must use the exact same built image ID/digest. The worker command
+is `python -m app.worker`; override the API healthcheck with `--no-healthcheck`
+(Compose `healthcheck: { disable: true }`) for that container. This is not a
+worker-progress health signal. The image checker imports the real worker
+entrypoint without configuration or services to verify packaging; durable worker
+progress and shutdown are exercised through the later S1 stack.
 
 `backend/.dockerignore` excludes environment files, local keys, virtual
 environments, test and development dependency files, tests, caches, coverage,
@@ -67,3 +78,62 @@ rerun the image smoke check. An example manual build is:
 ```powershell
 docker build --pull --tag restaurantos-backend:m6 --file backend/Dockerfile backend
 ```
+
+## Standalone frontend image
+
+`frontend/Dockerfile` has dependency, builder and runtime stages on a pinned
+official Node 24 Debian slim image. `npm ci` installs the committed lock without
+version resolution. Next.js standalone output supplies the server and traced
+dependencies; `.next/static` and `public` are explicitly copied. The runtime runs
+as the base image's `node` user, starts `node server.js` on port 3000, and defines
+a homepage liveness check. It does not require the API to render that page.
+The server cache directory is writable by `node`; the smoke test uses a read-only
+root filesystem because the tested pages need no runtime disk cache.
+
+The builder fixes `NEXT_PUBLIC_API_URL=/backend`; browser URLs are embedded at
+build time. Supply private `API_URL=http://api:8000` at runtime in the later stack.
+Do not supply credentials or private API origins as build args. Changing a runtime
+public variable cannot reconfigure built browser bundles. The same image can be
+promoted between environments using `/backend` routing. Ordinary host development
+builds still use their local environment examples.
+
+The frontend `.dockerignore` excludes local dependencies/output, tests, environment
+files, npm credential configuration, keys and diagnostics. Neither image copies
+the developer's local environment file. Backend secrets remain runtime-supplied.
+
+```powershell
+docker build --pull --tag restaurantos-frontend:m9 --file frontend/Dockerfile frontend
+backend/.venv/Scripts/python.exe scripts/check-frontend-image.py
+```
+
+The frontend checker builds and inspects the image, verifies Node 24/non-root
+execution, standalone/public/static assets, the `/backend` browser bundle prefix,
+and absence of private files and development tooling in the runtime. It starts
+a restricted container on a random loopback port with an intentionally unavailable
+runtime API, verifies homepage/login/public assets and linked static assets, and
+executes the health command. Cleanup removes only its uniquely named container
+and verifies removal, including with `--inject-failure-after healthy`.
+It never connects to the application database. These are packaging/liveness
+checks, not HTTPS/authentication/SSR tenant-isolation proofs.
+
+The shared `image` gate now requires **both** checkers; its name and ten-gate
+aggregate remain unchanged. Unit policy tests verify both are mandatory and
+failure propagates. Real new-head CI and hosted acceptance remain separate
+evidence. Backend-static also checks the image scripts themselves.
+
+## Platform verification
+
+Both checkers print image ID, OS/architecture and byte size, and accept
+`--platform linux/amd64` or `--platform linux/arm64` for explicit build/run checks:
+
+```powershell
+backend/.venv/Scripts/python.exe scripts/check-backend-image.py --platform linux/arm64
+backend/.venv/Scripts/python.exe scripts/check-frontend-image.py --platform linux/arm64
+```
+
+The backend command requires the disposable PostgreSQL setup described above.
+Run on an ARM64 Docker host for native evidence; Docker Desktop emulation can
+test packaging but does not establish native ARM performance or OCI capacity.
+Base manifest support alone is not application runtime proof. Images are built
+locally, never pushed. No image-size reduction is claimed without measurements;
+multi-stage packaging separates build contents.

@@ -111,13 +111,14 @@ def redact(value: str, secrets_to_hide: Sequence[str]) -> str:
     return result.strip()
 
 
-def build_image(image: str) -> None:
+def build_image(image: str, platform: str | None = None) -> None:
     print(f"Building backend image {image}", flush=True)
     result = subprocess.run(
         [
             "docker",
             "build",
             "--pull",
+            *(["--platform", platform] if platform else []),
             "--tag",
             image,
             "--file",
@@ -139,7 +140,21 @@ def build_image(image: str) -> None:
     print(f"Built backend image {image}", flush=True)
 
 
-def inspect_image(image: str) -> None:
+def inspect_image(image: str, platform: str | None = None) -> None:
+    metadata = json.loads(
+        run_docker(
+            ["image", "inspect", image], description="image metadata inspection"
+        ).stdout
+    )[0]
+    actual_platform = f"{metadata['Os']}/{metadata['Architecture']}"
+    if platform and actual_platform != platform:
+        raise ImageCheckError(f"Expected {platform}, received {actual_platform}")
+    if "--no-proxy-headers" not in metadata["Config"]["Cmd"]:
+        raise ImageCheckError("API must disable Uvicorn proxy-header rewriting")
+    print(
+        f"Backend {metadata['Id']}: {actual_platform}, {metadata['Size']} bytes",
+        flush=True,
+    )
     runtime_version = run_docker(
         [
             "run",
@@ -231,6 +246,21 @@ def inspect_image(image: str) -> None:
             "check",
         ],
         description="runtime dependency check",
+    )
+    run_docker(
+        [
+            "run",
+            "--rm",
+            "--network",
+            "none",
+            "--no-healthcheck",
+            "--entrypoint",
+            "python",
+            image,
+            "-c",
+            "from app.worker import main; assert callable(main)",
+        ],
+        description="worker entrypoint import check (not worker progress)",
     )
     print(
         f"PASS: {image} uses {configured_user}, has no baked runtime secrets, and contains only runtime files",
@@ -579,6 +609,7 @@ def run_smoke(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--platform", choices=("linux/amd64", "linux/arm64"))
     parser.add_argument(
         "--image",
         default=DEFAULT_IMAGE,
@@ -615,8 +646,8 @@ def main() -> int:
             if args.postgres_container
             else None
         )
-        build_image(args.image)
-        inspect_image(args.image)
+        build_image(args.image, args.platform)
+        inspect_image(args.image, args.platform)
         run_smoke(
             args.image,
             args.timeout,

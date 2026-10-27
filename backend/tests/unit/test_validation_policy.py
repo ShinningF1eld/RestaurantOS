@@ -197,3 +197,56 @@ def test_browser_gate_requires_workflow_and_cleanup_probe(monkeypatch):
     runner.gate("browser", env)
     assert run.call_args.args[1] == "scripts/run-browser-tests.py"
     probe.assert_called_once_with(env)
+
+
+@pytest.mark.parametrize(
+    "failed_script", [None, "check-backend-image.py", "check-frontend-image.py"]
+)
+def test_image_gate_requires_both_images_and_propagates_failure(
+    monkeypatch, failed_script
+):
+    runner = load_runner(monkeypatch, "scripts/validate.py")
+    calls = []
+
+    def run(*args, **kwargs):
+        calls.append(args[1])
+        if failed_script and args[1].endswith(failed_script):
+            raise subprocess.CalledProcessError(1, args)
+
+    monkeypatch.setattr(runner, "run", run)
+    if failed_script:
+        with pytest.raises(subprocess.CalledProcessError):
+            runner.gate("image", {})
+    else:
+        runner.gate("image", {})
+    assert calls[0] == "scripts/check-backend-image.py"
+    if failed_script != "check-backend-image.py":
+        assert calls == [
+            "scripts/check-backend-image.py",
+            "scripts/check-frontend-image.py",
+        ]
+
+
+@pytest.mark.parametrize("leaked", [False, True])
+def test_frontend_smoke_failure_cleans_only_owned_container(monkeypatch, leaked):
+    runner = load_runner(monkeypatch, "scripts/check-frontend-image.py")
+    calls = []
+
+    def docker(*args, **kwargs):
+        calls.append(args)
+        output = ""
+        if args[0] == "port":
+            output = "127.0.0.1:32100"
+        elif args[0] == "ps" and leaked:
+            output = "leaked-container"
+        return subprocess.CompletedProcess(args, 0, stdout=output)
+
+    monkeypatch.setattr(runner, "docker", docker)
+    monkeypatch.setattr(runner, "fetch", lambda *_: b"unexpected homepage")
+    expected = "cleanup failed" if leaked else "homepage did not render"
+    with pytest.raises(RuntimeError, match=expected):
+        runner.smoke("test-image", 1, False)
+    name = calls[0][calls[0].index("--name") + 1]
+    assert name.startswith("restaurantos-frontend-image-")
+    assert ("rm", "--force", name) in calls
+    assert calls[-1] == ("ps", "-aq", "--filter", f"name=^/{name}$")

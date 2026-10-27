@@ -99,9 +99,10 @@
   project names and random ports. Redis currently validates infrastructure;
   application rate limits remain PostgreSQL-backed. Caching belongs to Milestone
   7; workers/events to Milestone 8. Do not add speculative infrastructure.
-- `backend/Dockerfile` is a nonroot runtime image using locked dependencies and
-  runtime-supplied configuration; startup does not migrate. There is no frontend
-  Dockerfile or deployed environment. `/health` is liveness, not DB readiness.
+- `backend/Dockerfile` is a multi-stage nonroot runtime image using locked
+  dependencies and runtime-supplied configuration; startup does not migrate.
+  `frontend/Dockerfile` packages nonroot Next.js standalone output. There is no
+  deployed environment. `/health` is liveness, not DB readiness.
 - Install committed locks: Python `pip install --require-hashes -r
   backend/requirements-dev.txt`, frontend `npm ci`. Dependency changes update
   source `.in` files and generated locks together using

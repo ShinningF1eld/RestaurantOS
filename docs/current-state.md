@@ -1,5 +1,31 @@
 # RestaurantOS current state
 
+## Milestone 9 S1 image preparation
+
+On 2026-10-27, routing preparation was committed as `2fcca62`, followed by local
+image packaging. Backend/API and worker share a multi-stage pinned Python 3.12
+image with locked binary dependencies; API startup explicitly disables Uvicorn
+proxy rewriting. A pinned Node 24 frontend image packages Next.js standalone
+output, public/static assets, fixed browser `/backend` routing and runtime-only
+private API configuration. Both run non-root and never migrate at startup.
+The shared image gate now requires both images without changing its name or
+the required aggregate. Worker execution requires the documented command and
+disabled API healthcheck; import inspection alone does not prove worker progress.
+
+Docker Desktop was started for current disposable checks, superseding the earlier
+unavailable-engine limitation below. See the [packaging verification](milestone9/verification-milestone9-packaging.md)
+for exact commands, architecture evidence, results and omissions. No schema,
+dependency or business/API-route change is introduced by packaging. Compose/TLS,
+hosted security, native ARM capacity and remaining M9 acceptance are unverified;
+no deployment, application migration or milestone completion is claimed.
+
+Current partial checks passed baseline, backend/frontend static checks, 334 unit,
+342 integration and 29 Chromium workflows, frontend component/client suites,
+standalone production build, AMD64 image checks, ARM64 image checks under
+emulation, and intentional frontend/browser failure cleanup. This also verifies
+the earlier routing-preparation HTTP regressions. Locked installation and the
+dedicated migration gate were omitted; native ARM and new-head CI were not run.
+
 ## Milestone 9 S1 routing preparation (partial)
 
 On 2026-10-27, the first routing preparation change adds validated

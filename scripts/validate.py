@@ -178,6 +178,8 @@ def gate(name, env):
             "scripts/run-browser-tests.py",
             "scripts/test_support/processes.py",
             "scripts/benchmark-event-freshness.py",
+            "scripts/check-backend-image.py",
+            "scripts/check-frontend-image.py",
         ]
         run(python, "-m", "ruff", "check", "--target-version", "py312", *harness)
         run(python, "-m", "ruff", "format", "--check", *harness)
@@ -233,6 +235,7 @@ def gate(name, env):
         if env.get("TEST_POSTGRES_CONTAINER"):
             arguments = ["--postgres-container", env["TEST_POSTGRES_CONTAINER"]]
         run(python, "scripts/check-backend-image.py", *arguments, env=env)
+        run(python, "scripts/check-frontend-image.py", env=env)
 
 
 def main():

@@ -235,6 +235,14 @@ The dated [Milestone 6 verification](docs/milestone6/milestone-6-verification.md
 execution and the [required-check policy](docs/testing/enforcement.md) with actual
 GitHub PR evidence.
 
+## Production image preparation
+
+Backend/API and worker share a multi-stage Python 3.12 image. The frontend has
+a Node 24 standalone image built with browser API base `/backend`; its private
+`API_URL` is supplied at runtime. See [image checks](docs/testing/image.md) for
+build commands, worker command/healthcheck overrides and platform verification.
+Image preparation does not configure a gateway or establish a deployed environment.
+
 ## Shutdown
 
 Stop containers without deleting the database volume:
