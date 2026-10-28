@@ -243,6 +243,12 @@ a Node 24 standalone image built with browser API base `/backend`; its private
 build commands, worker command/healthcheck overrides and platform verification.
 Image preparation does not configure a gateway or establish a deployed environment.
 
+The isolated [local HTTPS rehearsal](docs/runbooks/local-gateway.md) now connects
+the six containers with Caddy, private service networks, separate synthetic data
+and persistent PostgreSQL/certificate volumes. Use `scripts/local-gateway.py` for
+explicit initialization, build, migration, startup, verification and shutdown.
+It is local S1 evidence, not a public deployment or full M9 acceptance.
+
 ## Shutdown
 
 Stop containers without deleting the database volume:

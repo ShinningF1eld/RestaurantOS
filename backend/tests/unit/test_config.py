@@ -4,6 +4,22 @@ from pydantic import ValidationError
 from app.core.config import Settings
 
 
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"database_pool_size": 0},
+        {"database_max_overflow": -1},
+        {"database_pool_timeout_seconds": 0},
+        {"database_pool_size": 1000},
+    ],
+)
+def test_database_pool_limits_reject_unbounded_configuration(
+    unit_settings_kwargs, change
+):
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **unit_settings_kwargs, **change)
+
+
 def test_settings_requires_database_url(
     monkeypatch: pytest.MonkeyPatch, unit_settings_kwargs
 ) -> None:

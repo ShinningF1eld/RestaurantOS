@@ -1,5 +1,28 @@
 # RestaurantOS current state
 
+## Milestone 9 S1 local gateway rehearsal
+
+On 2026-10-27, local Compose/Caddy wiring was added above image commit `35cc02a`.
+Six containers use four scoped bridges, a fixed exact-trusted Caddy peer and only
+a loopback HTTPS entrypoint. API/worker share one recorded image identity. Secrets,
+database and persistent PostgreSQL/Caddy volumes are separate from developer
+Compose. Explicit migration targets the guarded synthetic rehearsal DB only;
+startup checks its actual revision and never migrates automatically.
+
+Certificate-verified local checks pass routing, cookie renewal/logout, CSRF,
+protected SSR, a real worker receipt, spoofed identity-header allowance, applied
+limits and down/up data/session/CA persistence. API pool settings permit an explicit
+5/0/5 rehearsal budget while preserving host defaults. Source, commands, failures,
+remaining gates and limits are in the [gateway evidence](milestone9/verification-milestone9-gateway.md)
+and [runbook](runbooks/local-gateway.md). No browser/system CA was installed and no
+cloud/public deployment or native ARM/capacity/S1/M9 completion is claimed.
+
+Current partial validation passed baseline/backend static, 351 unit tests (final
+guard follow-up), 342 integration tests, model-drift inspection and both AMD64
+image checks. The real local gateway checks also passed explicit restart
+persistence and final resource assertions. Frontend/browser and the dedicated
+migration gates were omitted for this step; no frontend code or schema changed.
+
 ## Milestone 9 S1 image preparation
 
 On 2026-10-27, routing preparation was committed as `2fcca62`, followed by local

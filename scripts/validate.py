@@ -180,6 +180,7 @@ def gate(name, env):
             "scripts/benchmark-event-freshness.py",
             "scripts/check-backend-image.py",
             "scripts/check-frontend-image.py",
+            "scripts/local-gateway.py",
         ]
         run(python, "-m", "ruff", "check", "--target-version", "py312", *harness)
         run(python, "-m", "ruff", "format", "--check", *harness)
