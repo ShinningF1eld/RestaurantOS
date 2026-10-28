@@ -658,8 +658,21 @@ async function main() {
         (await verifiedKey()) === key,
         "certificate identity changed across restart",
       );
-      await page.goto(origin + urlA);
+      report.observations.restartCertificateVerified = true;
+      operation = "browser document GET after container restart";
+      try {
+        await page.goto(origin + urlA);
+      } catch (error) {
+        // Docker bridge recreation can invalidate the host browser's current
+        // network. Retry this read once only for Chrome's explicit signal.
+        // Never retry refresh, a business command or a certificate failure.
+        if (!/net::ERR_NETWORK_CHANGED\b/.test(error.message)) throw error;
+        report.observations.restartDocumentGetRetries = 1;
+        await page.goto(origin + urlA);
+      }
+      operation = "browser identity after container restart";
       await expect(page.getByText(a.email, { exact: true })).toBeVisible();
+      operation = "tenant marker after container restart";
       await expect(
         page.getByText(ownerA.marker, { exact: true }),
       ).toBeVisible();
@@ -699,6 +712,16 @@ try {
   report.passed = true;
 } catch (error) {
   report.passed = false;
+  report.observations.errorKind = [
+    "Error",
+    "TypeError",
+    "RangeError",
+    "TimeoutError",
+  ].includes(error.name)
+    ? error.name
+    : "other";
+  const networkError = /net::(ERR_[A-Z_]+)/.exec(error.message);
+  if (networkError) report.observations.networkError = networkError[1];
   report.observations.failureCategory =
     error instanceof CheckError
       ? "assertion"

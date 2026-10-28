@@ -188,6 +188,22 @@ API/frontend/database and other gateway services explicitly, starts the worker
 separately and requires its actual process to run. The durable worker-effect
 assertion remains mandatory; no always-successful worker healthcheck was added.
 
+Source `71f1564` passes all ten standard gates and the required aggregate in
+[CI](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40650395273).
+Its [native run](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40650395256)
+passes both ARM64 image checks and the first twelve gateway cases, including
+database suspension/recovery, authentication, isolation and pre-restart quotas.
+It fails in restart persistence with a coarse operation label; this is not proof
+that certificate verification itself failed. The digest-verified sanitized
+[native evidence](evidence/s1-native-arm-2026-10-28.json) retains the failed case.
+
+The browser report now distinguishes verified post-restart certificate identity,
+document navigation, identity and tenant assertions, and retains only a whitelisted
+error kind/network error enum. One document GET retry is allowed only for the
+explicit Chromium `ERR_NETWORK_CHANGED` signal during controlled bridge recreation;
+refresh, business POSTs, TLS and semantic failures are not retried. The complete
+local fifteen-case gateway matrix passes this refinement. Native rerun is pending.
+
 Native ARM run URL, exact source revision, successful runtime jobs and sanitized
 artifacts are required before marking native verification complete. Repository
 instructions require fresh authorization before committing/publishing this work.

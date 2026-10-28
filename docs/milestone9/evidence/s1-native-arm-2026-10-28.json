@@ -1,0 +1,126 @@
+{
+  "date": "2026-10-28",
+  "status": "Native image checks passed; gateway verification incomplete",
+  "standard_ci": {
+    "revision": "71f156434a7f84afc47b2a5bb3faa8c3d868e1b3",
+    "run_url": "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40650395273",
+    "conclusion": "success",
+    "required_aggregate": "Milestone 6 acceptance"
+  },
+  "native_attempts": [
+    {
+      "revision": "c726e5ff189096d541ab58c8178ee81ace5cd02d",
+      "run_url": "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40640912634",
+      "conclusion": "failure",
+      "phase": "Runner post-start schema connection; backend native build/content/liveness/DB SELECT 1 passed"
+    },
+    {
+      "revision": "012ee24",
+      "run_url": "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40649057366",
+      "conclusion": "failure",
+      "phase": "Host DB cleanup after successful runtime schema assertion"
+    },
+    {
+      "revision": "71f156434a7f84afc47b2a5bb3faa8c3d868e1b3",
+      "run_url": "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40650395256",
+      "conclusion": "failure",
+      "image_gate": "success",
+      "artifact_id": 12798809653,
+      "artifact_sha256": "47586b02d1094c733d332d74635a691ccd751be563b2a53889bc801e35050a06",
+      "gateway": {
+        "cases": [
+          {
+            "name": "certificate negative control",
+            "status": "passed"
+          },
+          {
+            "name": "secure cookies and browser request boundary",
+            "status": "passed"
+          },
+          {
+            "name": "bounded database readiness and recovery",
+            "status": "passed"
+          },
+          {
+            "name": "expired JWT SSR renews exactly once",
+            "status": "passed"
+          },
+          {
+            "name": "concurrent tabs serialize refresh",
+            "status": "passed"
+          },
+          {
+            "name": "tenant API HTML RSC and navigation isolation",
+            "status": "passed"
+          },
+          {
+            "name": "warm assignment and membership revocation",
+            "status": "passed"
+          },
+          {
+            "name": "committed refresh response loss does not replay",
+            "status": "passed"
+          },
+          {
+            "name": "logout account switch history and restored profile",
+            "status": "passed"
+          },
+          {
+            "name": "persisted pageshow revalidates switched identity",
+            "status": "passed"
+          },
+          {
+            "name": "pre restart credential log privacy",
+            "status": "passed"
+          },
+          {
+            "name": "controlled identity before restart",
+            "status": "passed"
+          },
+          {
+            "name": "container restart preserves session and worker effect",
+            "status": "failed",
+            "reason": "strict TLS hostname and chain validation"
+          }
+        ],
+        "observations": {
+          "hostArchitecture": "aarch64",
+          "dockerArchitecture": "aarch64",
+          "backendImage": "sha256:51a143293a3cba63ff20e6ccbdd8baf4f02b7804e5139ff72db69feb590286b8",
+          "frontendImage": "sha256:24a90dc087997c2667de9582b3ffab5e0f192ddb786223798a79607087ee6459",
+          "runtimeConfigurationVerified": true,
+          "databaseReadinessMs": 2013,
+          "bfcachePersistedEvents": 0,
+          "bfcacheNotRestoredReasons": [
+            "BackForwardCacheDisabledForDelegate",
+            "BrowsingInstanceNotSwapped",
+            "CacheControlNoStoreHTTPOnlyCookieModified",
+            "JsNetworkRequestReceivedCacheControlNoStoreResource",
+            "MainResourceHasCacheControlNoStore"
+          ],
+          "persistedReloadHttpStatus": 404,
+          "persistedPageshowIdentityRevalidation": true,
+          "identityBeforeRestart": {
+            "distinct_peers": true,
+            "login_isolated": true,
+            "refresh_isolated": true,
+            "peer_and_resolved_identity_match": true,
+            "same_fixed_window": true
+          },
+          "failureCategory": "browser operation"
+        },
+        "limitations": [
+          "host reboot",
+          "two public egress addresses",
+          "native browser trust-store validation",
+          "BFCache restoration attempted but not observed"
+        ],
+        "passed": false
+      },
+      "runtime": "revision=71f156434a7f84afc47b2a5bb3faa8c3d868e1b3\nhost=aarch64\nengine=aarch64\n",
+      "cleanup": {
+        "owned_resources_removed": true
+      }
+    }
+  ]
+}

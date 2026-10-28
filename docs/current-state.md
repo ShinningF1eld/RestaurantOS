@@ -39,6 +39,14 @@ documented disabled-healthcheck wait bug: the helper now waits on HTTP/database
 services and starts/checks the worker separately, retaining the durable effect
 assertions. These checker/orchestration fixes await the next remote results.
 
+Source `71f1564` now passes all ten remote gates and `Milestone 6 acceptance`.
+Both native ARM images also pass. Native gateway checks pass their first twelve
+cases but fail in restart persistence; the sanitized artifact and remaining
+boundary are retained. Restart observations now identify the certificate/read/
+identity phase separately and allow one document GET retry only for Chromium's
+explicit network-change error. Refresh/business writes and TLS checks keep their
+existing failure semantics. S1 remains open pending native gateway completion.
+
 ## Milestone 9 S1 HTTPS browser verification
 
 On 2026-10-28, the container gateway matrix was added above `47535d1`. It uses
