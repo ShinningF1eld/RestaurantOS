@@ -1,0 +1,148 @@
+# Local synthetic rehearsal only. Invoke through scripts/local-gateway.py.
+x-runtime: &runtime
+  restart: "on-failure:5"
+  security_opt: [no-new-privileges:true]
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+
+x-backend: &backend
+  <<: *runtime
+  image: ${GATEWAY_BACKEND_IMAGE:?use local-gateway.py}
+  volumes:
+    - type: bind
+      source: ${GATEWAY_STATE_DIR:?}/backend.env
+      target: /app/.env
+      read_only: true
+  networks: [data]
+  cap_drop: [ALL]
+  read_only: true
+  tmpfs: ["/tmp:rw,noexec,nosuid,size=16m"]
+
+services:
+  postgres:
+    <<: *runtime
+    image: postgres:16@sha256:9e2cf6287f25c3151f4c9421ccce2b17f3e60061c111a29165e0d2cdd9ff0a97
+    environment:
+      POSTGRES_USER: gateway
+      POSTGRES_DB: restaurantos_gateway_test
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    networks: [data]
+    command: [postgres, -c, max_connections=30, -c, shared_buffers=128MB, -c, work_mem=4MB, -c, maintenance_work_mem=64MB, -c, max_parallel_workers_per_gather=0]
+    shm_size: 128m
+    mem_limit: 1024m
+    pids_limit: 128
+    cpu_shares: 384
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U gateway -d restaurantos_gateway_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis:
+    <<: *runtime
+    image: redis:7-alpine@sha256:6ba19c50b56777f5c11c58eff8ddb69d0d5f27ba131cffb63f180ccfd43c66af
+    command: [redis-server, /usr/local/etc/redis/redis.conf]
+    volumes:
+      - type: bind
+        source: ${GATEWAY_STATE_DIR:?}/redis.conf
+        target: /usr/local/etc/redis/redis.conf
+        read_only: true
+    networks: [data]
+    mem_limit: 384m
+    pids_limit: 128
+    cpu_shares: 128
+  api:
+    <<: *backend
+    networks:
+      data: {}
+      ssr_api: {}
+      edge_api:
+        ipv4_address: ${GATEWAY_API_IP:?}
+    mem_limit: 512m
+    pids_limit: 256
+    cpu_shares: 512
+    stop_grace_period: 45s
+    healthcheck:
+      test: [CMD, python, -c, "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/ready', timeout=3).read()"]
+      interval: 5s
+      timeout: 4s
+      start_period: 10s
+      retries: 12
+    command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, "8000", --no-proxy-headers, --timeout-graceful-shutdown, "30"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_started}
+  worker:
+    <<: *backend
+    command: [python, -m, app.worker]
+    healthcheck: {disable: true}
+    stop_grace_period: 45s
+    mem_limit: 384m
+    pids_limit: 128
+    cpu_shares: 128
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_started}
+  maintenance:
+    <<: *backend
+    profiles: [tools]
+    restart: "no"
+    command: [python, -m, alembic, current]
+    healthcheck: {disable: true}
+    mem_limit: 256m
+    pids_limit: 128
+    cpus: 0.25
+  frontend:
+    <<: *runtime
+    image: ${GATEWAY_FRONTEND_IMAGE:?use local-gateway.py}
+    environment:
+      API_URL: http://api:8000
+      NODE_OPTIONS: --max-old-space-size=320
+    networks: [edge_web, ssr_api]
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m"]
+    cap_drop: [ALL]
+    mem_limit: 640m
+    pids_limit: 256
+    cpu_shares: 256
+    depends_on:
+      api: {condition: service_healthy}
+  caddy:
+    <<: *runtime
+    image: caddy:2-alpine@sha256:eb4d35b7452d1ab6171fbdbe8d9275b2301dad6dad92115d91e19fb9b24d510f
+    ports:
+      - "127.0.0.1:${GATEWAY_HTTPS_PORT:?}:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      edge_web: {}
+      edge_api:
+        ipv4_address: ${GATEWAY_PROXY_IP:?}
+    mem_limit: 128m
+    pids_limit: 128
+    cpu_shares: 128
+    depends_on:
+      frontend: {condition: service_healthy}
+
+secrets:
+  postgres_password:
+    file: ${GATEWAY_STATE_DIR:?}/postgres_password
+
+networks:
+  edge_web: {}
+  edge_api:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${GATEWAY_PROXY_SUBNET:?}
+  ssr_api: {internal: true}
+  data: {internal: true}
+
+volumes:
+  postgres_data: {}
+  caddy_data: {}
+  caddy_config: {}

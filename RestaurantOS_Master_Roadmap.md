@@ -984,6 +984,12 @@ this list, adding deletion and inventory-state facts to the earlier proposal.
 
 ## Milestone 9 — Production containers, CI/CD, and deployment
 
+S1 container/gateway feasibility completed on 2026-10-28: verified source
+`ef273e6` passes all ten shared gates and native ARM image/HTTPS runtime checks.
+Exact runs, sanitized artifacts and limitations are tracked in the
+[closure evidence](docs/milestone9/verification-milestone9-s1-closure.md).
+This does not establish a deployed environment or complete Milestone 9.
+
 ### Objective
 
 Deploy a reproducible, secure staging/demo environment.

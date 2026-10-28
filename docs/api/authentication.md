@@ -10,6 +10,13 @@ The business URLs are unchanged but require an active session. `/health`,
 | POST `/auth/refresh` | Consumes refresh cookie, rotates both cookies |
 | POST `/auth/logout` | Revokes current family and clears cookies; idempotent |
 
+`ros_access` remains scoped to `/`. `ros_refresh` uses
+`AUTH_REFRESH_COOKIE_PATH` for issuance, rotation, logout and invalid-refresh
+cleanup (default `/auth`). For a same-origin gateway stripping `/backend`, set
+it to `/backend/auth`; browser URLs then start `/backend/auth`, while backend
+routes stay unchanged. Safe slash-separated letters, digits, underscores and
+hyphens ending in `/auth` are accepted; `/` and malformed paths are rejected.
+
 Browser requests use `credentials: "include"`. Every POST/PUT/PATCH/DELETE must
 include an allowed `Origin` and `X-CSRF-Protection: 1`. Requests with a body use
 `Content-Type: application/json`. This includes login and logout. Native API

@@ -1,0 +1,55 @@
+name: S1 native ARM feasibility
+
+on:
+  push:
+    branches: [codex/m9-s1-native-arm]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-arm:
+    name: S1 / native ARM images and gateway
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Require native ARM host and Docker engine
+        run: |
+          test "$(uname -m)" = aarch64
+          case "$(docker info --format '{{.Architecture}}')" in
+            aarch64|arm64) ;;
+            *) exit 1 ;;
+          esac
+          docker compose version
+          mkdir -p test-results/native-arm
+          printf 'revision=%s\nhost=%s\nengine=%s\n' "$GITHUB_SHA" "$(uname -m)" "$(docker info --format '{{.Architecture}}')" > test-results/native-arm/runtime.txt
+      - name: Install committed locks and Chromium
+        run: |
+          python -m pip install --require-hashes -r backend/requirements-dev.txt
+          npm ci --prefix frontend
+          cd frontend
+          npx playwright install --with-deps chromium
+      - name: Build and run native application images
+        run: python scripts/validate.py --gate image --no-install
+      - name: Verify native API worker and HTTPS browser journeys
+        run: python scripts/run-gateway-browser-tests.py
+      - name: Retain sanitized architecture and gateway evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s1-native-arm-${{ github.sha }}
+          path: |
+            test-results/native-arm/runtime.txt
+            test-results/gateway-browser/**/results.json
+            test-results/gateway-browser/**/cleanup.json
+            test-results/gateway-browser/**/startup.json
+          if-no-files-found: warn
+          retention-days: 7

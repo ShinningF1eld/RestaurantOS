@@ -7,6 +7,7 @@ import json
 import subprocess
 import sys
 import time
+import traceback
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from urllib.error import URLError
@@ -28,6 +29,7 @@ CONTAINER_PORT = 8000
 HEALTH_PATH = "/health"
 CONTAINER_DATABASE_CHECK = """\
 import asyncio
+import json
 import os
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -37,6 +39,9 @@ async def main():
     try:
         async with engine.connect() as connection:
             assert (await connection.execute(text("SELECT 1"))).scalar_one() == 1
+            database = (await connection.execute(text("SELECT current_database()"))).scalar_one()
+            tables = (await connection.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename"))).scalars().all()
+            print(json.dumps({"database": database, "public_tables": tables}))
     finally:
         await engine.dispose()
 
@@ -111,13 +116,14 @@ def redact(value: str, secrets_to_hide: Sequence[str]) -> str:
     return result.strip()
 
 
-def build_image(image: str) -> None:
+def build_image(image: str, platform: str | None = None) -> None:
     print(f"Building backend image {image}", flush=True)
     result = subprocess.run(
         [
             "docker",
             "build",
             "--pull",
+            *(["--platform", platform] if platform else []),
             "--tag",
             image,
             "--file",
@@ -139,7 +145,21 @@ def build_image(image: str) -> None:
     print(f"Built backend image {image}", flush=True)
 
 
-def inspect_image(image: str) -> None:
+def inspect_image(image: str, platform: str | None = None) -> None:
+    metadata = json.loads(
+        run_docker(
+            ["image", "inspect", image], description="image metadata inspection"
+        ).stdout
+    )[0]
+    actual_platform = f"{metadata['Os']}/{metadata['Architecture']}"
+    if platform and actual_platform != platform:
+        raise ImageCheckError(f"Expected {platform}, received {actual_platform}")
+    if "--no-proxy-headers" not in metadata["Config"]["Cmd"]:
+        raise ImageCheckError("API must disable Uvicorn proxy-header rewriting")
+    print(
+        f"Backend {metadata['Id']}: {actual_platform}, {metadata['Size']} bytes",
+        flush=True,
+    )
     runtime_version = run_docker(
         [
             "run",
@@ -231,6 +251,21 @@ def inspect_image(image: str) -> None:
             "check",
         ],
         description="runtime dependency check",
+    )
+    run_docker(
+        [
+            "run",
+            "--rm",
+            "--network",
+            "none",
+            "--no-healthcheck",
+            "--entrypoint",
+            "python",
+            image,
+            "-c",
+            "from app.worker import main; assert callable(main)",
+        ],
+        description="worker entrypoint import check (not worker progress)",
     )
     print(
         f"PASS: {image} uses {configured_user}, has no baked runtime secrets, and contains only runtime files",
@@ -379,7 +414,7 @@ def wait_for_health(
 
 def verify_container_database_connection(
     container: str, environment: Mapping[str, str]
-) -> None:
+) -> tuple[str, ...]:
     secret_values = tuple(environment.values())
     result = run_docker(
         ["exec", container, "python", "-c", CONTAINER_DATABASE_CHECK],
@@ -393,10 +428,31 @@ def verify_container_database_connection(
             "Production container could not connect to its disposable PostgreSQL database"
             + (f": {message[-3000:]}" if message else "")
         )
+    try:
+        evidence = json.loads(result.stdout)
+    except ValueError:
+        raise ImageCheckError(
+            "Container database inspection returned invalid evidence"
+        ) from None
+    if (
+        not isinstance(evidence, dict)
+        or evidence.get("database") != make_url(environment["DATABASE_URL"]).database
+    ):
+        raise ImageCheckError(
+            "Container database inspection used an unexpected database"
+        )
+    tables = evidence.get("public_tables")
+    if not isinstance(tables, list) or not all(
+        isinstance(name, str) for name in tables
+    ):
+        raise ImageCheckError(
+            "Container database inspection returned invalid table evidence"
+        )
     print(
         "PASS: production database URL connects to the disposable PostgreSQL database",
         flush=True,
     )
+    return tuple(tables)
 
 
 def remove_resources(
@@ -530,6 +586,7 @@ def run_smoke(
                     [
                         "network",
                         "connect",
+                        "--gw-priority=-1",
                         "--alias",
                         postgres_alias,
                         network_name,
@@ -556,8 +613,10 @@ def run_smoke(
             )
             port = published_port(container_id)
             wait_for_health(container_id, port, timeout, sensitive_values(environment))
-            verify_container_database_connection(container_id, environment)
-            after = public_tables(database)
+            # Inspect through the verified runtime connection. A fresh runner
+            # connection can depend on changed routing while the PostgreSQL
+            # container is temporarily attached to this second bridge.
+            after = verify_container_database_connection(container_id, environment)
             if after != before or "alembic_version" in after:
                 raise ImageCheckError(
                     f"Image startup changed the database schema unexpectedly: {after}"
@@ -579,6 +638,7 @@ def run_smoke(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--platform", choices=("linux/amd64", "linux/arm64"))
     parser.add_argument(
         "--image",
         default=DEFAULT_IMAGE,
@@ -615,8 +675,8 @@ def main() -> int:
             if args.postgres_container
             else None
         )
-        build_image(args.image)
-        inspect_image(args.image)
+        build_image(args.image, args.platform)
+        inspect_image(args.image, args.platform)
         run_smoke(
             args.image,
             args.timeout,
@@ -627,8 +687,16 @@ def main() -> int:
         print(f"FAIL: {exc}", file=sys.stderr)
         return 1
     except (OSError, psycopg.Error, ValueError, subprocess.SubprocessError) as exc:
+        frames = [
+            frame
+            for frame in traceback.extract_tb(exc.__traceback__)
+            if ROOT / "scripts" in Path(frame.filename).resolve().parents
+        ]
+        location = (
+            f"; {Path(frames[-1].filename).name}:{frames[-1].lineno}" if frames else ""
+        )
         print(
-            f"FAIL: image check could not complete ({type(exc).__name__})",
+            f"FAIL: image check could not complete ({type(exc).__name__}{location})",
             file=sys.stderr,
         )
         return 1

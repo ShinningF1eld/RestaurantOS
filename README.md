@@ -96,7 +96,7 @@ for current gates and remaining acceptance boundaries.
 
 - Python 3.12 (the supported documentation and CI version)
 - Node.js 24 and npm
-- Docker Desktop with Docker Compose v2
+- Docker Desktop (Engine/CLI 28+) with Docker Compose v2
 - PowerShell 7 for the convenient Windows validation command
 
 The Milestone 0 audit was run locally with Python 3.13.15, Node 24.14.1, and
@@ -234,6 +234,29 @@ the critical-rule map, artifacts, and the explicit Milestone 8 worker/event defe
 The dated [Milestone 6 verification](docs/milestone6/milestone-6-verification.md) records
 execution and the [required-check policy](docs/testing/enforcement.md) with actual
 GitHub PR evidence.
+
+## Production image preparation
+
+Backend/API and worker share a multi-stage Python 3.12 image. The frontend has
+a Node 24 standalone image built with browser API base `/backend`; its private
+`API_URL` is supplied at runtime. See [image checks](docs/testing/image.md) for
+build commands, worker command/healthcheck overrides and platform verification.
+Image preparation does not configure a gateway or establish a deployed environment.
+
+The isolated [local HTTPS rehearsal](docs/runbooks/local-gateway.md) now connects
+the six containers with Caddy, private service networks, separate synthetic data
+and persistent PostgreSQL/certificate volumes. Use `scripts/local-gateway.py` for
+explicit initialization, build, migration, startup, verification and shutdown.
+It is local S1 evidence, not a public deployment or full M9 acceptance.
+The [HTTPS Chromium matrix](docs/testing/gateway-browser.md) exercises browser
+sessions, tenant isolation and controlled client-IP handling in fresh disposable
+container projects; it also runs as part of the shared browser gate.
+The API's [database readiness check](docs/api/health.md) is separate from process
+liveness and controls gateway startup ordering. An optional
+[native ARM verification workflow](docs/testing/native-arm.md) now passes both
+images and the real HTTPS/API/worker matrix. See the dated
+[S1 completion evidence](docs/milestone9/verification-milestone9-s1-closure.md);
+S1 completion does not establish a deployed environment or full Milestone 9 acceptance.
 
 ## Shutdown
 

@@ -1,5 +1,147 @@
 # RestaurantOS current state
 
+## Milestone 9 S1 completed — container and gateway feasibility
+
+S1 exit criteria were verified on 2026-10-28 at source `ef273e6` on
+`codex/m9-s1-native-arm`. All ten shared gates and the unchanged
+[`Milestone 6 acceptance` aggregate](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40653791909)
+passed. [Native ARM verification](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40653791852)
+passed both locked non-root images and all fifteen HTTPS gateway cases on an
+`aarch64` host and Docker engine, including real durable worker effects.
+
+Current verification includes 376 pure unit tests, 347 PostgreSQL integration
+cases, 10 client/19 component tests, production builds, clean/legacy migration
+checks, 29 host browser journeys, 15 HTTPS cases and both intentional-failure
+cleanup probes. The native artifact records unchanged browser session cookies,
+certificate identity, tenant data and exactly-once worker effect across down/up.
+Resource/network/pool limits and API/worker image identity are inspected live.
+
+The public read-only `/ready` endpoint has a shared two-second acquisition/query/
+cleanup budget, separate from `/health` liveness. Timeout termination checks lease
+ownership so it cannot close a connection already returned to another borrower.
+Compose uses readiness and waits explicitly on applicable services; the worker's
+process and durable effect are checked separately. Image smoke networking retains
+PostgreSQL's original gateway (Docker Engine/CLI 28+). No schema/dependency changes
+or application-database migrations were needed.
+
+Natural BFCache restoration was not observed; actual Chromium reason enums and a
+passing controlled persisted-pageshow identity-revalidation check are retained.
+Local TLS uses a verified chain/hostname and browser-scoped leaf-key exception;
+it does not establish native browser trust-store setup or public TLS. Public
+egress, host reboot, hosted recovery, capacity and application deployment remain
+later S2–S6 work. This completes S1, not Milestone 9.
+
+Exact commands, failed attempts, compatibility fixes, source/run URLs and sanitized
+artifacts are in the [S1 closure evidence](milestone9/verification-milestone9-s1-closure.md).
+See the [health contract](api/health.md) and [native runner guide](testing/native-arm.md).
+
+## Milestone 9 S1 HTTPS browser verification
+
+On 2026-10-28, the container gateway matrix was added above `47535d1`. It uses
+fresh isolated Compose projects and synthetic accounts through real images/API,
+with trusted CLI expiry fixtures, strict TLS prechecks and a browser-scoped leaf
+key exception. Neither the persistent rehearsal nor developer DB is used, and no
+machine trust is installed. Temporary client-IP observation returns the real
+resolver result unchanged; reports retain safe labels and comparisons only.
+
+The existing browser gate now requires the gateway matrix and its verified
+failure cleanup as well as the prior host workflows. Product code, schema,
+dependencies and public routes are unchanged. Exact commands, current outcomes,
+BFCache observations and external/native limitations are in the
+[browser verification](milestone9/verification-milestone9-gateway-browser.md) and
+[matrix guide](testing/gateway-browser.md). This does not mark S1/M9 complete.
+
+Current partial checks passed static/baseline, 367 unit tests after the guard
+follow-up, frontend component/client tests and build, the existing 29 Chromium
+workflows, all 13 final HTTPS gateway cases and both intentional-failure cleanup
+probes. Controlled peer/quota assertions run before and after down/up, including
+single/chained header forgery and the real untrusted internal peer. Receipt plus
+durable diagnostic effect persist exactly once. BFCache restoration was attempted
+but zero persisted events were observed; that branch remains unverified. The
+developer/persistent rehearsal data was not used, and no product/API/schema or
+dependency changes were required.
+
+## Milestone 9 S1 local gateway rehearsal
+
+On 2026-10-27, local Compose/Caddy wiring was added above image commit `35cc02a`.
+Six containers use four scoped bridges, a fixed exact-trusted Caddy peer and only
+a loopback HTTPS entrypoint. API/worker share one recorded image identity. Secrets,
+database and persistent PostgreSQL/Caddy volumes are separate from developer
+Compose. Explicit migration targets the guarded synthetic rehearsal DB only;
+startup checks its actual revision and never migrates automatically.
+
+Certificate-verified local checks pass routing, cookie renewal/logout, CSRF,
+protected SSR, a real worker receipt, spoofed identity-header allowance, applied
+limits and down/up data/session/CA persistence. API pool settings permit an explicit
+5/0/5 rehearsal budget while preserving host defaults. Source, commands, failures,
+remaining gates and limits are in the [gateway evidence](milestone9/verification-milestone9-gateway.md)
+and [runbook](runbooks/local-gateway.md). No browser/system CA was installed and no
+cloud/public deployment or native ARM/capacity/S1/M9 completion is claimed.
+
+Current partial validation passed baseline/backend static, 351 unit tests (final
+guard follow-up), 342 integration tests, model-drift inspection and both AMD64
+image checks. The real local gateway checks also passed explicit restart
+persistence and final resource assertions. Frontend/browser and the dedicated
+migration gates were omitted for this step; no frontend code or schema changed.
+
+## Milestone 9 S1 image preparation
+
+On 2026-10-27, routing preparation was committed as `2fcca62`, followed by local
+image packaging. Backend/API and worker share a multi-stage pinned Python 3.12
+image with locked binary dependencies; API startup explicitly disables Uvicorn
+proxy rewriting. A pinned Node 24 frontend image packages Next.js standalone
+output, public/static assets, fixed browser `/backend` routing and runtime-only
+private API configuration. Both run non-root and never migrate at startup.
+The shared image gate now requires both images without changing its name or
+the required aggregate. Worker execution requires the documented command and
+disabled API healthcheck; import inspection alone does not prove worker progress.
+
+Docker Desktop was started for current disposable checks, superseding the earlier
+unavailable-engine limitation below. See the [packaging verification](milestone9/verification-milestone9-packaging.md)
+for exact commands, architecture evidence, results and omissions. No schema,
+dependency or business/API-route change is introduced by packaging. Compose/TLS,
+hosted security, native ARM capacity and remaining M9 acceptance are unverified;
+no deployment, application migration or milestone completion is claimed.
+
+Current partial checks passed baseline, backend/frontend static checks, 334 unit,
+342 integration and 29 Chromium workflows, frontend component/client suites,
+standalone production build, AMD64 image checks, ARM64 image checks under
+emulation, and intentional frontend/browser failure cleanup. This also verifies
+the earlier routing-preparation HTTP regressions. Locked installation and the
+dedicated migration gate were omitted; native ARM and new-head CI were not run.
+
+## Milestone 9 S1 routing preparation (partial)
+
+On 2026-10-27, the first routing preparation change adds validated
+`AUTH_REFRESH_COOKIE_PATH` (default `/auth`, `/backend/auth` for a gateway
+stripping `/backend`). Cookie issuance, rotation, logout and invalid-refresh
+cleanup share this path. Backend routes, session rules and schema are unchanged.
+The homepage no longer probes localhost or displays API availability; it contains
+static workspace text. Existing SSR access-cookie-only/no-store behavior remains.
+Environment examples, the auth contract, ADR 0003 and runbook describe configuration
+and cookie-path cutover limits. Disposable tests explicitly retain `/auth`.
+
+Backend static checks, 329 unit tests, frontend static checks, component/client
+tests and the production frontend build passed using installed dependencies
+(locked installation was omitted). Commands and limits:
+
+- `./scripts/validate.ps1 -Gate backend-static,backend-unit,frontend-static,frontend-tests,frontend-build -NoInstall`:
+  backend-static passed, then stopped during the stalled unit run.
+- `./scripts/validate.ps1 -Gate frontend-static,frontend-tests,frontend-build -NoInstall`:
+  static/tests passed; the isolated build failed within the sandbox.
+- `./scripts/validate.ps1 -Gate backend-unit,frontend-build -NoInstall` outside
+  the sandbox: both passed (329 unit tests and production build).
+- `./scripts/validate.ps1 -Gate backend-integration,browser -NoInstall`:
+  failed before tests started because Docker was unavailable.
+- Changed Python files passed Ruff lint/format; `git diff --check` passed.
+
+The Windows sandbox stalled creating an
+asyncio socket pair; the backend-unit gate passed outside it. Integration/browser
+validation could not start because the Docker Linux engine pipe was unavailable,
+including outside the sandbox. New HTTP cookie regressions are therefore unverified.
+No application database migration, provisioning, deployment or S1 completion is
+claimed; the HTTPS gateway/browser and ARM evidence remain later S1 work.
+
 ## Milestone 8 local continuation: worker database pool
 
 On 2026-10-20 the user continued locally. Both preserved pushed checkpoint heads

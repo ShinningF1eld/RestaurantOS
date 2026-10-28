@@ -95,6 +95,33 @@ def backend_tests(label, selectors, env):
     )
 
 
+def gateway_cleanup_probe(env):
+    """Require an intentional browser-stage failure and verified owned teardown."""
+    directory = ROOT / "test-results/gateway-browser"
+    before = set(directory.glob("browser-*")) if directory.exists() else set()
+    result = subprocess.run(
+        [sys.executable, "scripts/run-gateway-browser-tests.py", "--inject-failure"],
+        cwd=ROOT,
+        env=env,
+        check=False,
+    )
+    created = set(directory.glob("browser-*")) - before
+    if result.returncode != 1 or len(created) != 1:
+        raise RuntimeError("Gateway cleanup probe did not produce its intended failure")
+    folder = created.pop()
+    report = json.loads((folder / "results.json").read_text(encoding="utf-8"))
+    cleanup = json.loads((folder / "cleanup.json").read_text(encoding="utf-8"))
+    last = report.get("cases", [{}])[-1]
+    if (
+        report.get("passed") is not False
+        or last.get("name") != "intentional failure"
+        or last.get("status") != "failed"
+        or cleanup != {"owned_resources_removed": True}
+    ):
+        raise RuntimeError("Gateway cleanup probe failed before the intended stage")
+    print("PASS: intentional gateway browser failure and cleanup", flush=True)
+
+
 def browser_cleanup_probe(env):
     """Require the intended browser failure and successful resource teardown."""
 
@@ -178,12 +205,27 @@ def gate(name, env):
             "scripts/run-browser-tests.py",
             "scripts/test_support/processes.py",
             "scripts/benchmark-event-freshness.py",
+            "scripts/check-backend-image.py",
+            "scripts/check-frontend-image.py",
+            "scripts/local-gateway.py",
+            "scripts/run-gateway-browser-tests.py",
         ]
         run(python, "-m", "ruff", "check", "--target-version", "py312", *harness)
         run(python, "-m", "ruff", "format", "--check", *harness)
     elif name == "frontend-static":
         for script in ("lint", "format:check", "typecheck"):
             run(npm, "run", script, cwd=FRONTEND)
+        run(
+            shutil.which("node") or "node",
+            "--check",
+            str(ROOT / "scripts/gateway-browser.mjs"),
+        )
+        run(
+            shutil.which("node") or "node",
+            str(FRONTEND / "node_modules/prettier/bin/prettier.cjs"),
+            "--check",
+            str(ROOT / "scripts/gateway-browser.mjs"),
+        )
     elif name == "backend-unit":
         clean = {
             k: v
@@ -228,11 +270,14 @@ def gate(name, env):
     elif name == "browser":
         run(python, "scripts/run-browser-tests.py", env=env)
         browser_cleanup_probe(env)
+        run(python, "scripts/run-gateway-browser-tests.py", env=env)
+        gateway_cleanup_probe(env)
     elif name == "image":
         arguments = []
         if env.get("TEST_POSTGRES_CONTAINER"):
             arguments = ["--postgres-container", env["TEST_POSTGRES_CONTAINER"]]
         run(python, "scripts/check-backend-image.py", *arguments, env=env)
+        run(python, "scripts/check-frontend-image.py", env=env)
 
 
 def main():

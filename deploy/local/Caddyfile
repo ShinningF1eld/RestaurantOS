@@ -1,0 +1,44 @@
+{
+    admin off
+    auto_https disable_redirects
+    skip_install_trust
+    servers {
+        protocols h1 h2
+    }
+}
+
+https://localhost {
+    tls internal
+
+    # Docs generate unprefixed schema URLs; keep them private in this rehearsal.
+    @docs path /backend/docs /backend/docs/* /backend/redoc /backend/openapi.json
+    handle @docs {
+        respond "Not found" 404
+    }
+
+    # Keep the original Host (including the external test port) for SSR/CSRF.
+    @backend path /backend /backend/*
+    handle @backend {
+        uri strip_prefix /backend
+        reverse_proxy api:8000 {
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto https
+            header_up X-Forwarded-Host {hostport}
+            header_up -Forwarded
+            header_up -X-Real-IP
+            # Uvicorn proxy rewriting stays disabled. Normalize backend slash
+            # redirects to the browser's HTTPS origin and public API prefix.
+            header_down Location "^https?://[^/]+(/.*)$" "https://{hostport}/backend$1"
+            header_down Location "^(/.*)$" "/backend$1"
+        }
+    }
+    handle {
+        reverse_proxy frontend:3000 {
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto https
+            header_up X-Forwarded-Host {hostport}
+            header_up -Forwarded
+            header_up -X-Real-IP
+        }
+    }
+}

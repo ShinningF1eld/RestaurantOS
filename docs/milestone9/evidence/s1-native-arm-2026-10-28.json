@@ -1,0 +1,372 @@
+{
+  "date": "2026-10-28",
+  "status": "S1 exit criteria met at verified implementation ef273e6",
+  "standard_ci": {
+    "revision": "ef273e6",
+    "commit_url": "https://github.com/ShinningF1eld/RestaurantOS/commit/ef273e6cee82e2b0ddc711b49cfaaf00c32d4324",
+    "run_url": "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40653791909",
+    "conclusion": "success",
+    "shared_gates_passed": 10,
+    "required_aggregate": "Milestone 6 acceptance",
+    "unit_tests": 376,
+    "integration_tests": 347,
+    "host_browser_journeys": 29,
+    "https_gateway_cases": 15,
+    "client_tests": 10,
+    "component_tests": 19,
+    "failure_cleanup_probes_passed": 2
+  },
+  "native_attempts": [
+    {
+      "revision": "c726e5f",
+      "run_url": "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40640912634",
+      "conclusion": "failure",
+      "phase": "Runner post-start schema connection; backend native build/content/liveness/DB SELECT 1 passed",
+      "commit_url": "https://github.com/ShinningF1eld/RestaurantOS/commit/c726e5ff189096d541ab58c8178ee81ace5cd02d"
+    },
+    {
+      "revision": "012ee24",
+      "run_url": "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40649057366",
+      "conclusion": "failure",
+      "phase": "Host DB cleanup after successful runtime schema assertion"
+    },
+    {
+      "revision": "71f1564",
+      "run_url": "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40650395256",
+      "conclusion": "failure",
+      "image_gate": "success",
+      "artifact_id": 12798809653,
+      "gateway": {
+        "cases": [
+          {
+            "name": "certificate negative control",
+            "status": "passed"
+          },
+          {
+            "name": "secure cookies and browser request boundary",
+            "status": "passed"
+          },
+          {
+            "name": "bounded database readiness and recovery",
+            "status": "passed"
+          },
+          {
+            "name": "expired JWT SSR renews exactly once",
+            "status": "passed"
+          },
+          {
+            "name": "concurrent tabs serialize refresh",
+            "status": "passed"
+          },
+          {
+            "name": "tenant API HTML RSC and navigation isolation",
+            "status": "passed"
+          },
+          {
+            "name": "warm assignment and membership revocation",
+            "status": "passed"
+          },
+          {
+            "name": "committed refresh response loss does not replay",
+            "status": "passed"
+          },
+          {
+            "name": "logout account switch history and restored profile",
+            "status": "passed"
+          },
+          {
+            "name": "persisted pageshow revalidates switched identity",
+            "status": "passed"
+          },
+          {
+            "name": "pre restart credential log privacy",
+            "status": "passed"
+          },
+          {
+            "name": "controlled identity before restart",
+            "status": "passed"
+          },
+          {
+            "name": "container restart preserves session and worker effect",
+            "status": "failed",
+            "reason": "strict TLS hostname and chain validation"
+          }
+        ],
+        "observations": {
+          "hostArchitecture": "aarch64",
+          "dockerArchitecture": "aarch64",
+          "backendImage": "sha256:51a143293a3cba63ff20e6ccbdd8baf4f02b7804e5139ff72db69feb590286b8",
+          "frontendImage": "sha256:24a90dc087997c2667de9582b3ffab5e0f192ddb786223798a79607087ee6459",
+          "runtimeConfigurationVerified": true,
+          "databaseReadinessMs": 2013,
+          "bfcachePersistedEvents": 0,
+          "bfcacheNotRestoredReasons": [
+            "BackForwardCacheDisabledForDelegate",
+            "BrowsingInstanceNotSwapped",
+            "CacheControlNoStoreHTTPOnlyCookieModified",
+            "JsNetworkRequestReceivedCacheControlNoStoreResource",
+            "MainResourceHasCacheControlNoStore"
+          ],
+          "persistedReloadHttpStatus": 404,
+          "persistedPageshowIdentityRevalidation": true,
+          "identityBeforeRestart": {
+            "distinct_peers": true,
+            "login_isolated": true,
+            "refresh_isolated": true,
+            "peer_and_resolved_identity_match": true,
+            "same_fixed_window": true
+          },
+          "failureCategory": "browser operation"
+        },
+        "limitations": [
+          "host reboot",
+          "two public egress addresses",
+          "native browser trust-store validation",
+          "BFCache restoration attempted but not observed"
+        ],
+        "passed": false
+      },
+      "runtime": "revision=71f156434a7f84afc47b2a5bb3faa8c3d868e1b3\nhost=aarch64\nengine=aarch64\n",
+      "cleanup": {
+        "owned_resources_removed": true
+      },
+      "commit_url": "https://github.com/ShinningF1eld/RestaurantOS/commit/71f156434a7f84afc47b2a5bb3faa8c3d868e1b3",
+      "artifact_digest": "sha256:47586b02d1094c733d332d74635a691ccd751be563b2a53889bc801e35050a06"
+    },
+    {
+      "revision": "4942b75",
+      "commit_url": "https://github.com/ShinningF1eld/RestaurantOS/commit/4942b75a6456dd5f3dc5827c7107445181ec47c7",
+      "run_url": "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40652306060",
+      "conclusion": "failure",
+      "artifact_id": 12799868018,
+      "artifact_digest": "sha256:bb2e50832eb6f4e955cac28ad5238883c8eb8717a866a358c0c20b821e845632",
+      "gateway": {
+        "cases": [
+          {
+            "name": "certificate negative control",
+            "status": "passed"
+          },
+          {
+            "name": "secure cookies and browser request boundary",
+            "status": "passed"
+          },
+          {
+            "name": "bounded database readiness and recovery",
+            "status": "passed"
+          },
+          {
+            "name": "expired JWT SSR renews exactly once",
+            "status": "passed"
+          },
+          {
+            "name": "concurrent tabs serialize refresh",
+            "status": "passed"
+          },
+          {
+            "name": "tenant API HTML RSC and navigation isolation",
+            "status": "passed"
+          },
+          {
+            "name": "warm assignment and membership revocation",
+            "status": "passed"
+          },
+          {
+            "name": "committed refresh response loss does not replay",
+            "status": "passed"
+          },
+          {
+            "name": "logout account switch history and restored profile",
+            "status": "passed"
+          },
+          {
+            "name": "persisted pageshow revalidates switched identity",
+            "status": "passed"
+          },
+          {
+            "name": "pre restart credential log privacy",
+            "status": "passed"
+          },
+          {
+            "name": "controlled identity before restart",
+            "status": "passed"
+          },
+          {
+            "name": "container restart preserves session and worker effect",
+            "status": "failed",
+            "reason": "browser document GET after container restart"
+          }
+        ],
+        "observations": {
+          "hostArchitecture": "aarch64",
+          "dockerArchitecture": "aarch64",
+          "backendImage": "sha256:66936b7f9a8d0ccf1a7581d8c3ef2626e801c32fd529005686159c69cc441d5d",
+          "frontendImage": "sha256:577425d62bd3a2cd5a0ffa7681d685415186a4c9ff80abeb45a42bdf8680d472",
+          "runtimeConfigurationVerified": true,
+          "databaseReadinessMs": 2013,
+          "bfcachePersistedEvents": 0,
+          "bfcacheNotRestoredReasons": [
+            "BackForwardCacheDisabledForDelegate",
+            "BrowsingInstanceNotSwapped",
+            "CacheControlNoStoreHTTPOnlyCookieModified",
+            "JsNetworkRequestReceivedCacheControlNoStoreResource",
+            "MainResourceHasCacheControlNoStore"
+          ],
+          "persistedReloadHttpStatus": 404,
+          "persistedPageshowIdentityRevalidation": true,
+          "identityBeforeRestart": {
+            "distinct_peers": true,
+            "login_isolated": true,
+            "refresh_isolated": true,
+            "peer_and_resolved_identity_match": true,
+            "same_fixed_window": true
+          },
+          "restartCertificateVerified": true,
+          "restartDocumentGetRetries": 1,
+          "errorKind": "Error",
+          "failureCategory": "browser operation"
+        },
+        "limitations": [
+          "host reboot",
+          "two public egress addresses",
+          "native browser trust-store validation",
+          "BFCache restoration attempted but not observed"
+        ],
+        "passed": false
+      },
+      "cleanup": {
+        "owned_resources_removed": true
+      }
+    }
+  ],
+  "native_success": {
+    "revision": "ef273e6",
+    "commit_url": "https://github.com/ShinningF1eld/RestaurantOS/commit/ef273e6cee82e2b0ddc711b49cfaaf00c32d4324",
+    "run_url": "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40653791852",
+    "conclusion": "success",
+    "artifact_id": 12800961382,
+    "artifact_digest": "sha256:a7421a1adf06390789b1904684935490e2c05c6754684772fe4ae4a8601917a2",
+    "runtime": "revision=ef273e6cee82e2b0ddc711b49cfaaf00c32d4324\nhost=aarch64\nengine=aarch64\n",
+    "gateway": {
+      "cases": [
+        {
+          "name": "certificate negative control",
+          "status": "passed"
+        },
+        {
+          "name": "secure cookies and browser request boundary",
+          "status": "passed"
+        },
+        {
+          "name": "bounded database readiness and recovery",
+          "status": "passed"
+        },
+        {
+          "name": "expired JWT SSR renews exactly once",
+          "status": "passed"
+        },
+        {
+          "name": "concurrent tabs serialize refresh",
+          "status": "passed"
+        },
+        {
+          "name": "tenant API HTML RSC and navigation isolation",
+          "status": "passed"
+        },
+        {
+          "name": "warm assignment and membership revocation",
+          "status": "passed"
+        },
+        {
+          "name": "committed refresh response loss does not replay",
+          "status": "passed"
+        },
+        {
+          "name": "logout account switch history and restored profile",
+          "status": "passed"
+        },
+        {
+          "name": "persisted pageshow revalidates switched identity",
+          "status": "passed"
+        },
+        {
+          "name": "pre restart credential log privacy",
+          "status": "passed"
+        },
+        {
+          "name": "controlled identity before restart",
+          "status": "passed"
+        },
+        {
+          "name": "container restart preserves session and worker effect",
+          "status": "passed"
+        },
+        {
+          "name": "distinct local peers preserve client identity and quotas",
+          "status": "passed"
+        },
+        {
+          "name": "credentials absent from retained application logs",
+          "status": "passed"
+        }
+      ],
+      "observations": {
+        "hostArchitecture": "aarch64",
+        "dockerArchitecture": "aarch64",
+        "backendImage": "sha256:36d7cad6abf9f7a780c0ee411075ddaa418037d6568d347205223aebc36fa0f9",
+        "frontendImage": "sha256:735eb6654dbd1615389d43801b3b87f1dff984f69bdfb0b4e4787e34eb6cd8f0",
+        "runtimeConfigurationVerified": true,
+        "databaseReadinessMs": 2018,
+        "bfcachePersistedEvents": 0,
+        "bfcacheNotRestoredReasons": [
+          "BackForwardCacheDisabledForDelegate",
+          "BrowsingInstanceNotSwapped",
+          "CacheControlNoStoreHTTPOnlyCookieModified",
+          "JsNetworkRequestReceivedCacheControlNoStoreResource",
+          "MainResourceHasCacheControlNoStore"
+        ],
+        "persistedReloadHttpStatus": 404,
+        "persistedPageshowIdentityRevalidation": true,
+        "identityBeforeRestart": {
+          "distinct_peers": true,
+          "login_isolated": true,
+          "refresh_isolated": true,
+          "peer_and_resolved_identity_match": true,
+          "same_fixed_window": true
+        },
+        "restartCertificateVerified": true,
+        "restartSameBrowserContext": true,
+        "restartCookiesUnchanged": true,
+        "identity": {
+          "distinct_peers": true,
+          "login_isolated": true,
+          "refresh_isolated": true,
+          "peer_and_resolved_identity_match": true,
+          "same_fixed_window": true
+        }
+      },
+      "limitations": [
+        "host reboot",
+        "two public egress addresses",
+        "native browser trust-store validation",
+        "BFCache restoration attempted but not observed"
+      ],
+      "passed": true
+    },
+    "cleanup": {
+      "owned_resources_removed": true
+    }
+  },
+  "previous_standard_ci": {
+    "revision": "71f1564",
+    "run_url": "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40650395273",
+    "conclusion": "success",
+    "required_aggregate": "Milestone 6 acceptance",
+    "commit_url": "https://github.com/ShinningF1eld/RestaurantOS/commit/71f156434a7f84afc47b2a5bb3faa8c3d868e1b3"
+  },
+  "standard_evidence_format_failure": {
+    "revision": "4942b75",
+    "run_url": "https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40652306029",
+    "gate": "baseline",
+    "reason": "Public commit/archive hashes flagged as high-entropy strings; fixed with exact commit links and algorithm-prefixed digest values; scanner rules unchanged."
+  }
+}

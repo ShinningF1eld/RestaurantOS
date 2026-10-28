@@ -11,7 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.errors import DomainError
 from app.core.logging import configure_json_logging
-from app.db.database import get_db
+from app.db.database import engine as database_engine, get_db
+from app.db.readiness import database_ready
 from app.redis.adapter import RedisAdapter, RedisFailure
 from app.http.error_handlers import domain_error_handler
 from app.http.request_middleware import RequestIdMiddleware
@@ -170,6 +171,16 @@ def health_check() -> dict[str, str]:
         "status": "ok",
         "service": "restaurantos-api",
     }
+
+
+@app.get("/ready")
+async def readiness_check() -> Response:
+    ready = await database_ready(database_engine)
+    return JSONResponse(
+        {"status": "ready" if ready else "unavailable"},
+        status_code=200 if ready else 503,
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 # Test frontend connection

@@ -14,11 +14,15 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def clear_cookies(response: Response) -> None:
-    for name, path in (("ros_access", "/"), ("ros_refresh", "/auth")):
+    settings = get_settings()
+    for name, path in (
+        ("ros_access", "/"),
+        ("ros_refresh", settings.auth_refresh_cookie_path),
+    ):
         response.delete_cookie(
             name,
             path=path,
-            secure=get_settings().auth_cookie_secure,
+            secure=settings.auth_cookie_secure,
             httponly=True,
             samesite="lax",
         )
@@ -48,7 +52,7 @@ def set_cookies(response: Response, result: IssuedSession) -> UserSummary:
         "ros_refresh",
         result.refresh_token,
         max_age=remaining,
-        path="/auth",
+        path=settings.auth_refresh_cookie_path,
         secure=settings.auth_cookie_secure,
         httponly=True,
         samesite="lax",

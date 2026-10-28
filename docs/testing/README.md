@@ -54,8 +54,8 @@ test namespace into browser/API processes. Pure unit tests require no services.
 | frontend-tests | Components and real API transport with isolated browser/network mocks |
 | frontend-build | Production Next.js build in an isolated source copy |
 | migrations | Clean and seeded legacy upgrades, preservation and downgrade guards |
-| browser | Real Chromium/API/PostgreSQL, production frontend, isolated processes/ports |
-| image | Locked Python production image, content inspection, startup and cleanup |
+| browser | Existing host workflows plus real Chromium/HTTPS/Compose matrix; isolated data, real authorization and verified failure cleanup |
+| image | Locked Python API/worker and Node standalone images, content inspection, startup/assets and cleanup |
 
 CI runs the same portable runner per matrix gate on Python 3.12 and Node 24.
 The matrix does not stop remaining gates after one failure. Its aggregate
@@ -83,10 +83,11 @@ existing browser gate; the runner owns and cleans up the separate worker process
 - [Backend test boundaries and critical-rule map](backend.md)
 - [Frontend component/client tests](frontend.md)
 - [Browser journey matrix](browser.md)
+- [HTTPS container gateway browser matrix](gateway-browser.md)
 - [Migration baseline and preservation](migrations.md)
 - [Milestone 7 menu-read benchmark](menu-read-benchmark.md)
 - [Coverage feedback and exclusions](coverage.md)
-- [Backend image build and smoke checks](image.md)
+- [Backend/worker and frontend image build and smoke checks](image.md)
 - [Required-check policy and administrator governance](enforcement.md)
 - [Dated Milestone 6 acceptance review](../milestone6/milestone-6-verification.md)
 

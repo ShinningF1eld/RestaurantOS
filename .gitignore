@@ -33,6 +33,7 @@ Thumbs.db
 # Database
 *.sqlite3
 /.local-backups/
+/.local-gateway/
 
 # Logs
 *.log
