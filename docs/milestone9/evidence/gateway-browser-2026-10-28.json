@@ -1,0 +1,149 @@
+{
+  "date": "2026-10-28",
+  "base_revision": "47535d1",
+  "scope": "Local Chromium and disposable HTTPS Compose; no remote CI or native ARM proof",
+  "final_matrix": {
+    "cases": [
+      {
+        "name": "certificate negative control",
+        "status": "passed"
+      },
+      {
+        "name": "secure cookies and browser request boundary",
+        "status": "passed"
+      },
+      {
+        "name": "expired JWT SSR renews exactly once",
+        "status": "passed"
+      },
+      {
+        "name": "concurrent tabs serialize refresh",
+        "status": "passed"
+      },
+      {
+        "name": "tenant API HTML RSC and navigation isolation",
+        "status": "passed"
+      },
+      {
+        "name": "warm assignment and membership revocation",
+        "status": "passed"
+      },
+      {
+        "name": "committed refresh response loss does not replay",
+        "status": "passed"
+      },
+      {
+        "name": "logout account switch history and restored profile",
+        "status": "passed"
+      },
+      {
+        "name": "pre restart credential log privacy",
+        "status": "passed"
+      },
+      {
+        "name": "controlled identity before restart",
+        "status": "passed"
+      },
+      {
+        "name": "container restart preserves session and worker effect",
+        "status": "passed"
+      },
+      {
+        "name": "distinct local peers preserve client identity and quotas",
+        "status": "passed"
+      },
+      {
+        "name": "credentials absent from retained application logs",
+        "status": "passed"
+      }
+    ],
+    "observations": {
+      "bfcachePersistedEvents": 0,
+      "identityBeforeRestart": {
+        "distinct_peers": true,
+        "login_isolated": true,
+        "refresh_isolated": true,
+        "peer_and_resolved_identity_match": true,
+        "same_fixed_window": true
+      },
+      "identity": {
+        "distinct_peers": true,
+        "login_isolated": true,
+        "refresh_isolated": true,
+        "peer_and_resolved_identity_match": true,
+        "same_fixed_window": true
+      }
+    },
+    "limitations": [
+      "native ARM",
+      "host reboot",
+      "two public egress addresses",
+      "native browser trust-store validation",
+      "BFCache restoration attempted but not observed"
+    ],
+    "passed": true
+  },
+  "final_cleanup": {
+    "owned_resources_removed": true
+  },
+  "expected_failure_probe": {
+    "expected_exit_code": 1,
+    "report": {
+      "cases": [
+        {
+          "name": "certificate negative control",
+          "status": "passed"
+        },
+        {
+          "name": "secure cookies and browser request boundary",
+          "status": "passed"
+        },
+        {
+          "name": "intentional failure",
+          "status": "failed",
+          "reason": "intentional failure"
+        }
+      ],
+      "observations": {},
+      "limitations": [
+        "native ARM",
+        "host reboot",
+        "two public egress addresses",
+        "native browser trust-store validation"
+      ],
+      "passed": false
+    },
+    "cleanup": {
+      "owned_resources_removed": true
+    }
+  },
+  "initial_fixture_failure": {
+    "cases": [
+      {
+        "name": "certificate negative control",
+        "status": "passed"
+      },
+      {
+        "name": "secure cookies and browser request boundary",
+        "status": "passed"
+      },
+      {
+        "name": "expired JWT SSR renews exactly once",
+        "status": "passed"
+      },
+      {
+        "name": "concurrent tabs serialize refresh",
+        "status": "failed",
+        "reason": "trusted fixture expire"
+      }
+    ],
+    "observations": {},
+    "limitations": [
+      "native ARM",
+      "host reboot",
+      "two public egress addresses",
+      "native browser trust-store validation"
+    ],
+    "passed": false
+  }
+}

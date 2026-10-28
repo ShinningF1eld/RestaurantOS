@@ -120,6 +120,8 @@ def occupied_networks() -> list[ipaddress.IPv4Network]:
 
 
 def initialize(port: int) -> None:
+    if not owned_state_path(STATE):
+        raise RuntimeError("Refusing initialization outside owned rehearsal state")
     if STATE.exists():
         raise RuntimeError(
             ".local-gateway already exists; existing secrets are never replaced"
@@ -208,9 +210,13 @@ def protect_directory() -> None:
 
 
 def load() -> dict:
-    if STATE.is_symlink() or STATE.resolve() != ROOT / ".local-gateway":
+    if not owned_state_path(STATE):
         raise RuntimeError("Refusing redirected rehearsal state directory")
     state = json.loads((STATE / "state.json").read_text(encoding="utf-8"))
+    if state.get("browser_run") and not re.fullmatch(
+        r"browser-[0-9a-f]{12}", STATE.name
+    ):
+        raise RuntimeError("Test instrumentation requires disposable browser state")
     from dotenv import dotenv_values
     from sqlalchemy.engine import make_url
     from sqlalchemy.exc import ArgumentError
@@ -251,7 +257,7 @@ def load() -> dict:
 
 @contextmanager
 def exclusive_operation():
-    if STATE.resolve() != ROOT / ".local-gateway":
+    if not owned_state_path(STATE):
         raise RuntimeError("Refusing redirected rehearsal directory")
     lock = STATE / "operation.lock"
     try:
@@ -264,6 +270,21 @@ def exclusive_operation():
         yield
     finally:
         lock.unlink()
+
+
+def owned_state_path(path: Path) -> bool:
+    base = ROOT / ".local-gateway"
+    if (
+        base.resolve() != base
+        or path.is_symlink()
+        or getattr(path, "is_junction", lambda: False)()
+    ):
+        return False
+    resolved = path.resolve()
+    return resolved == base or (
+        resolved.parent == base.resolve()
+        and bool(re.fullmatch(r"browser-[0-9a-f]{12}", resolved.name))
+    )
 
 
 def compose(state: dict, *args: str, input_text: str | None = None) -> str:
@@ -291,6 +312,11 @@ def compose(state: dict, *args: str, input_text: str | None = None) -> str:
             state["project"],
             "--file",
             str(COMPOSE),
+            *(
+                ["--file", str(STATE / "probe.override.yaml")]
+                if state.get("browser_run") and (STATE / "probe.override.yaml").exists()
+                else []
+            ),
             *args,
         ],
         cwd=ROOT,

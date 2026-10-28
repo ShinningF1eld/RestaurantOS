@@ -190,13 +190,18 @@ def test_browser_cleanup_probe_requires_intended_failure_and_no_leaks(
 
 def test_browser_gate_requires_workflow_and_cleanup_probe(monkeypatch):
     runner = load_runner(monkeypatch, "scripts/validate.py")
-    run, probe = Mock(), Mock()
+    run, probe, gateway_probe = Mock(), Mock(), Mock()
     monkeypatch.setattr(runner, "run", run)
     monkeypatch.setattr(runner, "browser_cleanup_probe", probe)
+    monkeypatch.setattr(runner, "gateway_cleanup_probe", gateway_probe)
     env = {"isolated": "yes"}
     runner.gate("browser", env)
-    assert run.call_args.args[1] == "scripts/run-browser-tests.py"
+    assert [call.args[1] for call in run.call_args_list] == [
+        "scripts/run-browser-tests.py",
+        "scripts/run-gateway-browser-tests.py",
+    ]
     probe.assert_called_once_with(env)
+    gateway_probe.assert_called_once_with(env)
 
 
 @pytest.mark.parametrize(

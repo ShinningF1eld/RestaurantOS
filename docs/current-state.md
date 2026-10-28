@@ -1,5 +1,31 @@
 # RestaurantOS current state
 
+## Milestone 9 S1 HTTPS browser verification
+
+On 2026-10-28, the container gateway matrix was added above `47535d1`. It uses
+fresh isolated Compose projects and synthetic accounts through real images/API,
+with trusted CLI expiry fixtures, strict TLS prechecks and a browser-scoped leaf
+key exception. Neither the persistent rehearsal nor developer DB is used, and no
+machine trust is installed. Temporary client-IP observation returns the real
+resolver result unchanged; reports retain safe labels and comparisons only.
+
+The existing browser gate now requires the gateway matrix and its verified
+failure cleanup as well as the prior host workflows. Product code, schema,
+dependencies and public routes are unchanged. Exact commands, current outcomes,
+BFCache observations and external/native limitations are in the
+[browser verification](milestone9/verification-milestone9-gateway-browser.md) and
+[matrix guide](testing/gateway-browser.md). This does not mark S1/M9 complete.
+
+Current partial checks passed static/baseline, 367 unit tests after the guard
+follow-up, frontend component/client tests and build, the existing 29 Chromium
+workflows, all 13 final HTTPS gateway cases and both intentional-failure cleanup
+probes. Controlled peer/quota assertions run before and after down/up, including
+single/chained header forgery and the real untrusted internal peer. Receipt plus
+durable diagnostic effect persist exactly once. BFCache restoration was attempted
+but zero persisted events were observed; that branch remains unverified. The
+developer/persistent rehearsal data was not used, and no product/API/schema or
+dependency changes were required.
+
 ## Milestone 9 S1 local gateway rehearsal
 
 On 2026-10-27, local Compose/Caddy wiring was added above image commit `35cc02a`.

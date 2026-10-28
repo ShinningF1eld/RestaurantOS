@@ -248,6 +248,9 @@ the six containers with Caddy, private service networks, separate synthetic data
 and persistent PostgreSQL/certificate volumes. Use `scripts/local-gateway.py` for
 explicit initialization, build, migration, startup, verification and shutdown.
 It is local S1 evidence, not a public deployment or full M9 acceptance.
+The [HTTPS Chromium matrix](docs/testing/gateway-browser.md) exercises browser
+sessions, tenant isolation and controlled client-IP handling in fresh disposable
+container projects; it also runs as part of the shared browser gate.
 
 ## Shutdown
 

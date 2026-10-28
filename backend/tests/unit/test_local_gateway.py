@@ -130,3 +130,27 @@ def test_remote_engine_is_rejected_before_mutation(helper, monkeypatch, endpoint
     )
     with pytest.raises(RuntimeError, match="local Docker socket"):
         helper.require_local_engine()
+
+
+def test_persistent_rehearsal_rejects_test_instrumentation(helper):
+    path = helper.STATE / "state.json"
+    state = json.loads(path.read_text())
+    state["browser_run"] = True
+    path.write_text(json.dumps(state))
+    with pytest.raises(RuntimeError, match="disposable browser state"):
+        helper.load()
+
+
+def test_browser_state_path_cannot_escape_private_root(helper):
+    assert helper.owned_state_path(helper.STATE / "browser-0123456789ab")
+    assert not helper.owned_state_path(helper.STATE / "other-user-data")
+    assert not helper.owned_state_path(helper.STATE.parent / "browser-0123456789ab")
+
+
+def test_initialization_checks_path_before_network_or_file_mutation(
+    helper, monkeypatch
+):
+    monkeypatch.setattr(helper, "STATE", helper.ROOT / "foreign-data")
+    with pytest.raises(RuntimeError, match="initialization outside"):
+        helper.initialize(8443)
+    assert not helper.STATE.exists()

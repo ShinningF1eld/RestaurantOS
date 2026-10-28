@@ -131,7 +131,9 @@ full-memory failure handling and native ARM capacity still need their later test
 The checker inspects real container limits/network membership/port mappings and
 pool/Redis configuration; it also verifies TLS, cookies, origin enforcement,
 forwarding-header allowance behavior, a protected SSR page and a durable worker
-receipt. Step #4 still owns the broader Chromium/session/tenant/failure matrix.
+receipt. The separate [Chromium gateway matrix](../testing/gateway-browser.md)
+now exercises step #4 in a fresh disposable project and leaves this persistent
+rehearsal alone. Its certificate-key exception is confined to its test browser.
 See the [gateway evidence](../milestone9/verification-milestone9-gateway.md).
 
 Configuration references: [Caddy proxy headers](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy),
