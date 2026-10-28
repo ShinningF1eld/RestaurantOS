@@ -8,6 +8,7 @@ import importlib.util
 import io
 import json
 import os
+import platform
 import re
 import secrets
 import shutil
@@ -16,6 +17,7 @@ import socket
 import subprocess
 import sys
 import time
+import traceback
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -125,6 +127,11 @@ def fixture(helper, action: str, data: dict) -> dict:
     state = helper.load()
     if state.get("browser_run") is not True:
         raise RuntimeError("Fixture controls require a disposable browser marker")
+    if action == "database":
+        if type(data.get("paused")) is not bool:
+            raise ValueError("Database pause requires an explicit boolean")
+        helper.compose(state, "pause" if data["paused"] else "unpause", "postgres")
+        return {"ok": True}
     if action == "create":
         helper.compose(
             state,
@@ -309,6 +316,14 @@ def cleanup(helper, state: dict) -> None:
     if state.get("browser_run") is not True:
         raise RuntimeError("Refusing volume cleanup without ephemeral ownership")
     if state.get("backend_image") and state.get("frontend_image"):
+        # A failed readiness probe can leave the owned database suspended.
+        database = helper.compose(state, "ps", "--all", "--quiet", "postgres")
+        if (
+            database
+            and helper.docker("inspect", "--format", "{{.State.Paused}}", database)
+            == "true"
+        ):
+            helper.compose(state, "unpause", "postgres")
         helper.compose(state, "down", "--volumes", "--remove-orphans")
     for command in (("ps", "-aq"), ("volume", "ls", "-q"), ("network", "ls", "-q")):
         if helper.docker(
@@ -333,12 +348,34 @@ def run_matrix(inject: bool) -> int:
         helper.initialize(port)
         state = helper.load()
         state["browser_run"] = True
+        state["host_architecture"] = platform.machine().lower()
+        state["docker_architecture"] = helper.docker(
+            "info", "--format", "{{.Architecture}}"
+        )
         save(helper, state)
         install_probe(helper, state)
         helper.build(state)
         save(helper, state)
         helper.migrate(state)
         helper.start(state)
+        # Reuse the real stack assertions for applied limits, private exposure,
+        # pool budgets and identical API/worker image identity on either host.
+        helper.check_runtime(state)
+        state["runtime_configuration_verified"] = True
+        expected_architecture = {
+            "x86_64": "amd64",
+            "aarch64": "arm64",
+            "arm64": "arm64",
+        }[state["docker_architecture"]]
+        for image in (state["backend_image"], state["frontend_image"]):
+            if (
+                helper.docker(
+                    "image", "inspect", "--format", "{{.Architecture}}", image
+                )
+                != expected_architecture
+            ):
+                raise RuntimeError("Application image architecture differs from engine")
+        save(helper, state)
         env = {
             **os.environ,
             "GATEWAY_BROWSER_STATE": name,
@@ -394,7 +431,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--fixture",
-        choices=("create", "expire", "restart", "receipt", "privacy", "identity"),
+        choices=(
+            "create",
+            "expire",
+            "restart",
+            "receipt",
+            "privacy",
+            "identity",
+            "database",
+        ),
     )
     parser.add_argument("--state")
     parser.add_argument("--inject-failure", action="store_true")
@@ -414,8 +459,20 @@ def main() -> int:
         RuntimeError,
         AssertionError,
         subprocess.SubprocessError,
-    ):
-        print("FAIL: gateway browser runner", flush=True)
+    ) as error:
+        # Preserve useful location evidence without exception text, input,
+        # local variables or third-party tracebacks that might contain secrets.
+        frames = [
+            frame
+            for frame in traceback.extract_tb(error.__traceback__)
+            if Path(frame.filename).resolve().parent == ROOT / "scripts"
+        ]
+        location = (
+            f" {Path(frames[-1].filename).name}:{frames[-1].lineno}" if frames else ""
+        )
+        print(
+            f"FAIL: gateway browser runner {type(error).__name__}{location}", flush=True
+        )
         return 1
 
 

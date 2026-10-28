@@ -166,7 +166,9 @@ def test_all_business_operations_require_authentication():
     with TestClient(app) as client:
         protected = 0
         for template, methods in document["paths"].items():
-            if template.startswith(("/auth", "/health", "/api/test")):
+            if template == "/ready" or template.startswith(
+                ("/auth", "/health", "/api/test")
+            ):
                 continue
             path = template
             for parameter in (

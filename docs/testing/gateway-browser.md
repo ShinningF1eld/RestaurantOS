@@ -82,6 +82,17 @@ resource leaks, early failure and false-pass paths.
 
 ## Limits
 
+The matrix also suspends its own PostgreSQL container, checks bounded generic
+readiness failure alongside healthy liveness, resumes the database and requires
+recovery. Cleanup resumes a suspended owned database before removing resources.
+See the [health contract](../api/health.md).
+
+The identity/history case additionally switches real account cookies while A's
+document is loaded, dispatches a controlled persisted-pageshow event, and requires
+the production handler to reload and remove A's marker. This exercises the handler
+without claiming natural BFCache restoration. Reports distinguish that assertion,
+actual persisted events and Chromium's safe not-restored reason enums.
+
 Reports record actual `pageshow.persisted` events. Zero means history/profile
 checks passed without proving restoration from BFCache; that limitation is kept.
 Full-document navigation is attempted with Playwright's default BFCache-disabling

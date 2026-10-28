@@ -64,6 +64,12 @@ services:
     pids_limit: 256
     cpu_shares: 512
     stop_grace_period: 45s
+    healthcheck:
+      test: [CMD, python, -c, "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/ready', timeout=3).read()"]
+      interval: 5s
+      timeout: 4s
+      start_period: 10s
+      retries: 12
     command: [uvicorn, app.main:app, --host, 0.0.0.0, --port, "8000", --no-proxy-headers, --timeout-graceful-shutdown, "30"]
     depends_on:
       postgres: {condition: service_healthy}

@@ -22,9 +22,19 @@ const ca = fs.readFileSync(path.join(stateDir, "root.crt"));
 const headers = { Origin: origin, "X-CSRF-Protection": "1" };
 const report = {
   cases: [],
-  observations: {},
+  observations: {
+    hostArchitecture: state.host_architecture ?? "unrecorded",
+    dockerArchitecture: state.docker_architecture ?? "unrecorded",
+    backendImage: state.backend_image,
+    frontendImage: state.frontend_image,
+    runtimeConfigurationVerified: state.runtime_configuration_verified === true,
+  },
   limitations: [
-    "native ARM",
+    ...([state.host_architecture, state.docker_architecture].every((value) =>
+      ["aarch64", "arm64"].includes(value),
+    )
+      ? []
+      : ["native ARM"]),
     "host reboot",
     "two public egress addresses",
     "native browser trust-store validation",
@@ -303,6 +313,36 @@ async function main() {
     activeCase = "intentional failure";
     throw new CheckError("intentional failure");
   }
+  await phase("bounded database readiness and recovery", async () => {
+    fixture("database", { paused: true });
+    try {
+      operation = "stalled database readiness HTTP response";
+      const started = Date.now();
+      const response = await context.request.get("/backend/ready", {
+        timeout: 5000,
+      });
+      ensure(response.status() === 503, "stalled database was ready");
+      ensure(Date.now() - started < 4000, "readiness exceeded total budget");
+      report.observations.databaseReadinessMs = Date.now() - started;
+      ensure(
+        (await response.json()).status === "unavailable",
+        "readiness exposed details",
+      );
+      ensure(
+        response.headers()["cache-control"] === "no-store",
+        "readiness was cacheable",
+      );
+      ensure(
+        (await context.request.get("/backend/health")).status() === 200,
+        "database outage broke liveness",
+      );
+    } finally {
+      fixture("database", { paused: false });
+    }
+    await expect
+      .poll(async () => (await context.request.get("/backend/ready")).status())
+      .toBe(200);
+  });
   await phase("expired JWT SSR renews exactly once", async () => {
     const old = (await remember(context)).find(
       (c) => c.name === "ros_refresh",
@@ -476,16 +516,24 @@ async function main() {
         });
         await persistent.addInitScript(() =>
           window.addEventListener("pageshow", (event) =>
-            window.gatewayPageshow(event.persisted),
+            window.gatewayPageshow(event.persisted && event.isTrusted),
           ),
         );
         const p = persistent.pages()[0] ?? (await persistent.newPage());
+        const blockedReasons = new Set();
+        const devtools = await persistent.newCDPSession(p);
+        await devtools.send("Page.enable");
+        devtools.on("Page.backForwardCacheNotUsed", (event) => {
+          for (const item of event.notRestoredExplanations)
+            blockedReasons.add(item.reason);
+        });
         await signIn(p, a, urlA);
         // Full-document navigation exercises BFCache; client navigation alone
         // only exercises the Next router cache.
         await p.goto(origin + "/");
         await p.goBack();
         await expect(p.getByText(ownerA.marker, { exact: true })).toBeVisible();
+        await expect(p.getByText(a.email, { exact: true })).toBeVisible();
         await p.getByRole("link", { name: "Orders", exact: true }).click();
         await p.getByRole("link", { name: "Menu", exact: true }).click();
         await p.getByRole("button", { name: "Sign out", exact: true }).click();
@@ -516,6 +564,9 @@ async function main() {
           restored.getByText(ownerB.marker, { exact: true }),
         ).toBeVisible();
         report.observations.bfcachePersistedEvents = persisted;
+        report.observations.bfcacheNotRestoredReasons = [
+          ...blockedReasons,
+        ].sort();
         if (!persisted)
           report.limitations.push(
             "BFCache restoration attempted but not observed",
@@ -525,6 +576,44 @@ async function main() {
       }
     },
   );
+  await phase("persisted pageshow revalidates switched identity", async () => {
+    const ctx = await makeContext();
+    const p = await ctx.newPage();
+    await signIn(p, a, urlA);
+    await expect(p.getByText(ownerA.marker, { exact: true })).toBeVisible();
+    await ctx.clearCookies();
+    await ctx.addCookies((await ownerB.api.storageState()).cookies);
+    operation = "persisted pageshow reload navigation";
+    const [response] = await Promise.all([
+      // Next may emit a same-document history event before the actual reload.
+      // Require a real main-frame HTTP document rather than that earlier event.
+      p.waitForResponse(
+        (candidate) =>
+          candidate.request().isNavigationRequest() &&
+          candidate.frame() === p.mainFrame() &&
+          candidate.url() === origin + urlA,
+      ),
+      p.evaluate(() => {
+        window.setTimeout(
+          () =>
+            window.dispatchEvent(
+              new PageTransitionEvent("pageshow", { persisted: true }),
+            ),
+          0,
+        );
+      }),
+    ]);
+    report.observations.persistedReloadHttpStatus = response.status();
+    // Next's streamed notFound UI can carry HTTP 200. Assert the scoped
+    // document itself rather than confusing that transport status with access.
+    await expect(
+      p.getByRole("heading", { name: "404", exact: true }),
+    ).toBeVisible();
+    operation = "tenant marker after persisted pageshow reload";
+    await absent(p, ownerA.marker);
+    report.observations.persistedPageshowIdentityRevalidation = true;
+    await ctx.close();
+  });
   await phase("pre restart credential log privacy", async () => {
     await Promise.all(captures);
     ensure(!captureErrors, "auth response observation failed");
@@ -610,6 +699,14 @@ try {
   report.passed = true;
 } catch (error) {
   report.passed = false;
+  report.observations.failureCategory =
+    error instanceof CheckError
+      ? "assertion"
+      : error.name === "TimeoutError"
+        ? "timeout"
+        : /Execution context was destroyed/.test(error.message)
+          ? "navigation context changed"
+          : "browser operation";
   report.cases.push({
     name: activeCase,
     status: "failed",

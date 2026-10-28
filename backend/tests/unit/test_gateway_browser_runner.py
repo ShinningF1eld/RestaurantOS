@@ -38,6 +38,34 @@ def test_cleanup_rejects_persistent_rehearsal_before_docker(monkeypatch, tmp_pat
     helper.compose.assert_not_called()
 
 
+@pytest.mark.parametrize("paused", [True, False])
+def test_cleanup_resumes_only_a_suspended_owned_database(monkeypatch, tmp_path, paused):
+    runner = load(monkeypatch, "scripts/run-gateway-browser-tests.py")
+    monkeypatch.setattr(runner, "BASE", tmp_path)
+    directory = tmp_path / "browser-0123456789ab"
+    directory.mkdir()
+    helper = SimpleNamespace(
+        STATE=directory,
+        compose=Mock(return_value="owned-database"),
+        docker=Mock(side_effect=[str(paused).lower(), "", "", ""]),
+    )
+    runner.cleanup(
+        helper,
+        {
+            "browser_run": True,
+            "project": "owned",
+            "backend_image": "a",
+            "frontend_image": "b",
+        },
+    )
+    resumed = any(
+        call.args[1:] == ("unpause", "postgres")
+        for call in helper.compose.call_args_list
+    )
+    assert resumed is paused
+    assert not directory.exists()
+
+
 @pytest.mark.parametrize("leak", ["containers", "volumes", "networks"])
 def test_cleanup_does_not_claim_success_when_resources_remain(
     monkeypatch, tmp_path, leak

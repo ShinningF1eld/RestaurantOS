@@ -251,6 +251,10 @@ It is local S1 evidence, not a public deployment or full M9 acceptance.
 The [HTTPS Chromium matrix](docs/testing/gateway-browser.md) exercises browser
 sessions, tenant isolation and controlled client-IP handling in fresh disposable
 container projects; it also runs as part of the shared browser gate.
+The API's [database readiness check](docs/api/health.md) is separate from process
+liveness and controls gateway startup ordering. An optional
+[native ARM verification workflow](docs/testing/native-arm.md) is prepared;
+its existence alone does not establish native runtime evidence.
 
 ## Shutdown
 

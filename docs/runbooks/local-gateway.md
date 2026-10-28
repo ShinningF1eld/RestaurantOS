@@ -102,6 +102,13 @@ rehearsal cluster; production database-role hardening is not established here.
 
 ## Persistence, secrets and limits
 
+API startup health now uses the bounded database [`/ready` check](../api/health.md).
+The frontend waits for this check; `/health` remains process liveness. Neither
+endpoint applies migrations or checks worker progress. The explicit revision
+check and migration procedure above still apply.
+Rebuild with `scripts/local-gateway.py build` before `up` when using images built
+before this endpoint was added; those older API images cannot serve `/ready`.
+
 Normal shutdown:
 
 ```powershell

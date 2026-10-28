@@ -1,5 +1,32 @@
 # RestaurantOS current state
 
+## Milestone 9 S1 readiness and closure checks
+
+On 2026-10-28, S1 follow-up work adds bounded, read-only database `/ready`,
+separate from process `/health`, and uses it for gateway API startup health.
+Disposable regressions cover unavailable PostgreSQL, pool contention, suspension
+and recovery. Gateway runs inspect applied limits/exposure and record image and
+architecture evidence. No schema/dependency changes or application migrations.
+
+All ten local gates passed across recorded corrective runs:
+369 unit tests, 347 integration tests, 10 client/19 component tests, build,
+migration/image checks, 29 host browser journeys, 15 HTTPS gateway cases and both
+intentional-failure cleanup probes. The first full run failed; its failures and
+the exact follow-up commands are retained. The persisted-pageshow handler now
+passes an actual document-reload identity-switch check; natural BFCache events
+remain zero, with Chromium's not-restored reasons recorded.
+Complete affected backend/image/browser gates passed again for a final
+lease-ownership guard: timeout cleanup must not terminate a probe connection
+after it has returned to the pool and been borrowed elsewhere. Six targeted
+readiness/health cases pass; an isolated unguarded negative control correctly
+fails by closing the other borrower's connection.
+
+A native ARM workflow is prepared but has not run or been published; no native
+runner is available locally. Native runtime and exact-commit remote CI remain
+pending. S1 is not marked complete. See the
+[closure evidence](milestone9/verification-milestone9-s1-closure.md) and
+[health contract](api/health.md).
+
 ## Milestone 9 S1 HTTPS browser verification
 
 On 2026-10-28, the container gateway matrix was added above `47535d1`. It uses

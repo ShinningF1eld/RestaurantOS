@@ -1,0 +1,523 @@
+{
+  "date": "2026-10-28",
+  "source_state": "Uncommitted S1 changes above 7026352; tested image identities are in observations.",
+  "local_python": "3.13.15",
+  "production_image_python": "3.12",
+  "gateway": {
+    "cases": [
+      {
+        "name": "certificate negative control",
+        "status": "passed"
+      },
+      {
+        "name": "secure cookies and browser request boundary",
+        "status": "passed"
+      },
+      {
+        "name": "bounded database readiness and recovery",
+        "status": "passed"
+      },
+      {
+        "name": "expired JWT SSR renews exactly once",
+        "status": "passed"
+      },
+      {
+        "name": "concurrent tabs serialize refresh",
+        "status": "passed"
+      },
+      {
+        "name": "tenant API HTML RSC and navigation isolation",
+        "status": "passed"
+      },
+      {
+        "name": "warm assignment and membership revocation",
+        "status": "passed"
+      },
+      {
+        "name": "committed refresh response loss does not replay",
+        "status": "passed"
+      },
+      {
+        "name": "logout account switch history and restored profile",
+        "status": "passed"
+      },
+      {
+        "name": "persisted pageshow revalidates switched identity",
+        "status": "passed"
+      },
+      {
+        "name": "pre restart credential log privacy",
+        "status": "passed"
+      },
+      {
+        "name": "controlled identity before restart",
+        "status": "passed"
+      },
+      {
+        "name": "container restart preserves session and worker effect",
+        "status": "passed"
+      },
+      {
+        "name": "distinct local peers preserve client identity and quotas",
+        "status": "passed"
+      },
+      {
+        "name": "credentials absent from retained application logs",
+        "status": "passed"
+      }
+    ],
+    "observations": {
+      "hostArchitecture": "amd64",
+      "dockerArchitecture": "x86_64",
+      "backendImage": "sha256:4fb39ba0e6198dc9723334d6ed948219b2335604a484abdb652fcf92fa10cd1d",
+      "frontendImage": "sha256:15323d56e303c6f9336819a996939387f204e92e4238b370a20109a88b4e5e22",
+      "runtimeConfigurationVerified": true,
+      "databaseReadinessMs": 2017,
+      "bfcachePersistedEvents": 0,
+      "bfcacheNotRestoredReasons": [
+        "BackForwardCacheDisabledForDelegate",
+        "BrowsingInstanceNotSwapped",
+        "CacheControlNoStoreHTTPOnlyCookieModified",
+        "JsNetworkRequestReceivedCacheControlNoStoreResource",
+        "MainResourceHasCacheControlNoStore"
+      ],
+      "persistedReloadHttpStatus": 404,
+      "persistedPageshowIdentityRevalidation": true,
+      "identityBeforeRestart": {
+        "distinct_peers": true,
+        "login_isolated": true,
+        "refresh_isolated": true,
+        "peer_and_resolved_identity_match": true,
+        "same_fixed_window": true
+      },
+      "identity": {
+        "distinct_peers": true,
+        "login_isolated": true,
+        "refresh_isolated": true,
+        "peer_and_resolved_identity_match": true,
+        "same_fixed_window": true
+      }
+    },
+    "limitations": [
+      "native ARM",
+      "host reboot",
+      "two public egress addresses",
+      "native browser trust-store validation",
+      "BFCache restoration attempted but not observed"
+    ],
+    "passed": true
+  },
+  "gateway_cleanup": {
+    "owned_resources_removed": true
+  },
+  "failed_attempts": [
+    {
+      "run": "browser-442e2fbb4115",
+      "last_case": {
+        "name": "bounded database readiness and recovery",
+        "status": "failed",
+        "reason": "trusted fixture database"
+      },
+      "observations": {},
+      "cleanup": {
+        "owned_resources_removed": true
+      }
+    },
+    {
+      "run": "browser-02250ceb368d",
+      "last_case": {
+        "name": "logout account switch history and restored profile",
+        "status": "failed",
+        "reason": "browser login submit"
+      },
+      "observations": {
+        "databaseReadinessMs": 2018
+      },
+      "cleanup": {
+        "owned_resources_removed": true
+      }
+    },
+    {
+      "run": "browser-0d378cf8985e",
+      "last_case": {
+        "name": "logout account switch history and restored profile",
+        "status": "failed",
+        "reason": "persisted pageshow identity revalidation"
+      },
+      "observations": {
+        "hostArchitecture": "amd64",
+        "dockerArchitecture": "x86_64",
+        "databaseReadinessMs": 2023
+      },
+      "cleanup": {
+        "owned_resources_removed": true
+      }
+    },
+    {
+      "run": "browser-2af32dc25527",
+      "last_case": {
+        "name": "logout account switch history and restored profile",
+        "status": "failed",
+        "reason": "persisted pageshow identity revalidation"
+      },
+      "observations": {
+        "hostArchitecture": "amd64",
+        "dockerArchitecture": "x86_64",
+        "backendImage": "sha256:fcc92d963d17d436308cff0a2bf22dd9dbc1eac8a474e3293d632ed1f9f87996",
+        "frontendImage": "sha256:3b53b6c58788a6da19730bcb2bbe3fe1bea961d5b33b8850e851d508d46136da",
+        "runtimeConfigurationVerified": true,
+        "databaseReadinessMs": 2017
+      },
+      "cleanup": {
+        "owned_resources_removed": true
+      }
+    },
+    {
+      "run": "browser-986eaee420a8",
+      "last_case": {
+        "name": "persisted pageshow revalidates switched identity",
+        "status": "failed",
+        "reason": "restored document did not reauthorize switched identity"
+      },
+      "observations": {
+        "hostArchitecture": "amd64",
+        "dockerArchitecture": "x86_64",
+        "backendImage": "sha256:25c520a49845810777a40eddb32b6b66c44192952397c5874a6b46e3cfd6d7f0",
+        "frontendImage": "sha256:3e4add20537bb7c16dd6aa9abfeceb88b83151c86b41a6aa0df60934e48fb3e3",
+        "runtimeConfigurationVerified": true,
+        "databaseReadinessMs": 2028,
+        "bfcachePersistedEvents": 0,
+        "bfcacheNotRestoredReasons": [
+          "BackForwardCacheDisabledForDelegate",
+          "BrowsingInstanceNotSwapped",
+          "CacheControlNoStoreHTTPOnlyCookieModified",
+          "JsNetworkRequestReceivedCacheControlNoStoreResource",
+          "MainResourceHasCacheControlNoStore"
+        ],
+        "failureCategory": "assertion"
+      },
+      "cleanup": {
+        "owned_resources_removed": true
+      }
+    },
+    {
+      "run": "browser-ff92aaa63929",
+      "last_case": {
+        "name": "persisted pageshow revalidates switched identity",
+        "status": "failed",
+        "reason": "persisted pageshow did not reload the document"
+      },
+      "observations": {
+        "hostArchitecture": "amd64",
+        "dockerArchitecture": "x86_64",
+        "backendImage": "sha256:09a0d95ad47b2fe0d0b5dc20b1db2293b2926ef19a08a2e890918bcc60f7a4a9",
+        "frontendImage": "sha256:b9a8ac27a4857dc8983c788013a028f10873a859e034749cce92d2d1e554426c",
+        "runtimeConfigurationVerified": true,
+        "databaseReadinessMs": 2013,
+        "bfcachePersistedEvents": 0,
+        "bfcacheNotRestoredReasons": [
+          "BackForwardCacheDisabledForDelegate",
+          "BrowsingInstanceNotSwapped",
+          "CacheControlNoStoreHTTPOnlyCookieModified",
+          "JsNetworkRequestReceivedCacheControlNoStoreResource",
+          "MainResourceHasCacheControlNoStore"
+        ],
+        "failureCategory": "assertion"
+      },
+      "cleanup": {
+        "owned_resources_removed": true
+      }
+    },
+    {
+      "run": "browser-6b2f04811fa8",
+      "last_case": null,
+      "cleanup": {
+        "owned_resources_removed": true
+      }
+    },
+    {
+      "run": "browser-07fa69b186de",
+      "last_case": null,
+      "cleanup": {
+        "owned_resources_removed": true
+      }
+    }
+  ],
+  "native_arm": "Not executed; no native runner available locally. Workflow prepared; source publication awaits authorization.",
+  "browser_gate_gateway": {
+    "cases": [
+      {
+        "name": "certificate negative control",
+        "status": "passed"
+      },
+      {
+        "name": "secure cookies and browser request boundary",
+        "status": "passed"
+      },
+      {
+        "name": "bounded database readiness and recovery",
+        "status": "passed"
+      },
+      {
+        "name": "expired JWT SSR renews exactly once",
+        "status": "passed"
+      },
+      {
+        "name": "concurrent tabs serialize refresh",
+        "status": "passed"
+      },
+      {
+        "name": "tenant API HTML RSC and navigation isolation",
+        "status": "passed"
+      },
+      {
+        "name": "warm assignment and membership revocation",
+        "status": "passed"
+      },
+      {
+        "name": "committed refresh response loss does not replay",
+        "status": "passed"
+      },
+      {
+        "name": "logout account switch history and restored profile",
+        "status": "passed"
+      },
+      {
+        "name": "persisted pageshow revalidates switched identity",
+        "status": "passed"
+      },
+      {
+        "name": "pre restart credential log privacy",
+        "status": "passed"
+      },
+      {
+        "name": "controlled identity before restart",
+        "status": "passed"
+      },
+      {
+        "name": "container restart preserves session and worker effect",
+        "status": "passed"
+      },
+      {
+        "name": "distinct local peers preserve client identity and quotas",
+        "status": "passed"
+      },
+      {
+        "name": "credentials absent from retained application logs",
+        "status": "passed"
+      }
+    ],
+    "observations": {
+      "hostArchitecture": "amd64",
+      "dockerArchitecture": "x86_64",
+      "backendImage": "sha256:10759383de48a6bdd650b8fbcf47634fab6425b592b875e0452db12581c3e0df",
+      "frontendImage": "sha256:68cb8ec4ac418e3e85d887ba26f6284f1ed2f88f80b84f048a21888ccaf4aedd",
+      "runtimeConfigurationVerified": true,
+      "databaseReadinessMs": 2013,
+      "bfcachePersistedEvents": 0,
+      "bfcacheNotRestoredReasons": [
+        "BackForwardCacheDisabledForDelegate",
+        "BrowsingInstanceNotSwapped",
+        "CacheControlNoStoreHTTPOnlyCookieModified",
+        "JsNetworkRequestReceivedCacheControlNoStoreResource",
+        "MainResourceHasCacheControlNoStore"
+      ],
+      "persistedReloadHttpStatus": 404,
+      "persistedPageshowIdentityRevalidation": true,
+      "identityBeforeRestart": {
+        "distinct_peers": true,
+        "login_isolated": true,
+        "refresh_isolated": true,
+        "peer_and_resolved_identity_match": true,
+        "same_fixed_window": true
+      },
+      "identity": {
+        "distinct_peers": true,
+        "login_isolated": true,
+        "refresh_isolated": true,
+        "peer_and_resolved_identity_match": true,
+        "same_fixed_window": true
+      }
+    },
+    "limitations": [
+      "native ARM",
+      "host reboot",
+      "two public egress addresses",
+      "native browser trust-store validation",
+      "BFCache restoration attempted but not observed"
+    ],
+    "passed": true
+  },
+  "browser_gate_gateway_cleanup": {
+    "owned_resources_removed": true
+  },
+  "intentional_gateway_failure": {
+    "cases": [
+      {
+        "name": "certificate negative control",
+        "status": "passed"
+      },
+      {
+        "name": "secure cookies and browser request boundary",
+        "status": "passed"
+      },
+      {
+        "name": "intentional failure",
+        "status": "failed",
+        "reason": "intentional failure"
+      }
+    ],
+    "observations": {
+      "hostArchitecture": "amd64",
+      "dockerArchitecture": "x86_64",
+      "backendImage": "sha256:4c16b4d5da42bbf00b93899c9c384890b22a59102a7cde2609ee6d5790107eab",
+      "frontendImage": "sha256:3d238f9510c2033edf6e16b71aafa35785989e24b4f9a340edd1a1fca9d09f20",
+      "runtimeConfigurationVerified": true,
+      "failureCategory": "assertion"
+    },
+    "limitations": [
+      "native ARM",
+      "host reboot",
+      "two public egress addresses",
+      "native browser trust-store validation"
+    ],
+    "passed": false
+  },
+  "intentional_gateway_failure_cleanup": {
+    "owned_resources_removed": true
+  },
+  "local_gates": {
+    "passing": [
+      "baseline",
+      "backend-static",
+      "frontend-static",
+      "backend-unit",
+      "backend-integration",
+      "frontend-tests",
+      "frontend-build",
+      "migrations",
+      "browser",
+      "image"
+    ],
+    "evidence": "Recorded cumulative corrective runs; initial full command failed. See verification-milestone9-s1-closure.md for exact commands and failure history.",
+    "unit_tests": 369,
+    "integration_tests": 347,
+    "host_browser_journeys": 29,
+    "https_gateway_cases": 15,
+    "client_tests": 10,
+    "component_tests": 19
+  },
+  "prior_guard_browser_gate_gateway": {
+    "cases": [
+      {
+        "name": "certificate negative control",
+        "status": "passed"
+      },
+      {
+        "name": "secure cookies and browser request boundary",
+        "status": "passed"
+      },
+      {
+        "name": "bounded database readiness and recovery",
+        "status": "passed"
+      },
+      {
+        "name": "expired JWT SSR renews exactly once",
+        "status": "passed"
+      },
+      {
+        "name": "concurrent tabs serialize refresh",
+        "status": "passed"
+      },
+      {
+        "name": "tenant API HTML RSC and navigation isolation",
+        "status": "passed"
+      },
+      {
+        "name": "warm assignment and membership revocation",
+        "status": "passed"
+      },
+      {
+        "name": "committed refresh response loss does not replay",
+        "status": "passed"
+      },
+      {
+        "name": "logout account switch history and restored profile",
+        "status": "passed"
+      },
+      {
+        "name": "persisted pageshow revalidates switched identity",
+        "status": "passed"
+      },
+      {
+        "name": "pre restart credential log privacy",
+        "status": "passed"
+      },
+      {
+        "name": "controlled identity before restart",
+        "status": "passed"
+      },
+      {
+        "name": "container restart preserves session and worker effect",
+        "status": "passed"
+      },
+      {
+        "name": "distinct local peers preserve client identity and quotas",
+        "status": "passed"
+      },
+      {
+        "name": "credentials absent from retained application logs",
+        "status": "passed"
+      }
+    ],
+    "observations": {
+      "hostArchitecture": "amd64",
+      "dockerArchitecture": "x86_64",
+      "backendImage": "sha256:ba2b9e2751dd4bed9d1d3ab910b96a4882ca495bc855b71ffe3833253f4ee603",
+      "frontendImage": "sha256:429df4d9346b1ec91f1a2ac7c3c0e58995826678ffdff9b6b2425ba9f61ab539",
+      "runtimeConfigurationVerified": true,
+      "databaseReadinessMs": 2013,
+      "bfcachePersistedEvents": 0,
+      "bfcacheNotRestoredReasons": [
+        "BackForwardCacheDisabledForDelegate",
+        "BrowsingInstanceNotSwapped",
+        "CacheControlNoStoreHTTPOnlyCookieModified",
+        "JsNetworkRequestReceivedCacheControlNoStoreResource",
+        "MainResourceHasCacheControlNoStore"
+      ],
+      "persistedReloadHttpStatus": 404,
+      "persistedPageshowIdentityRevalidation": true,
+      "identityBeforeRestart": {
+        "distinct_peers": true,
+        "login_isolated": true,
+        "refresh_isolated": true,
+        "peer_and_resolved_identity_match": true,
+        "same_fixed_window": true
+      },
+      "identity": {
+        "distinct_peers": true,
+        "login_isolated": true,
+        "refresh_isolated": true,
+        "peer_and_resolved_identity_match": true,
+        "same_fixed_window": true
+      }
+    },
+    "limitations": [
+      "native ARM",
+      "host reboot",
+      "two public egress addresses",
+      "native browser trust-store validation",
+      "BFCache restoration attempted but not observed"
+    ],
+    "passed": true
+  },
+  "pool_ownership_guard": {
+    "status": "Verified",
+    "targeted_health_readiness_cases": 6,
+    "negative_control": "An isolated in-memory copy without the ownership check closed the other borrower connection and failed the handoff regression. Guarded tracked source passed all six cases.",
+    "complete_backend_gates": "369 unit tests, backend static, 347 integration tests and no model drift passed.",
+    "complete_runtime_gates": "Image and full browser gates passed; 29 host journeys, 15 HTTPS cases and both verified intentional-failure cleanup probes.",
+    "tracked_source_changed_by_negative_control": false,
+    "interrupted_initial_negative_fixture_project_removed": true
+  }
+}

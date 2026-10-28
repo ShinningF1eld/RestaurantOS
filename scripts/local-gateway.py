@@ -586,6 +586,15 @@ asyncio.run(main())
             },
         )
         assert status == (401 if attempt < 5 else 429)
+    assert organization
+    check_runtime(state)
+    print(
+        "PASS: verified TLS, routing, cookie rotation/logout, CSRF, synthetic tenant bootstrap, limits and exposure."
+    )
+
+
+def check_runtime(state: dict) -> None:
+    """Read actual limits, exposure and pool settings without creating accounts."""
     # Inspect actual Docker settings, not only declarations in YAML.
     expected = {
         "caddy": (128, 128),
@@ -640,7 +649,6 @@ asyncio.run(main())
                 info["Image"] == state["backend_image"]
                 or info["Config"]["Image"] == state["backend_image"]
             )
-    assert organization
     assert (
         compose(
             state,
@@ -674,9 +682,6 @@ asyncio.run(main())
         "python",
         "-c",
         "from app.core.config import get_settings; from redis import Redis; r=Redis.from_url(get_settings().redis_url.get_secret_value()); c=r.config_get('maxmemory*'); assert c['maxmemory-policy']=='noeviction'; assert int(c['maxmemory'])==128*1024*1024; r.close()",
-    )
-    print(
-        "PASS: verified TLS, routing, cookie rotation/logout, CSRF, synthetic tenant bootstrap, limits and exposure."
     )
 
 
