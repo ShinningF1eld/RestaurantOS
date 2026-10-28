@@ -47,6 +47,13 @@ identity phase separately and allow one document GET retry only for Chromium's
 explicit network-change error. Refresh/business writes and TLS checks keep their
 existing failure semantics. S1 remains open pending native gateway completion.
 
+The next native diagnostic confirms certificate continuity and an explicit browser
+network-change signal, followed by failure of the interrupted tab's retry. The
+restart check now opens a fresh document in the same browser context and proves
+the cookies are unchanged, alongside identity, tenant data and exactly-once worker
+effect. All fifteen local cases pass. Public evidence identifiers were formatted
+as commit links/algorithm-prefixed digests so the unchanged secret gate passes.
+
 ## Milestone 9 S1 HTTPS browser verification
 
 On 2026-10-28, the container gateway matrix was added above `47535d1`. It uses

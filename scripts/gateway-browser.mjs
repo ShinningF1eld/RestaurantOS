@@ -282,7 +282,7 @@ async function main() {
   const urlA = "/restaurants/" + ownerA.restaurant + "/menu";
   const urlB = "/restaurants/" + ownerB.restaurant + "/menu";
   const context = await makeContext();
-  const page = await context.newPage();
+  let page = await context.newPage();
   await phase("secure cookies and browser request boundary", async () => {
     await signIn(page, a, urlA);
     ensure(
@@ -652,13 +652,25 @@ async function main() {
           { timeout: 45000 },
         )
         .toBe(1);
-      await remember(context);
+      const sessionCookies = async () =>
+        JSON.stringify(
+          (await remember(context))
+            .filter((cookie) => cookie.name.startsWith("ros_"))
+            .map(({ name, value }) => [name, value])
+            .sort((a, b) => a[0].localeCompare(b[0])),
+        );
+      const beforeRestartCookies = await sessionCookies();
       fixture("restart");
       ensure(
         (await verifiedKey()) === key,
         "certificate identity changed across restart",
       );
       report.observations.restartCertificateVerified = true;
+      // Keep the authenticated browser context/cookies, but require a fresh
+      // document rather than an interrupted old tab or its warmed router cache.
+      await page.close();
+      page = await context.newPage();
+      report.observations.restartSameBrowserContext = true;
       operation = "browser document GET after container restart";
       try {
         await page.goto(origin + urlA);
@@ -668,6 +680,8 @@ async function main() {
         // Never retry refresh, a business command or a certificate failure.
         if (!/net::ERR_NETWORK_CHANGED\b/.test(error.message)) throw error;
         report.observations.restartDocumentGetRetries = 1;
+        await page.close();
+        page = await context.newPage();
         await page.goto(origin + urlA);
       }
       operation = "browser identity after container restart";
@@ -676,6 +690,11 @@ async function main() {
       await expect(
         page.getByText(ownerA.marker, { exact: true }),
       ).toBeVisible();
+      ensure(
+        (await sessionCookies()) === beforeRestartCookies,
+        "session cookies changed during container restart",
+      );
+      report.observations.restartCookiesUnchanged = true;
       ensure(
         fixture("receipt", {
           restaurant: ownerA.restaurant,
@@ -722,6 +741,8 @@ try {
     : "other";
   const networkError = /net::(ERR_[A-Z_]+)/.exec(error.message);
   if (networkError) report.observations.networkError = networkError[1];
+  report.observations.navigationInterrupted =
+    /interrupted by another navigation/.test(error.message);
   report.observations.failureCategory =
     error instanceof CheckError
       ? "assertion"

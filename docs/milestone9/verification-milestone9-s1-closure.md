@@ -204,6 +204,22 @@ explicit Chromium `ERR_NETWORK_CHANGED` signal during controlled bridge recreati
 refresh, business POSTs, TLS and semantic failures are not retried. The complete
 local fifteen-case gateway matrix passes this refinement. Native rerun is pending.
 
+The [fourth native run](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40652306060)
+confirms the certificate identity check passed and one `ERR_NETWORK_CHANGED`
+document retry occurred, followed by another browser-operation failure in the
+existing tab. Restart verification now closes that tab, opens a fresh document
+in the **same authenticated browser context**, and asserts access/refresh cookies
+are unchanged after the server-rendered identity/data checks. If the explicit
+network-change signal recurs once, its failed tab is also replaced before the
+single permitted GET retry. This avoids relying on an interrupted document or
+warmed router cache and does not create a new login or reset the browser context.
+The complete local fifteen-case matrix passes, including the durable effect.
+
+That source's standard baseline gate flagged public commit hashes and an archive
+checksum in the new evidence JSON. Exact commits are now represented as public
+commit links and archive hashes use GitHub's `sha256:` digest format. The unchanged
+secret scanner passes locally; no rules, paths or broad allowlists were relaxed.
+
 Native ARM run URL, exact source revision, successful runtime jobs and sanitized
 artifacts are required before marking native verification complete. Repository
 instructions require fresh authorization before committing/publishing this work.
