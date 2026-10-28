@@ -21,6 +21,9 @@ also created. No required check or branch policy was bypassed or changed.
 - Synthetic Python regressions and a contained real Ubuntu/cloud-init/ShellCheck/
   OpenSSH regression. Both helpers are included in the existing static harness;
   the Ubuntu runtime regression is explicitly invoked separately.
+- A separate read-only `S2 / synthetic Ubuntu bootstrap` workflow repeats that
+  contained regression on relevant changes. No OCI/SSH/runtime secret or registry
+  publisher permission is present; shared CI gates and aggregate are unchanged.
 - [Host runbook](../runbooks/oci-hosts.md), current-state/roadmap alignment and a
   separate [learning journal](../../learning-journal/2026-10-28-m9-s2-while-you-were-away.md).
 
@@ -34,6 +37,7 @@ scope instead of managed database/resettable demo assumptions.
 | Exact command from root | Result |
 |---|---|
 | `./scripts/validate.ps1 -Gate @('baseline','backend-static','backend-unit') -NoInstall` | Passed: candidate secret scan, Compose/pip checks, Ruff/format/mypy and 414 unit cases; partial run only |
+| `./scripts/validate.ps1 -Gate @('backend-static','backend-unit') -NoInstall` | Passed again after the documented legacy OCI region-ID correction: 416 unit cases and static checks |
 | `docker run --rm --network none --mount type=bind,source=C:/Users/User/Documents/All_Projects/RestaurantOS/deploy/oci,target=/review,readonly python:3.12-slim bash -c 'set -e; for script in /review/*.sh; do bash -n "$script"; done; echo PASS:bash-syntax'` | Initial host scripts passed Bash syntax; later scripts covered by the Ubuntu regression |
 | `backend/.venv/Scripts/python.exe scripts/check-oci-host-bundle.py` | Passed with a disposable Ubuntu 24.04 test toolchain; both schemas, ShellCheck, actual cloud-init modules, root/private ownership, inert deploy account, effective SSH policy and audit refusal on incomplete host |
 | `docker build --tag restaurantos-oci-validation:local --file deploy/oci/validation.Dockerfile deploy/oci` followed by the same bundle checker | Passed against the tracked recipe, including explicit failure of deployment-identity audit after a synthetic accidental sudo grant |

@@ -166,3 +166,18 @@ def test_example_deliberately_cannot_provision(helper):
     example = json.loads((ROOT / "deploy/oci/inventory.example.json").read_text())
     with pytest.raises(ValueError):
         helper.validate(example)
+
+
+@pytest.mark.parametrize(
+    "region,ocid_region", [("us-phoenix-1", "phx"), ("us-ashburn-1", "iad")]
+)
+def test_legacy_ocid_region_names(helper, inventory, region, ocid_region):
+    inventory["home_region"] = region
+    for host in inventory["hosts"].values():
+        host["image_id"] = f"ocid1.image.oc1.{ocid_region}.synthetic"
+    helper.validate(inventory)
+    inventory["hosts"]["testing"]["image_id"] = (
+        "ocid1.image.oc1.ap-singapore-1.synthetic"
+    )
+    with pytest.raises(ValueError, match="home region"):
+        helper.validate(inventory)

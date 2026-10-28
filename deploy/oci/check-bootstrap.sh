@@ -29,6 +29,13 @@ if runuser -u ros-deploy -- sudo -n /usr/bin/true; then exit 1; fi
 sudo -n -l -U rosadmin >/dev/null
 mkdir -p /run/sshd
 ssh-keygen -A >/dev/null
+# OpenSSH's first value wins: an earlier contradictory file must be rejected,
+# preserved for review, and must not leave our candidate installed.
+printf 'PasswordAuthentication yes\n' >/etc/ssh/sshd_config.d/00-aaa-regression.conf
+if bash /opt/restaurantos/bootstrap/harden-ssh.sh rosadmin --second-session-and-console-verified; then exit 1; fi
+[[ ! -e /etc/ssh/sshd_config.d/00-restaurantos.conf ]]
+[[ -s /etc/ssh/sshd_config.d/00-aaa-regression.conf ]]
+rm /etc/ssh/sshd_config.d/00-aaa-regression.conf
 # This container has no systemd PID 1. Hardening must parse successfully but the
 # real service reload must fail; no simulated reload is counted as host proof.
 if bash /opt/restaurantos/bootstrap/harden-ssh.sh rosadmin --second-session-and-console-verified; then

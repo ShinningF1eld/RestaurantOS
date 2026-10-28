@@ -17,6 +17,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = ROOT / "deploy/oci"
+# OCI predates long region identifiers in Phoenix and Ashburn. The image OCID
+# uses phx/iad there, while tenancy home-region identifiers use their full names.
+OCID_REGIONS = {"us-phoenix-1": "phx", "us-ashburn-1": "iad"}
 
 
 def exact_keys(value, keys, label):
@@ -122,7 +125,7 @@ def validate(inventory):
             or not re.fullmatch(
                 r"ocid1\.image\.oc1\.[a-z0-9-]+\.[a-z0-9]+", host["image_id"]
             )
-            or host["image_id"].split(".")[3] != region
+            or host["image_id"].split(".")[3] != OCID_REGIONS.get(region, region)
         ):
             raise ValueError(
                 "Record an eligible Ubuntu 24.04 ARM image in the home region"

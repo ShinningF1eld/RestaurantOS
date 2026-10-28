@@ -1,0 +1,34 @@
+name: S2 host bundle regression
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - deploy/oci/**
+      - scripts/prepare-oci-hosts.py
+      - scripts/check-oci-host-bundle.py
+      - .github/workflows/s2-host-bundle.yml
+  pull_request:
+    paths:
+      - deploy/oci/**
+      - scripts/prepare-oci-hosts.py
+      - scripts/check-oci-host-bundle.py
+      - .github/workflows/s2-host-bundle.yml
+
+permissions:
+  contents: read
+
+jobs:
+  configuration:
+    name: S2 / synthetic Ubuntu bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build Ubuntu configuration test toolchain
+        run: docker build --tag restaurantos-oci-validation:local --file deploy/oci/validation.Dockerfile deploy/oci
+      - name: Check synthetic bundle without network or host credentials
+        run: python scripts/check-oci-host-bundle.py

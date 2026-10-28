@@ -46,6 +46,13 @@ Use one plain Ed25519 **public** key without its comment. The wire-format check
 is not a proof of key possession. Keep the corresponding private key in the
 operator's existing secure custody, outside cloud-init and Git.
 
+Copy the exact image OCID, not its display name. OCI image identifiers use `phx`
+and `iad` for the older Phoenix/Ashburn regions; the checker maps those to
+`us-phoenix-1`/`us-ashburn-1` and rejects other region mismatches. This structural
+check still cannot prove that the image exists, is ARM64, or is Always Free.
+[Oracle's OCID format](https://docs.oracle.com/en-us/iaas/Content/General/Concepts/identifiers.htm)
+and [Canonical's image lookup procedure](https://ubuntu.com/docs/oracle/oracle-how-to/find-ubuntu-images/).
+
 Rendering is offline and creates a new directory, never overwriting a bundle.
 Review both `*.cloud-config.yaml`, `network-plan.json` and `sha256.json`. Cloud-init
 accepts this JSON document as YAML after the `#cloud-config` header. Re-render
@@ -216,3 +223,9 @@ or exercise privileged packet rules. The image is retained for reruns; ordinary
 containers and temporary fixture directories are removed. No application schema
 or dependency lock changes are involved. Run the full shared gates for broader
 repository acceptance; these preparation checks alone cannot close S2/M9.
+
+The separate `S2 / synthetic Ubuntu bootstrap` workflow runs this container
+regression for relevant file changes or manual dispatch, with only repository
+read permission. It receives no OCI/SSH/runtime credentials, publishes no image
+and provisions no infrastructure. The ten shared gates and required aggregate
+are unchanged. It provides repeatable configuration evidence, not hosted proof.

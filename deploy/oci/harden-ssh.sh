@@ -15,7 +15,9 @@ id -nG "$admin" | tr ' ' '\n' | grep -qx sudo
 config=/etc/ssh/sshd_config.d/00-restaurantos.conf
 [[ ! -e $config ]] || { echo 'Existing hardening file: review manually; refusing replacement.' >&2; exit 1; }
 umask 077
-cat >"$config" <<EOF
+candidate=$(mktemp /etc/ssh/sshd_config.d/.restaurantos.XXXXXXXX)
+trap 'rm -f -- "$candidate"' EXIT
+cat >"$candidate" <<EOF
 # Installed after named-admin second-session and OCI recovery verification.
 PermitRootLogin no
 PasswordAuthentication no
@@ -29,6 +31,8 @@ X11Forwarding no
 PermitTunnel no
 PermitUserEnvironment no
 EOF
+# Publish complete bytes atomically and refuse a competing/existing target.
+ln -- "$candidate" "$config"
 # sshd's first value wins. Verify the effective result, not just this file.
 valid=true
 effective=$(sshd -T) || valid=false

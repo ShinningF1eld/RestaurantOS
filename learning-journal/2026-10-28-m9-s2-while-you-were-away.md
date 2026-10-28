@@ -139,6 +139,12 @@ effective configuration first avoids treating that broken pipe as a bad policy.
 These are good examples of why a plausible shell script benefits from execution
 against the real tools.
 
+Research also caught an identifier detail that a purely synthetic test missed:
+OCI calls the home region `us-ashburn-1`, but older image identifiers contain
+`iad`. The checker now handles the documented legacy spellings and has dedicated
+regressions for them. Strict validation is useful only when its model matches
+the real service; “reject everything unfamiliar” can become an operational bug.
+
 Preparation tests prove that unsafe input is refused and review files have the
 intended structure. They do not prove that OCI booted a machine or that an
 outside attacker cannot reach a port. The technical verification document records
@@ -157,3 +163,8 @@ When both hosts pass the live checks, we can close S2. Public HTTPS application
 deployment is S3. Backups/recovery, restricted CI delivery and capacity acceptance
 still have their own later slices. Getting a login page online would be progress,
 but durable user data should wait for the recovery work to be proven.
+
+The preparation is published in [draft PR #57](https://github.com/ShinningF1eld/RestaurantOS/pull/57).
+The inventory unit suite now has 416 passing cases in total, including the rest
+of the repository's unit tests. The [technical evidence](../docs/milestone9/verification-milestone9-s2-preparation.md)
+keeps the exact commands, broader gate results and live checks still outstanding.
