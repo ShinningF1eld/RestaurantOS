@@ -7,6 +7,7 @@ import json
 import subprocess
 import sys
 import time
+import traceback
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from urllib.error import URLError
@@ -585,6 +586,7 @@ def run_smoke(
                     [
                         "network",
                         "connect",
+                        "--gw-priority=-1",
                         "--alias",
                         postgres_alias,
                         network_name,
@@ -685,8 +687,16 @@ def main() -> int:
         print(f"FAIL: {exc}", file=sys.stderr)
         return 1
     except (OSError, psycopg.Error, ValueError, subprocess.SubprocessError) as exc:
+        frames = [
+            frame
+            for frame in traceback.extract_tb(exc.__traceback__)
+            if ROOT / "scripts" in Path(frame.filename).resolve().parents
+        ]
+        location = (
+            f"; {Path(frames[-1].filename).name}:{frames[-1].lineno}" if frames else ""
+        )
         print(
-            f"FAIL: image check could not complete ({type(exc).__name__})",
+            f"FAIL: image check could not complete ({type(exc).__name__}{location})",
             file=sys.stderr,
         )
         return 1

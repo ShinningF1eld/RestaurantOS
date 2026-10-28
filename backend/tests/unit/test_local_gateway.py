@@ -119,6 +119,36 @@ def test_compose_never_pulls_a_fallback_application_image(helper):
         helper.compose(helper.load(), "up", "-d")
 
 
+@pytest.mark.parametrize("worker_running", [True, False])
+def test_start_waits_for_http_services_and_checks_worker_separately(
+    helper, monkeypatch, worker_running
+):
+    calls = []
+
+    def compose(state, *args, **kwargs):
+        calls.append(args)
+        if args[0] in {"exec", "run"}:
+            return "current-revision"
+        return "owned-worker" if args[0] == "ps" else ""
+
+    monkeypatch.setattr(helper, "compose", compose)
+    monkeypatch.setattr(helper, "docker", lambda *_: str(worker_running).lower())
+    monkeypatch.setattr(helper, "export_ca", lambda *_: None)
+    state = helper.load()
+    state.update(
+        backend_image="sha256:" + "a" * 64, frontend_image="sha256:" + "b" * 64
+    )
+    if worker_running:
+        helper.start(state)
+    else:
+        with pytest.raises(RuntimeError, match="Worker process did not start"):
+            helper.start(state)
+    waits = [call for call in calls if "--wait" in call]
+    assert all("worker" not in call for call in waits)
+    assert any("api" in call and "frontend" in call for call in waits)
+    assert ("up", "-d", "--no-deps", "worker") in calls
+
+
 @pytest.mark.parametrize(
     "endpoint",
     ["ssh://operator@remote.test", "tcp://remote.test:2376", "tcp://127.0.0.1:2375"],

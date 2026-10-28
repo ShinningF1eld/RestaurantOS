@@ -173,6 +173,21 @@ rejection/privacy regressions and static checks. Startup-failure evidence now
 retains only structural container state and fixed error labels; raw health output
 and settings are excluded. Remote rerun outcomes remain pending.
 
+The [second native run](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40649057366)
+passed the schema assertion but then failed its host database cleanup. The
+temporary smoke-network attachment now has gateway priority -1 so it cannot
+replace PostgreSQL's original default route. Local unit/static/image gates pass
+with this setting; Docker Engine/CLI 28+ is required for that option.
+
+The [second standard run](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40649057209)
+retained startup state showing every process running and every configured health
+check healthy. Compose 2.38 has a documented `up --wait` failure for explicitly
+disabled inherited healthchecks ([upstream issue](https://github.com/docker/compose/issues/13522)).
+The worker intentionally disables the API HTTP check. Startup now waits on the
+API/frontend/database and other gateway services explicitly, starts the worker
+separately and requires its actual process to run. The durable worker-effect
+assertion remains mandatory; no always-successful worker healthcheck was added.
+
 Native ARM run URL, exact source revision, successful runtime jobs and sanitized
 artifacts are required before marking native verification complete. Repository
 instructions require fresh authorization before committing/publishing this work.

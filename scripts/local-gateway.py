@@ -431,7 +431,31 @@ def start(state: dict) -> None:
             "Rehearsal schema does not match the image; stop writers and migrate explicitly"
         )
     # Recreating a network with an occupied subnet must fail, never change trust.
-    compose(state, "up", "-d", "--wait", "--wait-timeout", "90")
+    # Compose 2.38 treats an explicitly disabled inherited healthcheck as an
+    # error under --wait. The worker has no HTTP server; wait only on services
+    # with applicable health/running checks, then start and inspect its process.
+    compose(
+        state,
+        "up",
+        "-d",
+        "--wait",
+        "--wait-timeout",
+        "90",
+        "postgres",
+        "redis",
+        "api",
+        "frontend",
+        "caddy",
+    )
+    compose(state, "up", "-d", "--no-deps", "worker")
+    worker = compose(state, "ps", "-q", "worker")
+    if (
+        not worker
+        or docker("inspect", "--format", "{{.State.Running}}", worker) != "true"
+    ):
+        raise RuntimeError(
+            "Worker process did not start; use check to prove durable progress"
+        )
     export_ca(state)
     print(
         f"Rehearsal started at https://localhost:{state['port']} (local CA required)."

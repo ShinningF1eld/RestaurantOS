@@ -51,11 +51,16 @@ See [Docker networking](https://docs.docker.com/engine/network/).
 Set `TEST_DATABASE_URL` to a dedicated PostgreSQL database name ending in
 `_test`. When PostgreSQL runs in a local `restaurantos-m6-*` Compose project,
 pass its container ID with `--postgres-container`. The checker attaches that service temporarily to
-its private smoke network, uses a unique alias on port 5432, then disconnects it
+its private smoke network with gateway priority -1, preserving the original
+gateway and host cleanup connection, uses a unique alias on port 5432, then disconnects it
 before removing the network. The PostgreSQL service stays running. The shared
 validation command supplies this ID for its local Compose services. For an
 externally published service such as CI, omit the option; the image connects
 through `host.docker.internal`, with a `host-gateway` mapping on Linux.
+
+The local-service attachment requires Docker Engine/CLI 28 or newer for
+`docker network connect --gw-priority`. An unsupported daemon fails the check
+rather than falling back to an attachment that can change database routing.
 
 ```powershell
 $env:TEST_DATABASE_URL = "postgresql+asyncpg://USER:PASSWORD@127.0.0.1:5432/restaurantos_test" # pragma: allowlist secret

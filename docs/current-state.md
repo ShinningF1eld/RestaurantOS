@@ -32,6 +32,13 @@ remain pending; S1 is not marked complete. See the
 [closure evidence](milestone9/verification-milestone9-s1-closure.md) and
 [health contract](api/health.md).
 
+The second native run passed schema inspection but exposed cleanup routing after
+the test database joined a second bridge. Its smoke attachment now has gateway
+priority -1 (Docker 28+). Gateway startup evidence also matched Compose 2.38's
+documented disabled-healthcheck wait bug: the helper now waits on HTTP/database
+services and starts/checks the worker separately, retaining the durable effect
+assertions. These checker/orchestration fixes await the next remote results.
+
 ## Milestone 9 S1 HTTPS browser verification
 
 On 2026-10-28, the container gateway matrix was added above `47535d1`. It uses

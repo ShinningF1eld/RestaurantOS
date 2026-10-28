@@ -108,6 +108,11 @@ endpoint applies migrations or checks worker progress. The explicit revision
 check and migration procedure above still apply.
 Rebuild with `scripts/local-gateway.py build` before `up` when using images built
 before this endpoint was added; those older API images cannot serve `/ready`.
+Startup waits explicitly on the gateway/API/frontend/database services, then
+starts and checks the worker process separately. This avoids Compose 2.38's
+`--wait` bug for a deliberately disabled inherited HTTP healthcheck. Worker
+progress is still established by the real receipt/effect check, not process
+liveness alone. See [the upstream issue](https://github.com/docker/compose/issues/13522).
 
 Normal shutdown:
 

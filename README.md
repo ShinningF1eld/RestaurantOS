@@ -96,7 +96,7 @@ for current gates and remaining acceptance boundaries.
 
 - Python 3.12 (the supported documentation and CI version)
 - Node.js 24 and npm
-- Docker Desktop with Docker Compose v2
+- Docker Desktop (Engine/CLI 28+) with Docker Compose v2
 - PowerShell 7 for the convenient Windows validation command
 
 The Milestone 0 audit was run locally with Python 3.13.15, Node 24.14.1, and
