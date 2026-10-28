@@ -1,5 +1,22 @@
 # RestaurantOS current state
 
+## Milestone 9 S2 preparation — hosted evidence pending
+
+On 2026-10-28 S1 was merged through [PR #56](https://github.com/ShinningF1eld/RestaurantOS/pull/56).
+S2 now has an offline strict two-host inventory checker, reviewed cloud-init
+generation, staged SSH/Docker/metadata controls, a read-only local audit and
+synthetic Ubuntu regressions. See the [host runbook](runbooks/oci-hosts.md) and
+[dated preparation verification](milestone9/verification-milestone9-s2-preparation.md).
+This work changes no application schema, API, runtime secrets or dependency locks.
+
+The OCI browser opened at Cloud Sign In; no configured OCI CLI profile was
+available. No cloud host/network resource was created or inspected. Eligibility,
+actual Ubuntu ARM image, access isolation, external exposure, metadata denial,
+Docker restart and host reboot evidence remain outstanding on both hosts.
+Deployment access stays disabled pending the later restricted release wrapper.
+S2 and M9 are incomplete. A separate [learning journal](../learning-journal/2026-10-28-m9-s2-while-you-were-away.md)
+explains this work for the returning user.
+
 ## Milestone 9 S1 completed — container and gateway feasibility
 
 S1 exit criteria were verified on 2026-10-28 at source `ef273e6` on

@@ -258,6 +258,11 @@ images and the real HTTPS/API/worker matrix. See the dated
 [S1 completion evidence](docs/milestone9/verification-milestone9-s1-closure.md);
 S1 completion does not establish a deployed environment or full Milestone 9 acceptance.
 
+Milestone 9 S2 host preparation and its remaining live checks are documented in
+the [OCI host runbook](docs/runbooks/oci-hosts.md). The separate
+[learning journal](learning-journal/2026-10-28-m9-s2-while-you-were-away.md) explains
+the work and the reasoning. No hosted environment is claimed by this preparation.
+
 ## Shutdown
 
 Stop containers without deleting the database volume:

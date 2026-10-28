@@ -990,9 +990,16 @@ Exact runs, sanitized artifacts and limitations are tracked in the
 [closure evidence](docs/milestone9/verification-milestone9-s1-closure.md).
 This does not establish a deployed environment or complete Milestone 9.
 
+S1 merged through PR #56 on 2026-10-28. S2 repository preparation is in progress:
+strict host inventory, staged Linux controls and a host-security runbook.
+Actual OCI access/provisioning and all two-host live security evidence remain
+pending; see [S2 verification](docs/milestone9/verification-milestone9-s2-preparation.md).
+
 ### Objective
 
-Deploy a reproducible, secure staging/demo environment.
+Deploy reproducible, isolated synthetic staging and a durable private-account
+application environment. Accounts are manually provisioned; durable user data
+is not publicly shared or periodically reset as demo data.
 
 ### Container scope
 
@@ -1006,12 +1013,13 @@ Deploy a reproducible, secure staging/demo environment.
 
 ### Initial deployment shape
 
-- Managed PostgreSQL.
-- Managed Redis if affordable.
+- Self-hosted PostgreSQL 16 and Redis 7 in separate containers on OCI, per the
+  accepted M9 design; the operator owns backup, recovery and host maintenance.
 - Backend API container.
 - Worker container using the same versioned image where practical.
 - Next.js deployment.
-- S3-compatible object storage for documents/model artifacts as needed.
+- Encrypted off-VM operational backups; application uploads/model artifacts are
+  outside the M9 deployment slice.
 - TLS and a stable demo URL.
 
 ### CI/CD stages
@@ -1031,7 +1039,8 @@ Introduce Terraform after a manual deployment teaches the required resources. Ke
 - A clean commit can be deployed reproducibly.
 - Migration failure stops deployment safely.
 - Rollback/runbook is documented and tested at least once in staging.
-- Demo data contains no real personal or payment information.
+- Synthetic staging fixtures contain no real personal or payment information;
+  durable application accounts/data remain private and are not reset as fixtures.
 
 ---
 

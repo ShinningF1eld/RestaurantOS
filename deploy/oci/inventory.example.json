@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "home_region": "replace-with-home-region",
+  "eligibility_review": {
+    "date": "YYYY-MM-DD",
+    "console_verified": false,
+    "existing_ocpus": 0,
+    "existing_memory_gb": 0,
+    "existing_storage_gb": 0
+  },
+  "admin_user": "rosadmin",
+  "hosts": {
+    "application": {
+      "hostname": "restaurantos-application",
+      "shape": "VM.Standard.A1.Flex",
+      "ocpus": 1,
+      "memory_gb": 8,
+      "boot_gb": 50,
+      "image_id": "REPLACE_WITH_ELIGIBLE_UBUNTU_24_04_ARM_IMAGE_OCID",
+      "admin_public_key": "REPLACE_WITH_PUBLIC_ED25519_KEY_WITHOUT_COMMENT",
+      "admin_ipv4_cidr": "REPLACE_WITH_ADMIN_PUBLIC_IPV4/32",
+      "vcn_cidr": "10.60.0.0/16"
+    },
+    "testing": {
+      "hostname": "restaurantos-testing",
+      "shape": "VM.Standard.A1.Flex",
+      "ocpus": 1,
+      "memory_gb": 4,
+      "boot_gb": 50,
+      "image_id": "REPLACE_WITH_ELIGIBLE_UBUNTU_24_04_ARM_IMAGE_OCID",
+      "admin_public_key": "REPLACE_WITH_PUBLIC_ED25519_KEY_WITHOUT_COMMENT",
+      "admin_ipv4_cidr": "REPLACE_WITH_ADMIN_PUBLIC_IPV4/32",
+      "vcn_cidr": "10.61.0.0/16"
+    }
+  }
+}

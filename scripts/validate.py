@@ -208,6 +208,8 @@ def gate(name, env):
             "scripts/check-backend-image.py",
             "scripts/check-frontend-image.py",
             "scripts/local-gateway.py",
+            "scripts/prepare-oci-hosts.py",
+            "scripts/check-oci-host-bundle.py",
             "scripts/run-gateway-browser-tests.py",
         ]
         run(python, "-m", "ruff", "check", "--target-version", "py312", *harness)
