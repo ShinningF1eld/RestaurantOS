@@ -253,8 +253,10 @@ sessions, tenant isolation and controlled client-IP handling in fresh disposable
 container projects; it also runs as part of the shared browser gate.
 The API's [database readiness check](docs/api/health.md) is separate from process
 liveness and controls gateway startup ordering. An optional
-[native ARM verification workflow](docs/testing/native-arm.md) is prepared;
-its existence alone does not establish native runtime evidence.
+[native ARM verification workflow](docs/testing/native-arm.md) now passes both
+images and the real HTTPS/API/worker matrix. See the dated
+[S1 completion evidence](docs/milestone9/verification-milestone9-s1-closure.md);
+S1 completion does not establish a deployed environment or full Milestone 9 acceptance.
 
 ## Shutdown
 

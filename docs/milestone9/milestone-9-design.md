@@ -866,6 +866,14 @@ This is an implementation sequence for review, not published GitHub issues.
 | S5 Automated delivery | S3 manual release; S4 procedures before enabling application promotion; verified protected environment or fallback, SSH path and GHCR visibility | Exact validated SHA builds immutable ARM digests, staging tests precede exact human approval; forced command/manifest/provenance/host lock enforce promotion; unapproved/changed/replayed/concurrent releases denied. | R1/R2/R6-R10/R14; required before application activation |
 | S6 Capacity and operational acceptance | S4+S5, approved profile/thresholds, all exact-release CI and hosted safety evidence | Activate only approved release with synthetic smoke data, measure matching 1-OCPU/8-GB stack before durable users; three capacity runs plus backup contention and diagnosis; complete runbooks/onboarding/limitations and final requirement evidence. | R5/R9-R14; capacity before onboarding, all criteria before M9 completion |
 
+S1 implementation status (2026-10-28): complete for verified source `ef273e6`.
+All ten shared gates and the required aggregate pass, and a native GitHub ARM64
+runner passes both application images and the real fifteen-case HTTPS gateway
+matrix. See [the completion evidence](verification-milestone9-s1-closure.md) for
+exact runs, failed attempts, retained artifacts and limitations. This is S1
+feasibility evidence, not application-host provisioning, public TLS/egress,
+hosted recovery, capacity or approval of later S2–S6 operations.
+
 Potential implementation locations: backend/frontend Dockerfiles and ignore files;
 new production Compose/Caddy configuration; backend typed settings/auth router and
 health boundary; frontend Next config/homepage/API helpers as needed; deployment,

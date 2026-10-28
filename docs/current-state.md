@@ -1,58 +1,39 @@
 # RestaurantOS current state
 
-## Milestone 9 S1 readiness and closure checks
+## Milestone 9 S1 completed — container and gateway feasibility
 
-On 2026-10-28, S1 follow-up work adds bounded, read-only database `/ready`,
-separate from process `/health`, and uses it for gateway API startup health.
-Disposable regressions cover unavailable PostgreSQL, pool contention, suspension
-and recovery. Gateway runs inspect applied limits/exposure and record image and
-architecture evidence. No schema/dependency changes or application migrations.
+S1 exit criteria were verified on 2026-10-28 at source `ef273e6` on
+`codex/m9-s1-native-arm`. All ten shared gates and the unchanged
+[`Milestone 6 acceptance` aggregate](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40653791909)
+passed. [Native ARM verification](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40653791852)
+passed both locked non-root images and all fifteen HTTPS gateway cases on an
+`aarch64` host and Docker engine, including real durable worker effects.
 
-All ten local gates passed across recorded corrective runs:
-369 unit tests, 347 integration tests, 10 client/19 component tests, build,
-migration/image checks, 29 host browser journeys, 15 HTTPS gateway cases and both
-intentional-failure cleanup probes. The first full run failed; its failures and
-the exact follow-up commands are retained. The persisted-pageshow handler now
-passes an actual document-reload identity-switch check; natural BFCache events
-remain zero, with Chromium's not-restored reasons recorded.
-Complete affected backend/image/browser gates passed again for a final
-lease-ownership guard: timeout cleanup must not terminate a probe connection
-after it has returned to the pool and been borrowed elsewhere. Six targeted
-readiness/health cases pass; an isolated unguarded negative control correctly
-fails by closing the other borrower's connection.
+Current verification includes 376 pure unit tests, 347 PostgreSQL integration
+cases, 10 client/19 component tests, production builds, clean/legacy migration
+checks, 29 host browser journeys, 15 HTTPS cases and both intentional-failure
+cleanup probes. The native artifact records unchanged browser session cookies,
+certificate identity, tenant data and exactly-once worker effect across down/up.
+Resource/network/pool limits and API/worker image identity are inspected live.
 
-The verification branch was published as `c726e5f`. Native ARM host/engine checks,
-backend build/content/liveness and container-to-DB connectivity passed, but the
-first native image gate failed at its runner-side schema reconnection. The
-checker now reads the post-start schema through the verified container connection
-and rejects mismatched database names. The first standard CI passed nine gates;
-browser startup failed after all 29 host journeys passed. Safe structural startup
-diagnostics were added for the rerun. Native runtime and exact-commit remote CI
-remain pending; S1 is not marked complete. See the
-[closure evidence](milestone9/verification-milestone9-s1-closure.md) and
-[health contract](api/health.md).
+The public read-only `/ready` endpoint has a shared two-second acquisition/query/
+cleanup budget, separate from `/health` liveness. Timeout termination checks lease
+ownership so it cannot close a connection already returned to another borrower.
+Compose uses readiness and waits explicitly on applicable services; the worker's
+process and durable effect are checked separately. Image smoke networking retains
+PostgreSQL's original gateway (Docker Engine/CLI 28+). No schema/dependency changes
+or application-database migrations were needed.
 
-The second native run passed schema inspection but exposed cleanup routing after
-the test database joined a second bridge. Its smoke attachment now has gateway
-priority -1 (Docker 28+). Gateway startup evidence also matched Compose 2.38's
-documented disabled-healthcheck wait bug: the helper now waits on HTTP/database
-services and starts/checks the worker separately, retaining the durable effect
-assertions. These checker/orchestration fixes await the next remote results.
+Natural BFCache restoration was not observed; actual Chromium reason enums and a
+passing controlled persisted-pageshow identity-revalidation check are retained.
+Local TLS uses a verified chain/hostname and browser-scoped leaf-key exception;
+it does not establish native browser trust-store setup or public TLS. Public
+egress, host reboot, hosted recovery, capacity and application deployment remain
+later S2–S6 work. This completes S1, not Milestone 9.
 
-Source `71f1564` now passes all ten remote gates and `Milestone 6 acceptance`.
-Both native ARM images also pass. Native gateway checks pass their first twelve
-cases but fail in restart persistence; the sanitized artifact and remaining
-boundary are retained. Restart observations now identify the certificate/read/
-identity phase separately and allow one document GET retry only for Chromium's
-explicit network-change error. Refresh/business writes and TLS checks keep their
-existing failure semantics. S1 remains open pending native gateway completion.
-
-The next native diagnostic confirms certificate continuity and an explicit browser
-network-change signal, followed by failure of the interrupted tab's retry. The
-restart check now opens a fresh document in the same browser context and proves
-the cookies are unchanged, alongside identity, tenant data and exactly-once worker
-effect. All fifteen local cases pass. Public evidence identifiers were formatted
-as commit links/algorithm-prefixed digests so the unchanged secret gate passes.
+Exact commands, failed attempts, compatibility fixes, source/run URLs and sanitized
+artifacts are in the [S1 closure evidence](milestone9/verification-milestone9-s1-closure.md).
+See the [health contract](api/health.md) and [native runner guide](testing/native-arm.md).
 
 ## Milestone 9 S1 HTTPS browser verification
 

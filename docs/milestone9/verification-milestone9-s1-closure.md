@@ -1,11 +1,13 @@
 # Milestone 9 S1 closure checks — 2026-10-28
 
-S1 is not yet accepted. Native ARM execution and exact-commit remote CI
-remain pending. All ten local gates passed across the recorded corrective runs,
-including complete affected-gate reruns for the final pool-ownership safeguard.
-The available local Docker engine is x86-64, and the user
-confirmed that no native ARM machine/runner is available. An unexecuted workflow
-and earlier emulated results cannot establish native runtime compatibility.
+S1 is complete for verified source
+[`ef273e6`](https://github.com/ShinningF1eld/RestaurantOS/commit/ef273e6cee82e2b0ddc711b49cfaaf00c32d4324).
+[All ten shared gates and the required aggregate passed](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40653791909).
+[Native ARM verification also passed](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40653791852):
+both locked non-root images and all fifteen real HTTPS/API/worker cases on an
+`aarch64` host and Docker engine. The local engine is x86-64; earlier emulation
+results were not used as native evidence. The documentation closure commit is
+also checked by the unchanged CI and native workflows on the verification branch.
 
 Local results were recorded from the working tree above `7026352`. On
 2026-10-28 the user authorized committing this S1 work and publishing the
@@ -98,7 +100,7 @@ command or an exact-commit remote CI result.
 
 | Requirement | Current evidence and boundary |
 |---|---|
-| R2 images/runtime | Both locked non-root application images pass smoke/content checks; gateway verifies actual API/worker image identity and engine/image architecture. Native ARM runtime is pending. |
+| R2 images/runtime | Both locked non-root images pass native ARM build/content/runtime checks; gateway verifies actual API/worker image identity and host/engine/image architecture. |
 | R3 local isolation | Applied networks, only loopback Caddy publication, fixed trusted proxy peer, private runtime configuration and resource settings are checked on the disposable stack. External exposure is S3 evidence. |
 | R4 gateway sessions | Cookies, CSRF, actual access expiry, serialized renewal, uncertain refresh handling and distinct controlled-peer quotas/header forgery pass, repeated across restart. Public egress proof is S3. |
 | R5 tenant/session isolation | API/HTML/RSC/navigation, warm permission revocation, account/history/profile changes and controlled persisted-pageshow reauthorization pass. Natural BFCache restoration remains unobserved with explicit reasons. |
@@ -149,7 +151,7 @@ No global TLS bypass, lowered auth
 quota, mocked authorization, application migration or developer-volume deletion
 was used to obtain a pass.
 
-## Remaining acceptance boundaries
+## Remote verification history and later milestone boundaries
 
 ### Initial remote verification and checker follow-up
 
@@ -220,9 +222,32 @@ checksum in the new evidence JSON. Exact commits are now represented as public
 commit links and archive hashes use GitHub's `sha256:` digest format. The unchanged
 secret scanner passes locally; no rules, paths or broad allowlists were relaxed.
 
-Native ARM run URL, exact source revision, successful runtime jobs and sanitized
-artifacts are required before marking native verification complete. Repository
-instructions require fresh authorization before committing/publishing this work.
+### Final accepted results
+
+Source `ef273e6` passes all ten standard gates plus `Milestone 6 acceptance` in
+[run 40653791909](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40653791909).
+The shared commands are the workflow's locked installs followed by
+`python scripts/validate.py --gate <gate> --external-services --no-install` for
+each of the ten unchanged gate names. Python 3.12 CI confirms 376 unit tests,
+347 integration cases, 29 host browser journeys, all fifteen HTTPS cases and
+both verified failure-cleanup probes, alongside frontend tests/build, migrations,
+image/static/dependency/secret checks. No gate was skipped for acceptance.
+
+[Native run 40653791852](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40653791852)
+uses `ubuntu-24.04-arm`, requires native host/engine architecture, installs the
+committed locks and Chromium, then runs
+`python scripts/validate.py --gate image --no-install` and
+`python scripts/run-gateway-browser-tests.py`. Both native images and all fifteen
+gateway cases pass. Its digest-verified [retained artifact](evidence/s1-native-arm-2026-10-28.json)
+records a 2,018 ms stalled-database response, verified certificate continuity,
+unchanged session cookies in the same browser context, tenant data, exactly one
+durable worker effect, repeated distinct-peer quotas and owned cleanup. No GET
+retry was needed in this successful native run.
+
+The full failure history above is retained rather than relabeled as success.
+User authorization covered this verification branch and its CI follow-ups, not
+later application-host provisioning or deployment.
+
 Natural BFCache restoration must be reported according to actual browser events;
 a controlled event is not evidence that Chromium cached and restored a document.
 Public TLS, two public egress clients, host reboot, cloud capacity and hosted

@@ -17,6 +17,12 @@ preparation, not a successful native run. Check repository visibility, runner
 availability and account usage before authorizing a run; this guide makes no
 claim about billing or available quota.
 
+On 2026-10-28, source `ef273e6` passed both native ARM image checks and all fifteen
+gateway cases in [run 40653791852](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40653791852).
+The host/engine were `aarch64`; session cookies, certificate identity, data and
+durable worker effect survived down/up. Exact artifacts, previous failures and
+limits are in the [S1 completion record](../milestone9/verification-milestone9-s1-closure.md).
+
 Retained artifacts contain the exact Git revision, host/engine architecture,
 safe browser case status, limitations and verified cleanup. Private profiles,
 runtime configuration, passwords and cookies are excluded. Record the actual
