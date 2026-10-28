@@ -168,3 +168,12 @@ The preparation is published in [draft PR #57](https://github.com/ShinningF1eld/
 The inventory unit suite now has 416 passing cases in total, including the rest
 of the repository's unit tests. The [technical evidence](../docs/milestone9/verification-milestone9-s2-preparation.md)
 keeps the exact commands, broader gate results and live checks still outstanding.
+All ten shared local gates also passed, including the real database, browser,
+image and migration rehearsals. The full run executed 414 unit cases before the
+last region-name fix; the follow-up static/unit run passed 416. The evidence
+keeps those observations separate so a later reader can tell which version was
+actually checked. None of those checks migrated your application database.
+GitHub then passed all ten gates on the final implementation commit `44ab07d`,
+plus the separate Ubuntu bootstrap workflow. That gives us an independent check
+on the supported Python 3.12/Linux setup, while the live cloud boundary remains
+unverified.
