@@ -50,5 +50,6 @@ jobs:
             test-results/native-arm/runtime.txt
             test-results/gateway-browser/**/results.json
             test-results/gateway-browser/**/cleanup.json
+            test-results/gateway-browser/**/startup.json
           if-no-files-found: warn
           retention-days: 7

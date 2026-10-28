@@ -333,6 +333,43 @@ def cleanup(helper, state: dict) -> None:
     shutil.rmtree(path)
 
 
+def startup_diagnostics(helper, state: dict) -> dict:
+    """Only structural state and fixed failure labels; never raw logs/settings."""
+    result = {}
+    markers = (
+        "permission denied",
+        "read-only file system",
+        "not a directory",
+        "connection refused",
+        "timed out",
+        "503",
+        "404",
+        "modulenotfounderror",
+        "validationerror",
+    )
+    for service in ("postgres", "redis", "api", "worker", "frontend", "caddy"):
+        with contextlib.suppress(Exception):
+            container = helper.compose(state, "ps", "--all", "--quiet", service)
+            if not container:
+                continue
+            current = json.loads(
+                helper.docker("inspect", "--format", "{{json .State}}", container)
+            )
+            health = current.get("Health", {})
+            output = " ".join(item.get("Output", "") for item in health.get("Log", []))
+            output += str(current.get("Error", ""))
+            result[service] = {
+                "status": current.get("Status"),
+                "exit_code": current.get("ExitCode"),
+                "oom_killed": current.get("OOMKilled"),
+                "health": health.get("Status"),
+                "failure_labels": [
+                    marker for marker in markers if marker in output.lower()
+                ],
+            }
+    return result
+
+
 def run_matrix(inject: bool) -> int:
     BASE.mkdir(mode=0o700, exist_ok=True)
     name = "browser-" + secrets.token_hex(6)
@@ -357,7 +394,15 @@ def run_matrix(inject: bool) -> int:
         helper.build(state)
         save(helper, state)
         helper.migrate(state)
-        helper.start(state)
+        try:
+            helper.start(state)
+        except Exception:
+            evidence = startup_diagnostics(helper, state)
+            (report / "startup.json").write_text(
+                json.dumps(evidence, indent=2) + "\n", encoding="utf-8"
+            )
+            print("Gateway startup state: " + json.dumps(evidence), flush=True)
+            raise
         # Reuse the real stack assertions for applied limits, private exposure,
         # pool budgets and identical API/worker image identity on either host.
         helper.check_runtime(state)

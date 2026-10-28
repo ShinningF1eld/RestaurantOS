@@ -39,6 +39,15 @@ not create tables or an `alembic_version` row. The container and its unique
 network are removed in a `finally` cleanup path; the database helper drops its
 allocated database on success and failure.
 
+The post-start schema snapshot is read through the production container's
+verified database connection, alongside `current_database()`. The checker rejects
+a database-name mismatch and retains every returned table for the no-migration
+assertion. It does not open a fresh runner connection while PostgreSQL is
+temporarily attached to the smoke bridge. Docker may change a container's default
+gateway when its networks change; the initial native ARM run failed at that
+runner reconnection, although routing as the exact cause was not established.
+See [Docker networking](https://docs.docker.com/engine/network/).
+
 Set `TEST_DATABASE_URL` to a dedicated PostgreSQL database name ending in
 `_test`. When PostgreSQL runs in a local `restaurantos-m6-*` Compose project,
 pass its container ID with `--postgres-container`. The checker attaches that service temporarily to

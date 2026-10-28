@@ -38,6 +38,30 @@ def test_cleanup_rejects_persistent_rehearsal_before_docker(monkeypatch, tmp_pat
     helper.compose.assert_not_called()
 
 
+def test_startup_diagnostics_never_retain_raw_health_output(monkeypatch):
+    runner = load(monkeypatch, "scripts/run-gateway-browser-tests.py")
+    helper = SimpleNamespace(
+        compose=Mock(return_value="owned"),
+        docker=Mock(
+            return_value=json.dumps(
+                {
+                    "Status": "running",
+                    "ExitCode": 0,
+                    "OOMKilled": False,
+                    "Error": "private-output-marker",
+                    "Health": {
+                        "Status": "unhealthy",
+                        "Log": [{"Output": "private-output-marker: permission denied"}],
+                    },
+                }
+            )
+        ),
+    )
+    evidence = runner.startup_diagnostics(helper, {})
+    assert evidence["api"]["failure_labels"] == ["permission denied"]
+    assert "private-output-marker" not in json.dumps(evidence)
+
+
 @pytest.mark.parametrize("paused", [True, False])
 def test_cleanup_resumes_only_a_suspended_owned_database(monkeypatch, tmp_path, paused):
     runner = load(monkeypatch, "scripts/run-gateway-browser-tests.py")

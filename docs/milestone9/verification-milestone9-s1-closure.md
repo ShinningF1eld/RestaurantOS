@@ -151,6 +151,28 @@ was used to obtain a pass.
 
 ## Remaining acceptance boundaries
 
+### Initial remote verification and checker follow-up
+
+Published source `c726e5ff189096d541ab58c8178ee81ace5cd02d` ran
+[standard CI](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40640912576)
+and [native ARM verification](https://github.com/ShinningF1eld/RestaurantOS/actions/runs/40640912634).
+Nine standard gates passed; browser ran all 29 host journeys and the expected
+failure-cleanup probe, then failed during gateway startup. The required aggregate
+correctly failed. Native ARM host/engine checks passed, as did the locked ARM64
+backend build, non-root/content checks, liveness and in-container DB connectivity.
+The image gate failed at the following runner-side schema read with
+`OperationalError`; it did not reach native frontend/gateway acceptance.
+
+The image checker now reads schema evidence using the verified runtime DB
+connection, requires its actual database name to match the allocated test DB,
+and preserves nonempty table evidence for the unchanged no-migration assertion.
+This removes dependence on a new host connection while PostgreSQL is multihomed;
+Docker documents gateway changes on network attachment, but the exact original
+network failure is not proven. The fix passed local image smoke, pure evidence
+rejection/privacy regressions and static checks. Startup-failure evidence now
+retains only structural container state and fixed error labels; raw health output
+and settings are excluded. Remote rerun outcomes remain pending.
+
 Native ARM run URL, exact source revision, successful runtime jobs and sanitized
 artifacts are required before marking native verification complete. Repository
 instructions require fresh authorization before committing/publishing this work.

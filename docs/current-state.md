@@ -21,9 +21,14 @@ after it has returned to the pool and been borrowed elsewhere. Six targeted
 readiness/health cases pass; an isolated unguarded negative control correctly
 fails by closing the other borrower's connection.
 
-A native ARM workflow is prepared but has not run or been published; no native
-runner is available locally. Native runtime and exact-commit remote CI remain
-pending. S1 is not marked complete. See the
+The verification branch was published as `c726e5f`. Native ARM host/engine checks,
+backend build/content/liveness and container-to-DB connectivity passed, but the
+first native image gate failed at its runner-side schema reconnection. The
+checker now reads the post-start schema through the verified container connection
+and rejects mismatched database names. The first standard CI passed nine gates;
+browser startup failed after all 29 host journeys passed. Safe structural startup
+diagnostics were added for the rerun. Native runtime and exact-commit remote CI
+remain pending; S1 is not marked complete. See the
 [closure evidence](milestone9/verification-milestone9-s1-closure.md) and
 [health contract](api/health.md).
 

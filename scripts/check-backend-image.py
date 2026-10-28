@@ -28,6 +28,7 @@ CONTAINER_PORT = 8000
 HEALTH_PATH = "/health"
 CONTAINER_DATABASE_CHECK = """\
 import asyncio
+import json
 import os
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -37,6 +38,9 @@ async def main():
     try:
         async with engine.connect() as connection:
             assert (await connection.execute(text("SELECT 1"))).scalar_one() == 1
+            database = (await connection.execute(text("SELECT current_database()"))).scalar_one()
+            tables = (await connection.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename"))).scalars().all()
+            print(json.dumps({"database": database, "public_tables": tables}))
     finally:
         await engine.dispose()
 
@@ -409,7 +413,7 @@ def wait_for_health(
 
 def verify_container_database_connection(
     container: str, environment: Mapping[str, str]
-) -> None:
+) -> tuple[str, ...]:
     secret_values = tuple(environment.values())
     result = run_docker(
         ["exec", container, "python", "-c", CONTAINER_DATABASE_CHECK],
@@ -423,10 +427,31 @@ def verify_container_database_connection(
             "Production container could not connect to its disposable PostgreSQL database"
             + (f": {message[-3000:]}" if message else "")
         )
+    try:
+        evidence = json.loads(result.stdout)
+    except ValueError:
+        raise ImageCheckError(
+            "Container database inspection returned invalid evidence"
+        ) from None
+    if (
+        not isinstance(evidence, dict)
+        or evidence.get("database") != make_url(environment["DATABASE_URL"]).database
+    ):
+        raise ImageCheckError(
+            "Container database inspection used an unexpected database"
+        )
+    tables = evidence.get("public_tables")
+    if not isinstance(tables, list) or not all(
+        isinstance(name, str) for name in tables
+    ):
+        raise ImageCheckError(
+            "Container database inspection returned invalid table evidence"
+        )
     print(
         "PASS: production database URL connects to the disposable PostgreSQL database",
         flush=True,
     )
+    return tuple(tables)
 
 
 def remove_resources(
@@ -586,8 +611,10 @@ def run_smoke(
             )
             port = published_port(container_id)
             wait_for_health(container_id, port, timeout, sensitive_values(environment))
-            verify_container_database_connection(container_id, environment)
-            after = public_tables(database)
+            # Inspect through the verified runtime connection. A fresh runner
+            # connection can depend on changed routing while the PostgreSQL
+            # container is temporarily attached to this second bridge.
+            after = verify_container_database_connection(container_id, environment)
             if after != before or "alembic_version" in after:
                 raise ImageCheckError(
                     f"Image startup changed the database schema unexpectedly: {after}"
