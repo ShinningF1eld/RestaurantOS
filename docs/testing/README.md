@@ -2,6 +2,11 @@
 
 Supported baselines: Python 3.12, Node.js 24, PostgreSQL 16, and Redis 7.
 
+Milestone 9 [OCI host preparation](../runbooks/oci-hosts.md#repository-regression-commands)
+has pure inventory regressions in `backend-unit` and an explicitly invoked
+Ubuntu cloud-init/ShellCheck/OpenSSH test container. That optional host-bundle
+regression does not provision OCI or replace the two-host live acceptance checks.
+
 Milestone 8's [event freshness workload](event-freshness-benchmark.md) provides
 reproducible commit-to-effect measurements and isolated operator rehearsals.
 It complements the required gates; running it alone does not establish milestone
