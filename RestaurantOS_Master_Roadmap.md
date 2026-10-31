@@ -421,6 +421,42 @@ Never expose stack traces, SQL, secrets, password hashes, raw model prompts, or 
 
 Each milestone below should end with a demonstrable vertical slice. Time estimates are intentionally omitted because scope depends on the audited repository and available weekly hours.
 
+### Execution priorities — updated 2026-10-31
+
+The user has deferred cloud deployment until after monitoring and AI work, and
+requested that milestone numbers follow the new execution order. Milestones 0–8
+retain their numbers and statuses. Use the following numbering for future work:
+
+| New milestone | Work | Former milestone |
+|---|---|---|
+| 9 | Monitoring, observability and operational readiness | 10 |
+| 10 | Analytics data model and verified metric contracts | 11 |
+| 11 | Initial read-only restaurant AI analyst | 15 |
+| 12 | Document ingestion and evaluated Thai/English RAG | 14 |
+| 13 | Demand forecasting experiment | 12 |
+| 14 | Anomaly detection and operational alerts | 13 |
+| 15 | Production containers, CI/CD and deferred deployment | 9 |
+| 16 | Performance, resilience and portfolio proof | 16 |
+
+Historical documents, evidence directories, branches, workflows and PRs keep
+their original identifiers. For example, `docs/milestone9/`, the S1/S2 deployment
+evidence and PRs #56/#57 belong to **current M15**, not current M9 monitoring.
+Use this mapping when reading older references; this edit does not rename those
+artifacts or change their verification status.
+
+M9 runs locally with Docker; hosted alerts and environment-specific service-level
+evidence remain later deployment checks. M10 supplies the metric contracts needed
+by M11's tenant-scoped, read-only operational tools. M12–14 then extend the agent
+with document, forecast and anomaly capabilities only after the corresponding
+security and evaluation checks pass. Those later capabilities do not block the
+initial operational-data agent, and are not claimed complete by it.
+
+M15 retains completed S1 work and S2 preparation, with provisioning, secure
+delivery, backup/recovery and hosted verification still outstanding. Deployment
+remains required before onboarding users who depend on durable hosted data or
+claiming hosted operational readiness. No cloud provider change or paid resources
+are authorized by this reordering.
+
 ## Milestone 0 — Repository audit and engineering baseline
 
 ### Objective
@@ -982,69 +1018,12 @@ this list, adding deletion and inventory-state facts to the earlier proposal.
 
 ---
 
-## Milestone 9 — Production containers, CI/CD, and deployment
+## Milestone 9 — Observability and operational readiness
 
-S1 container/gateway feasibility completed on 2026-10-28: verified source
-`ef273e6` passes all ten shared gates and native ARM image/HTTPS runtime checks.
-Exact runs, sanitized artifacts and limitations are tracked in the
-[closure evidence](docs/milestone9/verification-milestone9-s1-closure.md).
-This does not establish a deployed environment or complete Milestone 9.
-
-S1 merged through PR #56 on 2026-10-28. S2 repository preparation is in progress:
-strict host inventory, staged Linux controls and a host-security runbook.
-Actual OCI access/provisioning and all two-host live security evidence remain
-pending; see [S2 verification](docs/milestone9/verification-milestone9-s2-preparation.md).
-
-### Objective
-
-Deploy reproducible, isolated synthetic staging and a durable private-account
-application environment. Accounts are manually provisioned; durable user data
-is not publicly shared or periodically reset as demo data.
-
-### Container scope
-
-- Multi-stage production images.
-- Non-root runtime user.
-- Health/readiness checks.
-- Small build context and explicit `.dockerignore`.
-- Separate development and production configuration.
-- No secrets baked into images.
-- Database migrations run as a controlled release step, not concurrently from every replica.
-
-### Initial deployment shape
-
-- Self-hosted PostgreSQL 16 and Redis 7 in separate containers on OCI, per the
-  accepted M9 design; the operator owns backup, recovery and host maintenance.
-- Backend API container.
-- Worker container using the same versioned image where practical.
-- Next.js deployment.
-- Encrypted off-VM operational backups; application uploads/model artifacts are
-  outside the M9 deployment slice.
-- TLS and a stable demo URL.
-
-### CI/CD stages
-
-```text
-pull request -> lint/type/test/build/security checks
-merge to main -> build immutable images -> deploy staging -> migrate -> smoke test
-tag/release -> deploy production/demo with approval strategy
-```
-
-### Infrastructure as code
-
-Introduce Terraform after a manual deployment teaches the required resources. Keep secrets outside Terraform state where possible and document state handling.
-
-### Exit criteria
-
-- A clean commit can be deployed reproducibly.
-- Migration failure stops deployment safely.
-- Rollback/runbook is documented and tested at least once in staging.
-- Synthetic staging fixtures contain no real personal or payment information;
-  durable application accounts/data remain private and are not reset as fixtures.
-
----
-
-## Milestone 10 — Observability and operational readiness
+Execution priority: **next**, ahead of the deferred M15 cloud deployment. Initial
+implementation and acceptance exercises run locally against the real API,
+database, Redis and worker. Track hosted alert delivery, deployed resource limits
+and environment-specific service-level evidence separately for later validation.
 
 ### Objective
 
@@ -1083,7 +1062,9 @@ Make failures and performance understandable without attaching a debugger.
 
 ---
 
-## Milestone 11 — Analytics data model
+<a id="milestone-11--analytics-data-model"></a>
+
+## Milestone 10 — Analytics data model
 
 ### Objective
 
@@ -1122,7 +1103,147 @@ Build reliable management metrics before ML or LLM features.
 
 ---
 
-## Milestone 12 — Demand forecasting experiment
+## Milestone 11 — Restaurant AI analyst
+
+Execution priority: **after M9 monitoring and M10 metric contracts**, ahead of
+the deferred M15 deployment. M11 delivers the initial read-only operational-data
+agent. M12 adds evaluated document answers; M13/M14 supply verified forecast and
+anomaly capabilities for later agent extensions. Unsupported capabilities must
+produce an explicit limitation or abstention until those milestones are verified.
+
+### Objective
+
+Build a constrained analyst that answers operational questions using verified tools and cites its evidence.
+
+### Supported question examples
+
+- Why did revenue decrease yesterday compared with last Tuesday?
+- Which menu items caused the largest change in dinner sales?
+- Which ingredients are at risk of shortage tomorrow? (Extension after M13.)
+- What does our closing SOP require? (Extension after M12.)
+
+### Tool design
+
+Prefer narrow, typed, read-only tools:
+
+- `get_revenue_summary`
+- `compare_periods`
+- `get_item_sales_breakdown`
+- `get_stockout_periods`
+- `get_inventory_forecast` (extension after M13)
+- `search_documents` (extension after M12)
+
+Do not initially give the model arbitrary database credentials or unrestricted SQL execution. If a read-only SQL tool is later added:
+
+- Use a read-only DB role.
+- Allowlist schemas/tables or use a semantic layer.
+- Parse/validate queries.
+- Enforce tenant filters outside model control.
+- Set row, cost, and time limits.
+- Block writes, DDL, multi-statements, and unsafe functions.
+
+### Answer contract
+
+Each answer should contain:
+
+- Direct conclusion.
+- Comparison period and metric definitions.
+- Evidence/data points.
+- Document citations where applicable.
+- Limitations or uncertainty.
+- No invented causality; distinguish correlation from explanation.
+
+### Evaluation
+
+- Tool-selection accuracy.
+- Argument correctness.
+- Final-answer numerical accuracy.
+- Tenant isolation/adversarial access tests.
+- Faithfulness and citation correctness.
+- Unsupported-question abstention.
+- Latency and cost.
+
+### Exit criteria
+
+- The agent cannot bypass authorization through prompts or tool arguments.
+- Golden evaluation cases run automatically.
+- Numerical answers are reproduced from deterministic tool outputs.
+- UI exposes evidence and lets users inspect the supporting data.
+
+These criteria apply to the operational tools enabled in M11. Later M12–14
+extensions must meet the same authorization, evidence and evaluation standards
+as well as their own milestone exit criteria.
+
+---
+
+## Milestone 12 — Document ingestion and evaluated Thai/English RAG
+
+### Objective
+
+Answer questions from restaurant documents with citations and measurable retrieval quality.
+
+### Document types
+
+- Standard operating procedures.
+- Employee handbook.
+- Recipes and preparation instructions.
+- Food-safety guidance.
+- Supplier terms and promotion rules.
+
+### Secure ingestion pipeline
+
+```text
+upload -> validate type/size -> malware-safe handling strategy -> extract text
+-> normalize -> chunk -> embed -> index -> retrieval evaluation
+```
+
+### Retrieval design
+
+- PostgreSQL + pgvector for dense search.
+- Lexical search using PostgreSQL full-text search or a justified BM25 engine.
+- Hybrid retrieval.
+- Optional reranker.
+- Metadata filters enforce organization/restaurant/document access.
+- Citations point to document and page/section/chunk metadata.
+
+### Thai-language experiments
+
+- Whitespace-naive vs Thai-aware segmentation.
+- Multiple chunk sizes and overlaps.
+- Thai/multilingual embedding models.
+- Dense vs lexical vs hybrid retrieval.
+- Reranker vs no reranker.
+
+### Evaluation set
+
+Create a versioned set of answerable, unanswerable, and adversarial questions. Keep evaluation questions separate from tuning decisions where possible.
+
+### Metrics
+
+- Recall@K.
+- MRR or NDCG.
+- Answer correctness.
+- Faithfulness/groundedness with human review on a sample.
+- Citation correctness.
+- Abstention accuracy for unsupported questions.
+- P50/P95 latency and cost per query.
+
+### Security
+
+- Documents are tenant-isolated at storage and retrieval layers.
+- Retrieved text is untrusted data, not executable instructions.
+- Defend against prompt injection in uploaded documents.
+- Never allow documents to grant permissions or invoke tools.
+
+### Exit criteria
+
+- Cross-tenant retrieval tests pass.
+- Answers cite supporting sources or explicitly abstain.
+- Benchmark scripts and results are checked into the project.
+
+---
+
+## Milestone 13 — Demand forecasting experiment
 
 ### Objective
 
@@ -1197,7 +1318,7 @@ Use time-based train/validation/test splits, never random splits for temporal fo
 
 ---
 
-## Milestone 13 — Anomaly detection and operational alerts
+## Milestone 14 — Anomaly detection and operational alerts
 
 ### Objective
 
@@ -1233,133 +1354,72 @@ Detect unusual operational patterns and produce reviewable, non-accusatory alert
 
 ---
 
-## Milestone 14 — Document ingestion and evaluated Thai/English RAG
+## Milestone 15 — Production containers, CI/CD, and deployment
+
+Status as of 2026-10-31: **remaining deployment work deferred** until after the
+monitoring and AI/intelligence sequence (M9–14). M15 remains incomplete. Resume
+its outstanding slices after those priorities; no replacement cloud provider or
+paid resources are selected by this reordering. Historical deployment artifacts
+still use their original M9 identifiers as explained in the execution mapping.
+
+S1 container/gateway feasibility completed on 2026-10-28: verified source
+`ef273e6` passes all ten shared gates and native ARM image/HTTPS runtime checks.
+Exact runs, sanitized artifacts and limitations are tracked in the
+[closure evidence](docs/milestone9/verification-milestone9-s1-closure.md).
+This does not establish a deployed environment or complete Milestone 15.
+
+S1 merged through PR #56 on 2026-10-28. S2 repository preparation is retained:
+strict host inventory, staged Linux controls and a host-security runbook.
+Actual OCI access/provisioning and all two-host live security evidence remain
+pending; see [S2 verification](docs/milestone9/verification-milestone9-s2-preparation.md).
 
 ### Objective
 
-Answer questions from restaurant documents with citations and measurable retrieval quality.
+Deploy reproducible, isolated synthetic staging and a durable private-account
+application environment. Accounts are manually provisioned; durable user data
+is not publicly shared or periodically reset as demo data.
 
-### Document types
+### Container scope
 
-- Standard operating procedures.
-- Employee handbook.
-- Recipes and preparation instructions.
-- Food-safety guidance.
-- Supplier terms and promotion rules.
+- Multi-stage production images.
+- Non-root runtime user.
+- Health/readiness checks.
+- Small build context and explicit `.dockerignore`.
+- Separate development and production configuration.
+- No secrets baked into images.
+- Database migrations run as a controlled release step, not concurrently from every replica.
 
-### Secure ingestion pipeline
+### Initial deployment shape
+
+- Self-hosted PostgreSQL 16 and Redis 7 in separate containers on OCI, per the
+  accepted deployment design (historically M9); the operator owns backup,
+  recovery and host maintenance.
+- Backend API container.
+- Worker container using the same versioned image where practical.
+- Next.js deployment.
+- Encrypted off-VM operational backups; application uploads/model artifacts are
+  outside the M15 deployment slice.
+- TLS and a stable demo URL.
+
+### CI/CD stages
 
 ```text
-upload -> validate type/size -> malware-safe handling strategy -> extract text
--> normalize -> chunk -> embed -> index -> retrieval evaluation
+pull request -> lint/type/test/build/security checks
+merge to main -> build immutable images -> deploy staging -> migrate -> smoke test
+tag/release -> deploy production/demo with approval strategy
 ```
 
-### Retrieval design
+### Infrastructure as code
 
-- PostgreSQL + pgvector for dense search.
-- Lexical search using PostgreSQL full-text search or a justified BM25 engine.
-- Hybrid retrieval.
-- Optional reranker.
-- Metadata filters enforce organization/restaurant/document access.
-- Citations point to document and page/section/chunk metadata.
-
-### Thai-language experiments
-
-- Whitespace-naive vs Thai-aware segmentation.
-- Multiple chunk sizes and overlaps.
-- Thai/multilingual embedding models.
-- Dense vs lexical vs hybrid retrieval.
-- Reranker vs no reranker.
-
-### Evaluation set
-
-Create a versioned set of answerable, unanswerable, and adversarial questions. Keep evaluation questions separate from tuning decisions where possible.
-
-### Metrics
-
-- Recall@K.
-- MRR or NDCG.
-- Answer correctness.
-- Faithfulness/groundedness with human review on a sample.
-- Citation correctness.
-- Abstention accuracy for unsupported questions.
-- P50/P95 latency and cost per query.
-
-### Security
-
-- Documents are tenant-isolated at storage and retrieval layers.
-- Retrieved text is untrusted data, not executable instructions.
-- Defend against prompt injection in uploaded documents.
-- Never allow documents to grant permissions or invoke tools.
+Introduce Terraform after a manual deployment teaches the required resources. Keep secrets outside Terraform state where possible and document state handling.
 
 ### Exit criteria
 
-- Cross-tenant retrieval tests pass.
-- Answers cite supporting sources or explicitly abstain.
-- Benchmark scripts and results are checked into the project.
-
----
-
-## Milestone 15 — Restaurant AI analyst
-
-### Objective
-
-Build a constrained analyst that answers operational questions using verified tools and cites its evidence.
-
-### Supported question examples
-
-- Why did revenue decrease yesterday compared with last Tuesday?
-- Which menu items caused the largest change in dinner sales?
-- Which ingredients are at risk of shortage tomorrow?
-- What does our closing SOP require?
-
-### Tool design
-
-Prefer narrow, typed, read-only tools:
-
-- `get_revenue_summary`
-- `compare_periods`
-- `get_item_sales_breakdown`
-- `get_stockout_periods`
-- `get_inventory_forecast`
-- `search_documents`
-
-Do not initially give the model arbitrary database credentials or unrestricted SQL execution. If a read-only SQL tool is later added:
-
-- Use a read-only DB role.
-- Allowlist schemas/tables or use a semantic layer.
-- Parse/validate queries.
-- Enforce tenant filters outside model control.
-- Set row, cost, and time limits.
-- Block writes, DDL, multi-statements, and unsafe functions.
-
-### Answer contract
-
-Each answer should contain:
-
-- Direct conclusion.
-- Comparison period and metric definitions.
-- Evidence/data points.
-- Document citations where applicable.
-- Limitations or uncertainty.
-- No invented causality; distinguish correlation from explanation.
-
-### Evaluation
-
-- Tool-selection accuracy.
-- Argument correctness.
-- Final-answer numerical accuracy.
-- Tenant isolation/adversarial access tests.
-- Faithfulness and citation correctness.
-- Unsupported-question abstention.
-- Latency and cost.
-
-### Exit criteria
-
-- The agent cannot bypass authorization through prompts or tool arguments.
-- Golden evaluation cases run automatically.
-- Numerical answers are reproduced from deterministic tool outputs.
-- UI exposes evidence and lets users inspect the supporting data.
+- A clean commit can be deployed reproducibly.
+- Migration failure stops deployment safely.
+- Rollback/runbook is documented and tested at least once in staging.
+- Synthetic staging fixtures contain no real personal or payment information;
+  durable application accounts/data remain private and are not reset as fixtures.
 
 ---
 
@@ -1469,7 +1529,8 @@ These concerns must be addressed continuously rather than postponed to one phase
 
 ## 8. Dependency order and parallel-safe work
 
-Primary dependency chain:
+The execution priorities above supersede the former assumption that deployment
+must precede monitoring and AI work. The dependency path for the next slices is:
 
 ```text
 Audit
@@ -1478,12 +1539,22 @@ Audit
   -> authentication
   -> tenancy/RBAC
   -> transactional inventory
-  -> events/deployment/observability
-  -> analytics
-  -> ML and anomaly detection
-  -> RAG and AI analyst
-  -> performance proof
+  -> reliable events
+  -> local monitoring/observability (M9)
+  -> verified operational metrics needed by agent tools (M10)
+  -> initial read-only AI analyst (M11)
+  -> document RAG and agent extension (M12)
+  -> demand forecasting and agent extension (M13)
+  -> anomaly detection and agent extension (M14)
+  -> resume deferred cloud deployment and hosted validation (M15)
+  -> performance/resilience and portfolio proof (M16)
 ```
+
+Capability-specific dependencies still apply: document answers require evaluated
+RAG (M12), forecasts require M13, and anomaly tools require M14. Their work can
+feed later AI slices without blocking the initial operational-data agent. Final
+performance/resilience and portfolio proof (M16) still require the relevant
+completed capabilities and deployed-environment evidence.
 
 Work that can happen alongside the primary chain:
 
@@ -1491,7 +1562,8 @@ Work that can happen alongside the primary chain:
 - README and ADRs evolve continuously.
 - Frontend UX can advance once API contracts for that slice stabilize.
 - Synthetic data generation can begin after the order schema stabilizes.
-- Deployment foundations can begin while event work is being tested.
+- Existing deployment foundations are preserved; remaining M15 execution is
+  deferred under the 2026-10-31 priority decision.
 - RAG dataset planning can begin early, but production integration waits for identity and tenant isolation.
 
 ---
@@ -1600,13 +1672,13 @@ After Milestone 0, give Sol only one milestone or vertical slice at a time. A st
 | 6. Test architecture and quality gates | Not verified | |
 | 7. Redis caching and rate limiting | Not started/verify | |
 | 8. Background jobs and events | In progress — T9 scoped alert API/UI implemented; T10–T11 and full M8 acceptance remain open | [Issue #39 verification](docs/milestone8/verification-milestone8-issue39.md); [`docs/current-state.md`](docs/current-state.md#milestone-8-issue-39-t9-implementation); [`docs/api/events.md`](docs/api/events.md) |
-| 9. Containers, CI/CD, deployment | Not verified | |
-| 10. Observability | Not started/verify | |
-| 11. Analytics model | Early work/verify | |
-| 12. Demand forecasting | Not started | |
-| 13. Anomaly detection | Not started | |
-| 14. Evaluated RAG | Not started | |
-| 15. AI analyst | Not started | |
+| 9. Observability | Next priority — local monitoring planned; implementation/acceptance not yet verified | Execute before resuming M15 deployment; retain hosted checks for later |
+| 10. Analytics model | Early work/verify | |
+| 11. AI analyst | Planned after M9 monitoring and M10 metrics — initial read-only agent; not started | M12/M13/M14 add document/forecast/anomaly extensions after their own validation |
+| 12. Evaluated RAG | Not started | |
+| 13. Demand forecasting | Not started | |
+| 14. Anomaly detection | Not started | |
+| 15. Containers, CI/CD, deployment | Deployment deferred — S1 complete; S2 preparation retained; remaining cloud/live verification incomplete | [S1 evidence](docs/milestone9/verification-milestone9-s1-closure.md); [S2 preparation](docs/milestone9/verification-milestone9-s2-preparation.md); execution priorities updated 2026-10-31 |
 | 16. Performance and portfolio proof | Not started | |
 
 ---
