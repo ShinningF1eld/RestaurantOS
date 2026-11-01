@@ -46,3 +46,20 @@ each at five operations/second for three seconds: 15 operations, nine acknowledg
 export requests, zero failures and zero pacing misses in each mode. See
 `evidence/issue58/step5-generator.json`. This is transport smoke, not the sustained
 workload. The existing script static gate now includes the generator.
+
+## Step 6 — lifecycle and ownership, 2026-11-01
+
+Added `scripts/local-monitoring.py` and the shared monitoring environment helper.
+Initialization creates a private directory, stable random project identity and
+independent Grafana password, and refuses to replace existing credentials.
+Developer shutdown retains all volumes; even a direct helper call cannot request
+development volume deletion. Disposable projects use a separate `test-` identity,
+random ports and mandatory finally cleanup verified by exact project labels.
+Remote Docker engines are rejected. Local file secrets are readable by Grafana's
+UID inside the mount while the containing host directory is restricted.
+
+Four pure ownership/error-path tests passed. The real temporary lifecycle check
+started each connection mode, verified four volumes survived down/up and
+authenticated Grafana after restart, then verified owned cleanup. Container mode
+also deliberately raised after startup and still removed its resources. Results:
+`evidence/issue58/step6-lifecycle.json`. No developer state was initialized or used.

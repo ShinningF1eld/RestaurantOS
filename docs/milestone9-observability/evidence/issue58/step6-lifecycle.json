@@ -1,0 +1,13 @@
+{
+  "host": {
+    "normal_shutdown_retained_four_volumes": true,
+    "restart_authentication_passed": true,
+    "cleanup_verified": true
+  },
+  "container": {
+    "normal_shutdown_retained_four_volumes": true,
+    "restart_authentication_passed": true,
+    "intentional_failure_observed": true,
+    "cleanup_verified": true
+  }
+}

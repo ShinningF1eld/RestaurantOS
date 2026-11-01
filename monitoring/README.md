@@ -1,6 +1,6 @@
 # Local monitoring foundation — issue #58
 
-Status: Steps 1–3 configured; four-service synthetic smoke passed; T1 acceptance pending.
+Status: Steps 1–6 configured and checked; full T1 acceptance remains pending.
 Recorded 2026-11-01 (Asia/Bangkok) against RestaurantOS
 `50160a1a00d7261971e8fb7d72fdb8238224e7fe`.
 
@@ -15,8 +15,9 @@ Historical `docs/milestone9/` deployment work belongs to current M15.
 The experiment and image identities are fixed before collecting results. Steps 2
 and 3 add Compose wiring and service configurations. A small four-service smoke
 has passed; Grafana provisioning, the permanent synthetic generator, lifecycle
-helpers and acceptance verification still follow. There is no supported full-stack
-startup command yet. No application code, dependencies, schema, database, cloud
+helpers and acceptance verification follow in the sections below. Full-stack
+startup is available through the Step 6 lifecycle helper. No application code,
+dependencies, schema, database, cloud
 resources or required gate names are changed by these steps.
 
 Metrics answer how much/how often, logs record individual observations, and traces
@@ -407,3 +408,25 @@ adds only synthetic private markers for filtering checks. Trace IDs derive from
 `--seed` and sequence; they never become metric labels. No SDK or application
 dependency was added. Exit 1 means incomplete pacing or failed/uncertain export;
 the summary is not proof of downstream delivery, which must be queried separately.
+
+## Local lifecycle — Step 6
+
+From the repository root, with the locked backend test environment and local Docker:
+
+```sh
+backend/.venv/bin/python scripts/local-monitoring.py init
+backend/.venv/bin/python scripts/local-monitoring.py config
+backend/.venv/bin/python scripts/local-monitoring.py up
+backend/.venv/bin/python scripts/local-monitoring.py status
+backend/.venv/bin/python scripts/local-monitoring.py down
+```
+
+Choose different ports on `init` with `--grafana-port` / `--otlp-port` if needed.
+The ignored `.local-monitoring/` directory holds the username/password files and
+ownership manifest; credentials are not printed. Initialization never replaces
+existing state. Read the private credential files locally when signing into
+Grafana; do not paste them into retained diagnostics. `down` retains telemetry and
+Grafana's database. There is intentionally no developer volume-delete command.
+Acceptance uses separate `restaurantos-monitoring-test-*` projects and temporary
+state; it cannot use the development deletion path. Do not remove the state
+directory while its containers/volumes are still needed to identify that project.
