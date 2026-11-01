@@ -87,3 +87,28 @@ Commands use `--scenario smoke|restart|outage|scraper|saturation|cleanup` and
 `--mode host|container`; all sanitized results are `evidence/issue58/step7-*.json`.
 The shared backend-static gate passed, including the permanent verifier. The
 normal producer's acknowledgements remain distinct from backend reconciliation.
+
+## Step 8 — physical retention, 2026-11-01
+
+Added the isolated retention checker and `monitoring/testing/retention.yaml`.
+The final run passed: pre-existing eight-day Prometheus blocks were physically
+removed under seven-day retention, while a recent control survived. Four-day-old
+Loki/Tempo fixtures were first queryable and physically stored; their expired
+chunk/block files were then removed, their queries became absent and recent
+controls remained. Cleanup removed only the disposable project's resources.
+
+The test preserves seven-day/72-hour production retention and never changes the
+host clock. It accelerates compaction/index/WAL schedules and widens Tempo's
+test-only WAL timestamp window so a backdated span produces a genuinely old
+block. A normal two-minute WAL window had stamped the first fixture block with
+current time, correctly failing the test. Another attempt exposed old query
+visibility after Loki WAL replay. The final fixture waits for zero hot chunks
+and a new atomically completed checkpoint before restarting; a checkpoint-start
+counter alone is insufficient. Both failed attempts are retained alongside
+`evidence/issue58/step8-retention.json`.
+
+Command: `backend/.venv/bin/python scripts/check-monitoring-retention.py --report
+docs/milestone9-observability/evidence/issue58/step8-retention.json`.
+The two pure fixture/ownership checks passed. Production configuration and image
+pins are unchanged by this step. Duration-based cleanup is proven for the stored
+fixtures; it does not establish a disk byte ceiling or continuous capacity.

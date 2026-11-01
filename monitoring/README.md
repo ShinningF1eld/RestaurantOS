@@ -451,3 +451,17 @@ reduced-queue fixture; it never edits tracked production configurations. No case
 uses the developer's monitoring state or application database. All three stores
 were checked after a normal restart. The scraper case inspects raw stored sample
 timestamps, rather than a query that could repeat the last value during lookback.
+
+## Physical retention — Step 8
+
+```sh
+backend/.venv/bin/python scripts/check-monitoring-retention.py --report test-results/monitoring/retention.json
+```
+
+This creates guarded disposable volumes, builds stored old/recent Prometheus
+blocks and injects backdated Loki/Tempo records. It proves physical expired-file
+deletion plus surviving recent controls, not merely a rejected write or hidden
+query. The test profile preserves production retention durations; only cleanup,
+checkpoint/resync timing and backdated WAL admission are adjusted. It waits for
+actual flush/checkpoint completion before cold-store checks. Both fixture failures
+and the corrected passing run are retained. No developer volume or clock is used.

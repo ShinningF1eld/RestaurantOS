@@ -1,0 +1,9 @@
+{
+  "status": "failed",
+  "cleanup_verified": true,
+  "prometheus_old_and_control_blocks_stored_before_start": true,
+  "prometheus_old_blocks_physically_deleted_control_retained": true,
+  "old_trace_and_log_queryable_before_cleanup": true,
+  "error": "RuntimeError: Monitoring check exceeded its readiness/query deadline",
+  "diagnosis": "The default 2-minute Tempo WAL slack stamped the stored backdated trace block with current time; observed startTime/endTime were 2026-11-01T05:42:32Z. This was not an expired block."
+}
