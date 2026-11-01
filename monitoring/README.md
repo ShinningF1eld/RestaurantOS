@@ -62,16 +62,16 @@ so Docker does not grant an additional swap allowance:
 
 | Service | Hard memory bytes | Decimal MB | Writable persistent volume |
 |---|---:|---:|---|
-| Collector | 300,000,000 | 300 | None; bounded best-effort queues in memory |
-| Prometheus | 350,000,000 | 350 | `prometheus_data` at `/prometheus` |
-| Grafana | 350,000,000 | 350 | `grafana_data` at `/var/lib/grafana` |
-| Loki | 500,000,000 | 500 | `loki_data` at `/loki` |
-| Tempo | 500,000,000 | 500 | `tempo_data` at `/var/tempo` |
+| Collector | 250,000,000 | 250 | None; bounded best-effort queues in memory |
+| Prometheus | 300,000,000 | 300 | `prometheus_data` at `/prometheus` |
+| Grafana | 650,000,000 | 650 | `grafana_data` at `/var/lib/grafana` |
+| Loki | 400,000,000 | 400 | `loki_data` at `/loki` |
+| Tempo | 400,000,000 | 400 | `tempo_data` at `/var/tempo` |
 | Total | 2,000,000,000 | 2,000 | Project-scoped volumes; no fixed/external names |
 
 Loki and Tempo get the larger initial shares for ingestion, querying and
 compaction. This is an unmeasured starting allocation, not a capacity result.
-Collector's `GOMEMLIMIT=240000000B` is a soft Go runtime target below its hard
+Collector's `GOMEMLIMIT=200000000B` is a soft Go runtime target below its hard
 limit; it neither caps all process memory nor replaces Step 3's memory limiter.
 Normal shutdown will retain these volumes. Deletion of acceptance volumes belongs
 to the ownership-checked helper in Step 6, not a generic cleanup command here.
@@ -129,8 +129,8 @@ and existing findings are unchanged.
 a 64 KiB request-body cap, no client metadata forwarding and bounded HTTP waits.
 Each pipeline runs memory limiting first, then filtering/sanitization, then
 one-second batching (at most 128 records/data points per batch). The memory
-limiter's 200 MiB hard threshold and 32 MiB spike allowance sit below the
-300 MB container limit. These are process protection settings, not a measured
+limiter's 160 MiB hard threshold and 32 MiB spike allowance sit below the
+250 MB container limit. These are process protection settings, not a measured
 capacity guarantee.
 
 The foundation policy accepts only `restaurantos-monitoring-synthetic`, the span
@@ -369,3 +369,23 @@ architecture/native-or-emulated status, workload settings, sanitized results,
 loss/restarts, failures and owned-resource cleanup. Keep final issue acceptance
 open until both modes, retention, outages, persistence and resource measurements
 have actually passed. No application migration or hosted readiness is involved.
+
+## Grafana provisioning — Step 4
+
+`grafana/provisioning/datasources/datasources.yaml` declares stable Prometheus,
+Loki and Tempo UIDs, internal proxy URLs and trace/log links. Provisioned sources
+are read-only in the UI. Grafana performs its own dollar-variable expansion, so
+the trace-link expression is escaped as `$${__value.raw}` in this YAML.
+
+The initial 350 MB Grafana allocation failed startup (exit 137; the second run
+confirmed OOM). A Go heap target alone did not fix it. Before retrying, the same
+2,000,000,000-byte total was reallocated to the table above: Grafana 650 MB,
+Collector 250 MB, Prometheus 300 MB, Loki/Tempo 400 MB each. Collector's limiter
+was reduced to 160 MiB and its Go target to 200 MB; Grafana uses a 420 MB Go target.
+Both failed attempts are retained under the issue58 evidence directory. These
+changes do not raise the total budget or establish sustained capacity.
+
+Private Grafana bootstrap files must be readable by container UID 472. Lifecycle
+initialization (Step 6) will keep their containing host directory private and
+mount the files read-only; Compose's local file secrets do not implement requested
+UID remapping. No password belongs in tracked YAML or retained reports.

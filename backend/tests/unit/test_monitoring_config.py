@@ -84,6 +84,20 @@ def test_stores_configure_real_retention_and_persistent_paths():
     assert "metrics_generator" not in tempo and "cache" not in tempo
 
 
+def test_grafana_provisions_only_internal_stores_with_stable_links():
+    data = config("grafana/provisioning/datasources/datasources.yaml")
+    sources = {source["type"]: source for source in data["datasources"]}
+    assert set(sources) == {"prometheus", "loki", "tempo"}
+    for kind, source in sources.items():
+        assert source["uid"] == "restaurantos-" + kind
+        assert source["access"] == "proxy" and source["editable"] is False
+        assert source["url"].startswith("http://" + kind + ":")
+        assert "secureJsonData" not in source
+    field = sources["loki"]["jsonData"]["derivedFields"][0]
+    assert field["datasourceUid"] == sources["tempo"]["uid"]
+    assert field["url"] == "$${__value.raw}"
+
+
 @pytest.mark.parametrize("failure", ["timeout", "parser-error"])
 def test_parser_checker_cleans_only_its_container_and_preserves_failure(
     monkeypatch, failure

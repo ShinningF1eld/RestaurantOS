@@ -1,0 +1,42 @@
+apiVersion: 1
+prune: true
+datasources:
+  - name: RestaurantOS Metrics
+    uid: restaurantos-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      timeInterval: 5s
+  - name: RestaurantOS Logs
+    uid: restaurantos-loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      derivedFields:
+        - name: TraceID
+          matcherType: label
+          matcherRegex: trace_id
+          datasourceUid: restaurantos-tempo
+          url: "$${__value.raw}"
+  - name: RestaurantOS Traces
+    uid: restaurantos-tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: false
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: restaurantos-loki
+        spanStartTimeShift: -1m
+        spanEndTimeShift: 1m
+        filterByTraceID: true
+        filterBySpanID: false
+        tags:
+          - key: service.name
+            value: service_name

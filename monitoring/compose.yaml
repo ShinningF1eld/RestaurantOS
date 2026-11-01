@@ -24,10 +24,10 @@ services:
     image: docker.io/otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b
     command: [--config=/etc/otelcol-contrib/config.yaml]
     # Decimal bytes, not Compose's binary m/g suffixes. Total below: 2 GB.
-    mem_limit: 300000000
-    memswap_limit: 300000000
+    mem_limit: 250000000
+    memswap_limit: 250000000
     environment:
-      GOMEMLIMIT: 240000000B
+      GOMEMLIMIT: 200000000B
     volumes:
       - type: bind
         source: ./otel-collector.yaml
@@ -42,8 +42,8 @@ services:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=7d
-    mem_limit: 350000000
-    memswap_limit: 350000000
+    mem_limit: 300000000
+    memswap_limit: 300000000
     volumes:
       - type: bind
         source: ./prometheus.yaml
@@ -55,9 +55,10 @@ services:
   grafana:
     <<: *runtime
     image: docker.io/grafana/grafana:13.3.0@sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205
-    mem_limit: 350000000
-    memswap_limit: 350000000
+    mem_limit: 650000000
+    memswap_limit: 650000000
     environment:
+      GOMEMLIMIT: 420000000B
       GF_PATHS_DATA: /var/lib/grafana
       GF_PATHS_PROVISIONING: /etc/grafana/provisioning
       GF_SECURITY_ADMIN_USER__FILE: /run/secrets/grafana_admin_user
@@ -80,8 +81,8 @@ services:
     <<: *runtime
     image: docker.io/grafana/loki:3.7.9@sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28
     command: [-config.file=/etc/loki/config.yaml, -target=all]
-    mem_limit: 500000000
-    memswap_limit: 500000000
+    mem_limit: 400000000
+    memswap_limit: 400000000
     volumes:
       - type: bind
         source: ./loki.yaml
@@ -94,8 +95,8 @@ services:
     <<: *runtime
     image: docker.io/grafana/tempo:2.10.10@sha256:12b0820f13ffa10ce956b6e9acc3b03f3cffded99109be6cc09d106fe56e5d38
     command: [-config.file=/etc/tempo/config.yaml, -target=all]
-    mem_limit: 500000000
-    memswap_limit: 500000000
+    mem_limit: 400000000
+    memswap_limit: 400000000
     volumes:
       - type: bind
         source: ./tempo.yaml

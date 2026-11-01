@@ -1,0 +1,29 @@
+{
+  "scope": "Step 4 Grafana provisioning smoke",
+  "project": "restaurantos-monitoring-step3-afc60addd2",
+  "source_base": "f004bfb",
+  "configuration_hashes": {
+    "compose.yaml": "sha256:3b6b53398134791efd1280ee36a51843126897be7887ff0b66ac15f48193a32b",
+    "compose.host.yaml": "sha256:3f5fcba771a8973586b4425d7cfeff726714be5b8f35ac980b3405c69de2fd14",
+    "otel-collector.yaml": "sha256:25e142f616a5aada0e5b23438cd4fd02dbf637f91df04717e599ea2c6b954b73",
+    "prometheus.yaml": "sha256:95a0fb3892e7e8bcec5a1bc2f82632d354c22474d09dcd6544aa0286a5101e3b",
+    "loki.yaml": "sha256:cdf4abf70fec8838c4829ac23ed28d0d604e9e99a518ef5042317a5bbff5a895",
+    "tempo.yaml": "sha256:edeeadb07cd2989ed7c27ea466dd51917317206e47fcd2297e303079d6456b39"
+  },
+  "checks": {
+    "collector_ready": true,
+    "prometheus_ready": true,
+    "loki_ready": true,
+    "tempo_ready": true
+  },
+  "cleanup_completed": true,
+  "status": "failed",
+  "error": "service \"grafana\" is not running\n",
+  "diagnostics": {
+    "collector": "",
+    "prometheus": "",
+    "loki": "",
+    "tempo": "",
+    "grafana": "logger=grafana-apiserver t=2026-11-01T05:09:42.308361251Z level=info msg=\"Adding GroupVersion folder.grafana.app v1 to ResourceManager\"\nlogger=grafana-apiserver t=2026-11-01T05:09:42.308484918Z level=info msg=\"Adding GroupVersion folder.grafana.app v1beta1 to ResourceManager\"\nlogger=grafana-apiserver t=2026-11-01T05:09:42.308803334Z level=info msg=\"Adding GroupVersion playlist.grafana.app v1 to ResourceManager\"\nlogger=grafana-apiserver t=2026-11-01T05:09:42.308933501Z level=info msg=\"Adding GroupVersion playlist.grafana.app v0alpha1 to ResourceManager\"\nt=2026-11-01T05:09:42.308966543Z level=info caller=logger.go:218 time=2026-11-01T05:09:42.308961376Z msg=\"Installed APIs for app\" app=playlist\nlogger=grafana-apiserver t=2026-11-01T05:09:42.309413168Z level=info msg=\"Adding GroupVersion plugins.grafana.app v0alpha1 to ResourceManager\"\nt=2026-11-01T05:09:42.309446751Z level=info caller=logger.go:218 time=2026-11-01T05:09:42.309443084Z msg=\"Installed APIs for app\" app=plugins\nlogger=grafana-apiserver t=2026-11-01T05:09:42.309803959Z level=info msg=\"Adding GroupVersion example.grafana.app v1alpha1 to ResourceManager\"\nlogger=grafana-apiserver t=2026-11-01T05:09:42.309941834Z level=info msg=\"Adding GroupVersion example.grafana.app v0alpha1 to ResourceManager\"\nt=2026-11-01T05:09:42.309992043Z level=info caller=logger.go:218 time=2026-11-01T05:09:42.309989668Z msg=\"Installed APIs for app\" app=example\nlogger=grafana-apiserver t=2026-11-01T05:09:42.310010251Z level=info msg=\"Skipping API quotas.grafana.app/v0alpha1 because it has no resources.\"\nt=2026-11-01T05:09:42.310049543Z level=info caller=logger.go:218 time=2026-11-01T05:09:42.310047668Z msg=\"Installed APIs for app\" app=quotas\nlogger=storage.unified.migrations t=2026-11-01T05:09:42.310165376Z level=info msg=\"Resolved storage mode from migration log\" resource=shorturls.shorturl.grafana.app mode=unified\nlogger=grafana-apiserver t=2026-11-01T05:09:42.310414168Z level=info msg=\"Adding GroupVersion shorturl.grafana.app v1beta1 to ResourceManager\"\nt=2026-11-01T05:09:42.310439293Z level=info caller=logger.go:218 time=2026-11-01T05:09:42.310436793Z msg=\"Installed APIs for app\" app=shorturl\nlogger=grafana-apiserver t=2026-11-01T05:09:42.311299084Z level=info msg=\"Adding GroupVersion rules.alerting.grafana.app v1beta1 to ResourceManager\"\nlogger=grafana-apiserver t=2026-11-01T05:09:42.311697834Z level=info msg=\"Adding GroupVersion rules.alerting.grafana.app v0alpha1 to ResourceManager\"\nt=2026-11-01T05:09:42.311799543Z level=info caller=logger.go:218 time=2026-11-01T05:09:42.311796376Z msg=\"Installed APIs for app\" app=alerting\nlogger=grafana-apiserver t=2026-11-01T05:09:42.312674043Z level=info msg=\"Adding GroupVersion notifications.alerting.grafana.app v1beta1 to ResourceManager\"\nlogger=grafana-apiserver t=2026-11-01T05:09:42.313070543Z level=info msg=\"Adding GroupVersion notifications.alerting.grafana.app v0alpha1 to ResourceManager\"\nt=2026-11-01T05:09:42.313128001Z level=info caller=logger.go:218 time=2026-11-01T05:09:42.313125668Z msg=\"Installed APIs for app\" app=alerting-notifications\nlogger=grafana-apiserver t=2026-11-01T05:09:42.313533584Z level=info msg=\"Adding GroupVersion advisor.grafana.app v0alpha1 to ResourceManager\"\nt=2026-11-01T05:09:42.313587043Z level=info caller=logger.go:218 time=2026-11-01T05:09:42.313583626Z msg=\"Installed APIs for app\" app=advisor\nlogger=grafana-apiserver t=2026-11-01T05:09:42.313823834Z level=info msg=\"Adding GroupVersion historian.alerting.grafana.app v0alpha1 to ResourceManager\"\nt=2026-11-01T05:09:42.313883959Z level=info caller=logger.go:218 time=2026-11-01T05:09:42.313881959Z msg=\"Installed APIs for app\" app=alerting-historian\n"
+  }
+}
