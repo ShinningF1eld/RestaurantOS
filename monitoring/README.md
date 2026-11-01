@@ -389,3 +389,21 @@ Private Grafana bootstrap files must be readable by container UID 472. Lifecycle
 initialization (Step 6) will keep their containing host directory private and
 mount the files read-only; Compose's local file secrets do not implement requested
 UID remapping. No password belongs in tracked YAML or retained reports.
+
+## Synthetic generator — Step 5
+
+Build the temporary producer from the repository root:
+
+```sh
+docker build -f monitoring/synthetic/Dockerfile -t restaurantos-monitoring-generator:local .
+```
+
+For a running host-mode stack, use the generator script with the loopback OTLP
+origin. For the declared workload, pass `--rate 5 --duration 720 --warmup 120`.
+The same arguments work in the image with `--endpoint http://collector:4318`
+when its temporary container joins the owned project's monitoring network.
+The later acceptance runner handles those names/ports and cleanup. `--canary`
+adds only synthetic private markers for filtering checks. Trace IDs derive from
+`--seed` and sequence; they never become metric labels. No SDK or application
+dependency was added. Exit 1 means incomplete pacing or failed/uncertain export;
+the summary is not proof of downstream delivery, which must be queried separately.
