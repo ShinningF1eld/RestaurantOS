@@ -1,5 +1,31 @@
 # RestaurantOS current state
 
+## Current M9 observability issue #58 — Step 3 signal pipelines
+
+On 2026-11-01, Step 2 was committed locally as `1875fef` without pushing.
+Step 3 adds Collector, Prometheus, Loki and Tempo configurations plus a pinned
+binary parser checker and focused pure regressions. Collector accepts only the
+declared synthetic fixture; no application instrumentation or PostgreSQL/Redis
+collection is enabled. See the [configuration guide](../monitoring/README.md) and
+[dated Step 3 verification](milestone9-observability/verification-milestone9-issue58-step3.md).
+
+All four pinned native ARM64 parsers passed. A disposable four-service smoke
+verified a counter, seconds histogram, freshness gauge, Loki log and two-span
+Tempo trace, selected canary filtering, five healthy scrape jobs and stale-series
+expiry. The host overlay required an additional bridge for Collector/Grafana after
+the internal-only network made the published port unusable; failed and corrected
+results are retained. The four non-Grafana services started as nonroot with their
+declared limits, with no observed OOM/restarts. Exact project-label cleanup removed
+only smoke resources. This is not full-stack resource/capacity evidence.
+
+The backend unit gate passed 425 tests and backend-static passed. Baseline passed
+after refreshing only existing public-hash line references in `.secrets.baseline`;
+image references and detector policy are unchanged. Commands and omissions are
+recorded in the verification. No application database was used or migrated and no
+schema/API/dependency locks changed. Grafana provisioning, permanent lifecycle/
+acceptance tools, retention deletion, restart/outage pressure and the sustained
+resource workload remain pending. Issue #58 and M9 acceptance remain open.
+
 ## Current M9 observability issue #58 — Compose wiring, runtime pending
 
 On 2026-11-01, Step 1's experiment and immutable five-image inventory were

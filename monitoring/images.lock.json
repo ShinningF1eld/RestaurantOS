@@ -11,7 +11,8 @@
     "containers_started": false,
     "runtime_interoperability_verified": false,
     "native_platform_execution_verified": false,
-    "resource_fit_verified": false
+    "resource_fit_verified": false,
+    "scope": "Step 1 registry/source inspection only; later runtime evidence is recorded separately."
   },
   "required_platforms": [
     "linux/amd64",
@@ -119,7 +120,8 @@
     "core": "v0.164.0",
     "contrib": "v0.164.1",
     "evidence": "sources.open-telemetry/opentelemetry-collector-releases.sources[0]",
-    "runtime_component_inspection_pending": true
+    "runtime_component_inspection_pending": false,
+    "runtime_component_inspection_evidence": "../docs/milestone9-observability/evidence/issue58/step3-collector-components.json"
   },
   "sources": {
     "prometheus/prometheus": {

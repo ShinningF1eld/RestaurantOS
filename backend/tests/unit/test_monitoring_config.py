@@ -1,0 +1,116 @@
+"""Critical telemetry bounds must not silently disappear from configuration."""
+
+import importlib.util
+import subprocess
+from pathlib import Path
+
+import pytest
+import yaml
+
+ROOT = Path(__file__).resolve().parents[3]
+
+
+def config(name):
+    return yaml.safe_load((ROOT / "monitoring" / name).read_text())
+
+
+def test_collector_limits_apply_before_buffering_and_export():
+    collector = config("otel-collector.yaml")
+    receiver = collector["receivers"]["otlp"]["protocols"]
+    assert set(receiver) == {"http"}
+    assert 0 < receiver["http"]["max_request_body_size"] <= 65536
+    assert receiver["http"]["include_metadata"] is False
+    limiter = collector["processors"]["memory_limiter"]
+    compose = config("compose.yaml")
+    assert 0 < limiter["spike_limit_mib"] < limiter["limit_mib"]
+    assert (
+        limiter["limit_mib"] * 1024**2 < compose["services"]["collector"]["mem_limit"]
+    )
+    batch = collector["processors"]["batch"]
+    assert 0 < batch["send_batch_size"] <= batch["send_batch_max_size"] <= 128
+    assert batch["metadata_keys"] == []
+    for pipeline in collector["service"]["pipelines"].values():
+        assert pipeline["processors"][0] == "memory_limiter"
+        assert pipeline["processors"].index("transform/synthetic") < pipeline[
+            "processors"
+        ].index("batch")
+    for name in ("otlp_http/loki", "otlp_http/tempo"):
+        exporter = collector["exporters"][name]
+        queue = exporter["sending_queue"]
+        assert queue["enabled"] and queue["sizer"] == "bytes"
+        assert 0 < queue["queue_size"] <= 4 * 1024**2
+        assert 0 < queue["num_consumers"] <= 2
+        assert queue["block_on_overflow"] is False
+        assert queue["wait_for_result"] is False
+        assert "storage" not in queue
+        assert exporter["timeout"] == "2s"
+        assert exporter["retry_on_failure"]["max_elapsed_time"] == "10s"
+    assert set(collector["exporters"]) == {
+        "prometheus",
+        "otlp_http/loki",
+        "otlp_http/tempo",
+    }
+
+
+def test_workload_metrics_expire_and_self_metrics_have_a_separate_scrape():
+    collector = config("otel-collector.yaml")
+    assert collector["exporters"]["prometheus"]["metric_expiration"] == "30s"
+    assert collector["exporters"]["prometheus"]["send_timestamps"] is False
+    targets = {
+        job["job_name"]: job["static_configs"][0]["targets"]
+        for job in config("prometheus.yaml")["scrape_configs"]
+    }
+    assert targets["collector-self"] != targets["collector-telemetry"]
+    assert targets["collector-self"] == ["collector:8888"]
+    assert targets["collector-telemetry"] == ["collector:8889"]
+    assert "remote_write" not in config("prometheus.yaml")
+
+
+def test_stores_configure_real_retention_and_persistent_paths():
+    loki = config("loki.yaml")
+    assert loki["limits_config"]["retention_period"] == "72h"
+    assert loki["limits_config"]["allow_structured_metadata"] is True
+    assert loki["compactor"]["retention_enabled"] is True
+    assert loki["compactor"]["delete_request_store"] == "filesystem"
+    assert loki["compactor"]["working_directory"].startswith("/loki/")
+    assert loki["ingester"]["wal"]["dir"].startswith("/loki/")
+    for path in loki["storage_config"]["tsdb_shipper"].values():
+        assert path.startswith("/loki/")
+    tempo = config("tempo.yaml")
+    assert tempo["storage"]["trace"]["backend"] == "local"
+    assert tempo["storage"]["trace"]["wal"]["path"].startswith("/var/tempo/")
+    assert tempo["storage"]["trace"]["local"]["path"].startswith("/var/tempo/")
+    assert tempo["compactor"]["compaction"]["block_retention"] == "72h"
+    assert "metrics_generator" not in tempo and "cache" not in tempo
+
+
+@pytest.mark.parametrize("failure", ["timeout", "parser-error"])
+def test_parser_checker_cleans_only_its_container_and_preserves_failure(
+    monkeypatch, failure
+):
+    spec = importlib.util.spec_from_file_location(
+        "monitoring_config_checker", ROOT / "scripts/check-monitoring-config.py"
+    )
+    checker = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(checker)
+    calls = []
+    error = (
+        subprocess.TimeoutExpired("docker", 120)
+        if failure == "timeout"
+        else subprocess.CalledProcessError(1, "docker")
+    )
+
+    def run(command, **kwargs):
+        calls.append(command)
+        if command[1] == "run":
+            raise error
+        return subprocess.CompletedProcess(command, 1, "", "No such container")
+
+    monkeypatch.setattr(checker.subprocess, "run", run)
+    with pytest.raises(type(error)) as caught:
+        checker.main()
+    assert caught.value is error
+    name = calls[0][calls[0].index("--name") + 1]
+    assert name.startswith("restaurantos-monitoring-config-")
+    assert calls[1] == ["docker", "rm", "--force", "--volumes", name]
+    assert len(calls) == 2

@@ -207,6 +207,7 @@ def gate(name, env):
             "scripts/benchmark-event-freshness.py",
             "scripts/check-backend-image.py",
             "scripts/check-frontend-image.py",
+            "scripts/check-monitoring-config.py",
             "scripts/local-gateway.py",
             "scripts/prepare-oci-hosts.py",
             "scripts/check-oci-host-bundle.py",

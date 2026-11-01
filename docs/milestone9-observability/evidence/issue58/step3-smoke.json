@@ -1,0 +1,72 @@
+{
+  "scope": "Four-service Step 3 synthetic smoke; no Grafana, no application services",
+  "project": "restaurantos-monitoring-step3-460d81f6ba",
+  "source_base": "1875fef",
+  "configuration_hashes": {
+    "compose.yaml": "sha256:3b6b53398134791efd1280ee36a51843126897be7887ff0b66ac15f48193a32b",
+    "compose.host.yaml": "sha256:3f5fcba771a8973586b4425d7cfeff726714be5b8f35ac980b3405c69de2fd14",
+    "otel-collector.yaml": "sha256:25e142f616a5aada0e5b23438cd4fd02dbf637f91df04717e599ea2c6b954b73",
+    "prometheus.yaml": "sha256:95a0fb3892e7e8bcec5a1bc2f82632d354c22474d09dcd6544aa0286a5101e3b",
+    "loki.yaml": "sha256:cdf4abf70fec8838c4829ac23ed28d0d604e9e99a518ef5042317a5bbff5a895",
+    "tempo.yaml": "sha256:edeeadb07cd2989ed7c27ea466dd51917317206e47fcd2297e303079d6456b39"
+  },
+  "checks": {
+    "collector_ready": true,
+    "prometheus_ready": true,
+    "loki_ready": true,
+    "tempo_ready": true,
+    "trace_parentage_and_log_correlation_verified": true,
+    "counter_value": 1,
+    "histogram_sum_seconds": 0.01,
+    "freshness_gauge_present": true,
+    "trace_span_count": 2,
+    "correlated_log_present": true,
+    "seeded_canary_absent_from_queried_signals": true,
+    "all_five_scrape_jobs_up": true,
+    "workload_series_expired_after_generator_stop": true,
+    "runtime_limits_and_nonroot_startup": true,
+    "native_architecture": "arm64"
+  },
+  "cleanup_completed": true,
+  "containers": {
+    "collector": {
+      "memory_limit_bytes": 300000000,
+      "memory_plus_swap_limit_bytes": 300000000,
+      "user": "10001:10001",
+      "oom_killed": false,
+      "restart_count": 0
+    },
+    "prometheus": {
+      "memory_limit_bytes": 350000000,
+      "memory_plus_swap_limit_bytes": 350000000,
+      "user": "nobody",
+      "oom_killed": false,
+      "restart_count": 0
+    },
+    "loki": {
+      "memory_limit_bytes": 500000000,
+      "memory_plus_swap_limit_bytes": 500000000,
+      "user": "10001",
+      "oom_killed": false,
+      "restart_count": 0
+    },
+    "tempo": {
+      "memory_limit_bytes": 500000000,
+      "memory_plus_swap_limit_bytes": 500000000,
+      "user": "10001:10001",
+      "oom_killed": false,
+      "restart_count": 0
+    }
+  },
+  "status": "passed",
+  "recorded_date": "2026-11-01",
+  "timezone": "Asia/Bangkok",
+  "docker_memory_total_bytes": 8319770624,
+  "method": "Temporary /tmp/restaurantos-step3-smoke.py; host OTLP/HTTP JSON fixture and internal backend queries via the Prometheus container. Permanent acceptance harness remains Step 7 work.",
+  "limitations": [
+    "One synthetic operation, not the declared sustained workload",
+    "No Grafana/data-source verification",
+    "No restart, retention deletion, destination outage or capacity acceptance",
+    "Canary test covered resource/scope/record attributes, log body/severity, span status/events/tracestate and metric description; not a general application privacy guarantee"
+  ]
+}

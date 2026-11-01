@@ -1,6 +1,6 @@
 # Local monitoring foundation — issue #58
 
-Status: Steps 1/2 baseline and Compose wiring declared; runtime acceptance pending.
+Status: Steps 1–3 configured; four-service synthetic smoke passed; T1 acceptance pending.
 Recorded 2026-11-01 (Asia/Bangkok) against RestaurantOS
 `50160a1a00d7261971e8fb7d72fdb8238224e7fe`.
 
@@ -12,12 +12,12 @@ Historical `docs/milestone9/` deployment work belongs to current M15.
 
 ## What this step establishes
 
-The experiment and image identities are fixed before collecting results. Step 2
-adds Compose wiring, with backend configurations, a synthetic generator,
-lifecycle helpers and executable runtime verification still to follow. There is
-no runnable monitoring stack or supported startup command yet. No application
-code, dependencies, schema, database, cloud resources or CI enforcement are changed
-by these steps.
+The experiment and image identities are fixed before collecting results. Steps 2
+and 3 add Compose wiring and service configurations. A small four-service smoke
+has passed; Grafana provisioning, the permanent synthetic generator, lifecycle
+helpers and acceptance verification still follow. There is no supported full-stack
+startup command yet. No application code, dependencies, schema, database, cloud
+resources or required gate names are changed by these steps.
 
 Metrics answer how much/how often, logs record individual observations, and traces
 connect timed operations. The Collector receives all three; it is not their
@@ -51,15 +51,18 @@ publishes only Grafana on `127.0.0.1:3001` and Collector OTLP/HTTP on
 `127.0.0.1:4318`. Override `MONITORING_GRAFANA_PORT` or
 `MONITORING_OTLP_HTTP_PORT` when occupied; `0` requests an ephemeral host port for
 later acceptance runs. Container target ports remain fixed. No storage API, OTLP
-gRPC listener, health endpoint or metrics endpoint is published. Host-ingress
-reachability on the internal bridge still needs a running-stack check.
+gRPC listener, health endpoint or metrics endpoint is published. Step 3's first
+runtime probe found that the internal-only bridge made the host port unusable on
+this Docker setup. The overlay now adds a second ordinary bridge, `host_ingress`,
+for Grafana/Collector only. Storage remains internal. A corrected host OTLP smoke
+passed; Grafana itself remains unverified until Step 4.
 
 The initial split uses decimal bytes, with equal `mem_limit` and `memswap_limit`
 so Docker does not grant an additional swap allowance:
 
 | Service | Hard memory bytes | Decimal MB | Writable persistent volume |
 |---|---:|---:|---|
-| Collector | 300,000,000 | 300 | None; best-effort queues will be bounded in memory |
+| Collector | 300,000,000 | 300 | None; bounded best-effort queues in memory |
 | Prometheus | 350,000,000 | 350 | `prometheus_data` at `/prometheus` |
 | Grafana | 350,000,000 | 350 | `grafana_data` at `/var/lib/grafana` |
 | Loki | 500,000,000 | 500 | `loki_data` at `/loki` |
@@ -81,9 +84,9 @@ bounded to three on failure, and stop grace is 30 seconds. No startup ordering i
 presented as readiness; later verification will poll real readiness endpoints.
 
 Configuration binds are read-only with `create_host_path: false`. Missing files
-must fail startup instead of silently creating directories. Required later files:
-`otel-collector.yaml`, `prometheus.yaml`, `loki.yaml`, `tempo.yaml` (Step 3), and
-`grafana/provisioning/` (Step 4). Step 3 must put all Loki durable/Compactor paths
+must fail startup instead of silently creating directories. Step 3 supplies
+`otel-collector.yaml`, `prometheus.yaml`, `loki.yaml` and `tempo.yaml`.
+`grafana/provisioning/` remains Step 4 work. Loki durable/Compactor paths are
 under `/loki` and Tempo WAL/block paths under `/var/tempo`. Prometheus's command
 already selects `/prometheus` and seven-day retention; size budgeting remains
 measurement work.
@@ -108,9 +111,10 @@ These commands check Compose syntax/interpolation only; they do not check that
 the future configuration/secret files exist or validate service-specific settings.
 Leaving `MONITORING_STATE_DIR` unset fails interpolation deliberately. Supplying
 an absolute directory is the caller's responsibility until the lifecycle helper
-can enforce it. Do not run `up` until the later configuration/provisioning steps.
-Applied engine limits, nonroot data-path permissions, readiness, restart
-persistence and end-to-end delivery remain unverified.
+can enforce it. Do not run the full-stack `up` until Grafana provisioning and
+secret initialization are available. Applied engine limits, nonroot data paths,
+readiness and small-fixture delivery passed for the four non-Grafana services;
+restart persistence, retention deletion and full resource acceptance remain open.
 
 Pure regressions in `backend/tests/unit/test_monitoring_compose.py` protect the
 image lock, combined budget, internal/project-owned resources, host exposure and
@@ -118,6 +122,85 @@ secret/configuration mount rules. They run in the existing backend-unit gate
 without Docker or services. The secret baseline contains reviewed entries for
 the lock's exact public commit IDs and documentation hashes; detector settings
 and existing findings are unchanged.
+
+## Signal configuration — Step 3
+
+[otel-collector.yaml](otel-collector.yaml) enables only OTLP/HTTP ingestion, with
+a 64 KiB request-body cap, no client metadata forwarding and bounded HTTP waits.
+Each pipeline runs memory limiting first, then filtering/sanitization, then
+one-second batching (at most 128 records/data points per batch). The memory
+limiter's 200 MiB hard threshold and 32 MiB spike allowance sit below the
+300 MB container limit. These are process protection settings, not a measured
+capacity guarantee.
+
+The foundation policy accepts only `restaurantos-monitoring-synthetic`, the span
+names `synthetic.operation`/`synthetic.child`, and the three metric names below.
+It drops arbitrary resource/scope/record attributes, span events and linked spans;
+replaces log bodies with `synthetic operation completed`; clears span status text
+and tracestate; and fixes scope/metric label values. Metric exemplars are excluded
+from this initial fixture. This intentionally narrow policy is not an application
+logging policy or an authentication boundary. #59 must review application fields,
+framework/exception paths and remaining OTLP metadata before broadening it.
+
+| Input metric | Prometheus output | Meaning |
+|---|---|---|
+| `restaurantos.synthetic.operations`, unit `1` | `restaurantos_synthetic_operations_total` | Cumulative synthetic operation count. |
+| `restaurantos.synthetic.duration`, unit `s` | `restaurantos_synthetic_duration_seconds_{bucket,count,sum}` | Explicit histogram of manufactured durations in seconds. |
+| `restaurantos.synthetic.last_observation`, unit `s` | `restaurantos_synthetic_last_observation_seconds` | Unix time of the last generated observation; not a duration or progress guarantee. |
+
+The last-observation gauge supplements Step 1's counter/histogram to distinguish
+stopped generation from a still-healthy scrape target. The exporter expires
+unupdated workload series after 30 seconds; absence stays absent rather than
+being coerced to zero. It does not forward producer timestamps as scrape sample
+timestamps. No tenant/user/order/event/trace IDs become metric labels.
+
+Logs and traces each use a separate 4 MiB serialized-byte export queue, two
+consumers, two-second attempt timeouts and retries capped at ten seconds per
+retry sequence. Queue insertion neither waits for export nor blocks on overflow.
+This is not a ten-second queue residence deadline, and encoded queue size is not
+the total heap size. Large backlogs can outlive the 30-second Docker stop grace;
+forced termination may lose queued telemetry. There is no persistent queue or
+promise to recover lost signals. Saturation/shutdown pressure remain later tests.
+
+[prometheus.yaml](prometheus.yaml) scrapes every five seconds with a two-second
+timeout. Workload export at `collector:8889` is separate from Collector self-metrics
+at `collector:8888`. Additional jobs scrape Prometheus, Loki and Tempo. Per-job
+sample limits bound ingestion; workload labels also have length/count limits.
+No application targets, remote-write destination, DB/Redis receiver or alert rule
+is enabled. Use scrape `up`, fresh observation time and queue/export counters
+together; process health does not establish fresh or complete workload delivery.
+
+[loki.yaml](loki.yaml) configures single-process filesystem/TSDB v13 storage with
+24-hour indexes, persistent WAL/index/chunk/Compactor paths, structured metadata,
+and only `service.name` as an OTLP index label. Its Compactor applies 72-hour
+retention on a five-minute cycle with a ten-minute deletion delay and two deletion
+workers. Query concurrency and ingestion are limited; pattern ingestion and usage
+reporting are disabled. Its unauthenticated API must remain on the internal network.
+
+[tempo.yaml](tempo.yaml) enables only OTLP/HTTP trace reception and local WAL/block
+storage. It configures 72-hour retention, five-minute compaction cycles, ten-minute
+compacted-block retention, limited query/ingestion concurrency and trace sizes,
+and no external cache, Kafka or metrics-generator dependency. Usage reporting is
+disabled. Both stores perform asynchronous cleanup: three-day retention does not
+mean physical deletion occurs exactly at the 72-hour boundary or bound disk bytes.
+
+Collector health is internal port 13133. Its diagnostics remain JSON stderr with
+no debug exporter or second stdout ingestion path; they are not duplicated into
+Loki. Inspect available self-metrics for receiver refusals, export failures,
+enqueue failures and queue size/capacity. Exact field names follow the pinned
+binary; downstream outages cannot be inferred from a health response alone.
+
+Validate service-specific syntax using the actual locked binaries:
+
+```sh
+backend/.venv/bin/python scripts/check-monitoring-config.py
+```
+
+This creates network-disabled parser containers and removes each by its unique
+name. It may fetch the exact locked image if not cached. All four parsers passed
+on native ARM64. The [dated Step 3 evidence](../docs/milestone9-observability/verification-milestone9-issue58-step3.md)
+records both the failed network probe and corrected synthetic smoke, tested
+canary paths and the limitations of that one-operation experiment.
 
 ## Image selection and evidence
 
@@ -144,13 +227,14 @@ The newer Contrib source release `v0.164.1` was visible, but the corresponding
 Docker Hub image tag returned HTTP 404 during inspection. The published image
 `0.164.0` was selected instead. Its release distribution manifest declares core
 modules at `v0.164.0` and relevant Contrib modules at `v0.164.1`; the lock records
-both source revisions. Verify actual binary components during the later image
-smoke rather than inferring their presence from a source tag alone.
+both source revisions. Step 3's actual binary inventory confirms the required
+components, including the still-disabled PostgreSQL/Redis receivers; the lock
+links that evidence without changing any image reference.
 
 Registry inspection used anonymous Docker Registry v2 manifest reads. The
 SHA-256 of each index response matched its `Docker-Content-Digest` header, and its
-manifest list advertised both required platforms. No image layers were pulled
-and no containers were run. Source tags were resolved to commit IDs; the lock
+manifest list advertised both required platforms. During Step 1 no image layers
+were pulled or containers run. Source tags were resolved to commit IDs; the lock
 records immutable documentation URLs and SHA-256 hashes of reviewed bytes.
 These checks establish artifact identities and source-level compatibility, not
 native execution, end-to-end delivery, vulnerability clearance or resource fit.
@@ -278,8 +362,8 @@ the inspected registry responses, both required platform descriptors exist,
 reviewed source references are immutable, and workload arithmetic is consistent.
 Those checks do not satisfy issue #58's runtime acceptance criteria.
 
-Compose/network/storage/resource wiring is present; next implement the Step 3
-service configurations and bounded Collector pipelines.
+Compose wiring and service pipelines are present; next implement Step 4's Grafana
+data-source provisioning and verify authenticated operator access.
 Later evidence must retain exact commands, source/config hashes, image IDs,
 architecture/native-or-emulated status, workload settings, sanitized results,
 loss/restarts, failures and owned-resource cleanup. Keep final issue acceptance

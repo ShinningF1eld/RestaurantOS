@@ -52,11 +52,15 @@ def test_base_has_no_host_ports_or_shared_application_resources():
 
 def test_host_override_only_publishes_loopback_ui_and_http_ingress():
     overlay = load_compose("compose.host.yaml")
-    assert set(overlay) == {"services"}
+    assert set(overlay) == {"services", "networks"}
+    assert set(overlay["networks"]) == {"host_ingress"}
+    assert "name" not in overlay["networks"]["host_ingress"]
+    assert not overlay["networks"]["host_ingress"].get("external")
     assert set(overlay["services"]) == {"grafana", "collector"}
     targets = {"grafana": 3000, "collector": 4318}
     for name, service in overlay["services"].items():
-        assert set(service) == {"ports"}
+        assert set(service) == {"ports", "networks"}
+        assert service["networks"] == ["monitoring", "host_ingress"]
         assert len(service["ports"]) == 1
         port = service["ports"][0]
         assert port["host_ip"] == "127.0.0.1"
