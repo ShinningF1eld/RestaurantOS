@@ -171,3 +171,36 @@ full-retention capacity claim. Raw samples, derived calculations and inspected
 producer provenance are committed alongside the measured report. Backend-static
 and 446 pure tests passed after measurement; four native parsers and the earlier
 separate application image gate also passed. No application source/schema changed.
+
+
+## Step 10 — shared checks and operating handoff, 2026-11-01
+
+Step 9 was committed locally as `ff1d3a4`. The shared baseline now renders both
+monitoring Compose models using a temporary absolute placeholder directory,
+without reading credentials, contacting the engine or starting services for those
+renders. Backend-static includes every new monitoring helper. A validation-policy
+regression requires both renders, rejects ambient credential-path reuse and
+preserves the existing ten-gate matrix/required acceptance name.
+
+The monitoring README is now a current configuration guide; separate operator and
+testing runbooks provide exact lifecycle/scenario commands. The pre-measurement
+experiment declaration is preserved separately, and the final verification maps
+all six issue criteria to evidence and explains each file. Root setup/testing,
+current-state and roadmap links identify T1's local foundation while leaving
+#59–#67, application/worker tracing, dashboards, objectives and M9 acceptance open.
+
+Final commands passed: `scripts/validate.py --gate baseline --no-install`,
+`--gate backend-static --no-install` and `--gate backend-unit --no-install` using
+`backend/.venv/bin/python` (446 pure tests). The four native configuration parsers
+passed, and the earlier separate `--gate image --no-install` passed with cleanup.
+Both corrected-profile connection-mode smokes passed; the full scraper fixture
+proved a 205-second raw gap. The passing retention, restart, destination-outage,
+reduced-queue and intended nonzero cleanup evidence is retained. Four resource
+trials passed; one additional strict-pacing failure remains explicitly reported.
+
+No developer monitoring state was initialized; all monitoring test containers
+were absent at final inspection and each trial verified its owned cleanup.
+No developer application database, business/API/schema code, dependency lock or
+frontend code changed. Integration/migration/frontend/browser shared gates were
+not rerun; the full ten-gate milestone/remote CI, Windows and AMD64 runtime are
+not claimed. Work remains local: no push, issue closure or deployment.

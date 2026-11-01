@@ -255,3 +255,34 @@ def test_frontend_smoke_failure_cleans_only_owned_container(monkeypatch, leaked)
     assert name.startswith("restaurantos-frontend-image-")
     assert ("rm", "--force", name) in calls
     assert calls[-1] == ("ps", "-aq", "--filter", f"name=^/{name}$")
+
+
+def test_baseline_requires_both_monitoring_models_without_ambient_secrets(monkeypatch):
+    runner = load_runner(monkeypatch, "scripts/validate.py")
+    calls = []
+    monkeypatch.setattr(runner, "run", lambda *a, **k: calls.append((a, k)))
+    monkeypatch.setattr(runner.subprocess, "check_output", lambda *a, **k: b"")
+    runner.gate("baseline", {"MONITORING_STATE_DIR": "ambient-secret-directory"})
+    compose = [
+        (args, kwargs) for args, kwargs in calls if args[:2] == ("docker", "compose")
+    ]
+    assert len(compose) == 3
+    base, host = compose[1:]
+    assert base[0][2:] == (
+        "-f",
+        str(ROOT / "monitoring/compose.yaml"),
+        "config",
+        "--quiet",
+    )
+    assert host[0][2:] == (
+        "-f",
+        str(ROOT / "monitoring/compose.yaml"),
+        "-f",
+        str(ROOT / "monitoring/compose.host.yaml"),
+        "config",
+        "--quiet",
+    )
+    state = base[1]["env"]["MONITORING_STATE_DIR"]
+    assert Path(state).is_absolute() and state != "ambient-secret-directory"
+    assert host[1]["env"]["MONITORING_STATE_DIR"] == state
+    assert not Path(state).exists()

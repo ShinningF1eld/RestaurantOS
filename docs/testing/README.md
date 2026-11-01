@@ -150,3 +150,12 @@ failure evidence without persisting those credentials.
 Final execution results and enforcement evidence are recorded in the dated
 [Milestone 6 verification](../milestone6/milestone-6-verification.md); historical counts are
 not current acceptance.
+
+## Optional observability foundation
+
+The [monitoring verification guide](monitoring.md) covers issue #58's locked
+configuration parsers, both synthetic connection modes, restart/outage/retention
+checks and declared resource trials. Runtime checks create disposable monitoring
+projects and never use application or developer monitoring data. Baseline renders
+both monitoring Compose models; pure/static contracts run in the existing gates.
+These focused checks do not replace full milestone acceptance.
