@@ -112,3 +112,62 @@ docs/milestone9-observability/evidence/issue58/step8-retention.json`.
 The two pure fixture/ownership checks passed. Production configuration and image
 pins are unchanged by this step. Duration-based cleanup is proven for the stored
 fixtures; it does not establish a disk byte ceiling or continuous capacity.
+
+## Step 9 — resource experiment implementation, 2026-11-01
+
+`scripts/benchmark-monitoring.py` runs the same five-operation/second producer
+for 120 seconds warmup and 600 seconds measurement in a fresh owned project.
+The producer emits an explicit warmup event; the smoke helper reads its final
+JSON line. This separates phase accounting from repeated cumulative scrapes.
+The observer retains raw Docker working-set/CPU samples, exact units and IDs,
+near-concurrent aggregate buckets, per-volume logical/allocated bytes and full
+post-load backend reconciliation. It records image/source/config hashes,
+actual limits, OOM/restarts, failure counters and cleanup. Existing report paths
+are never overwritten. Unknown/malformed resource readings fail instead of zero.
+
+`test_monitoring_benchmark.py` protects binary/decimal conversion, unknown data,
+container identity ambiguity and native Docker terminal-control frames. A new
+producer regression verifies uncertain transport failure is counted without
+replay. The native observer smoke passed before timed trials. Static verification
+also removed an unnecessary timestamp conversion in the retention helper; Python
+3.12 accepts the `Z` suffix directly, preserving behavior.
+
+The original host/first container candidates passed, but differing Grafana
+startup disk sizes exposed default unpinned plugin downloads. The second
+container candidate was interrupted and cleanup verified; no fourth candidate
+was started. All observations are retained. Compose now disables automatic
+preinstallation/startup updates, with a pure regression and an actual empty
+plugin-directory check. The benchmark requires the empty directory before load.
+Final corrected-profile results use `step9-fixed-*` and are not pooled with the
+uncontrolled candidates. The total memory budget and workload were unchanged.
+
+The final audit also moved local-engine rejection ahead of yielding disposable
+state (before build/create), protected that ordering with a regression, and added
+the same guard to native parser checks. The original shorter scraper fixture is
+retained; the full 180-second generation-under-stop check passed with 189.935
+seconds stopped and a 205-second raw sample gap, then verified owned cleanup.
+The related source changes were frozen before the corrected resource trials.
+
+Final measurement status is recorded in
+[the resource report](performance-milestone9-issue58.md) and its retained raw JSON.
+
+
+Final Step 9 results: one host and three completed container trials passed with
+identical recorded source/config inputs and producer filesystem/runtime settings.
+Local producer build IDs varied in metadata/descriptor/identity fields; the
+layers and runtime configuration were independently inspected and matched.
+Aggregate sampled memory peaks were 880.1–928.4 MB under the unchanged 2,000 MB
+limit. Each passing trial reconciled 3,600 operations/logs/traces and a 63-second
+histogram sum, with zero pacing misses/failed requests/observed OOM/restarts or
+nonzero export/refusal counters. All owned cleanup passed. The original corrected
+container repetition 2 had one >50 ms pacing miss and correctly failed; its
+unchanged retry passed. That attempt and the uncontrolled earlier candidates
+remain retained, without pooling their results into passing cells.
+
+The initial disk allowance is 13 GiB including reserve (Prometheus 5, Grafana 1,
+Loki 2 and Tempo 2 GiB before the log allowance/overall reserve), plus separate
+image/build cache. It is a short-run planning extrapolation, not a byte cap or
+full-retention capacity claim. Raw samples, derived calculations and inspected
+producer provenance are committed alongside the measured report. Backend-static
+and 446 pure tests passed after measurement; four native parsers and the earlier
+separate application image gate also passed. No application source/schema changed.

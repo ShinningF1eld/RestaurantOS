@@ -1,0 +1,23 @@
+{
+  "status": "corrected_before_final_trials",
+  "observed_default_plugins": [
+    "grafana-advisor-app",
+    "grafana-pyroscope-app",
+    "mssql"
+  ],
+  "completed_candidate_reports": [
+    "step9-host-r1.json",
+    "step9-container-r1.json"
+  ],
+  "candidate_results_are_not_final_fixed_profile_acceptance": true,
+  "interrupted_report": "step9-container-r2.json",
+  "interrupted_report_cleanup_verified": true,
+  "reason": "Pinned Grafana image default preinstallation can download unpinned plugins; disk/startup inputs were uncontrolled. Interrupted owned trial by SIGINT; fourth candidate was not started.",
+  "configuration_correction": {
+    "GF_PLUGINS_PREINSTALL_DISABLED": "true",
+    "GF_PLUGINS_PREINSTALL_AUTO_UPDATE": "false"
+  },
+  "runtime_empty_plugin_directory_verified": true,
+  "verification_utc": "2026-11-01T09:55:25Z",
+  "final_report_prefix": "step9-fixed-"
+}

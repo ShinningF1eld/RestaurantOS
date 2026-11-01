@@ -1,0 +1,240 @@
+{
+  "recorded_inputs_match_working_tree": true,
+  "status": "four_passing_trials_with_one_retained_timing_failure",
+  "engine": {
+    "Architecture": "aarch64",
+    "NCPU": 8,
+    "MemTotal": 8319770624,
+    "ServerVersion": "29.9.2"
+  },
+  "configuration_hashes_identical": true,
+  "generator_image_ids_identical": false,
+  "generator_runtime_configuration_and_layers_identical": true,
+  "runs": {
+    "step9-fixed-host-r1": {
+      "resources": {
+        "services": {
+          "collector": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 70904709,
+            "peak_sampled_cpu_percent": 3.83,
+            "mean_cpu_percent": 0.6750416666666667,
+            "maximum_sample_gap_seconds": 0.5123429298400879
+          },
+          "prometheus": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 76325847,
+            "peak_sampled_cpu_percent": 4.02,
+            "mean_cpu_percent": 0.97025,
+            "maximum_sample_gap_seconds": 0.5122940540313721
+          },
+          "grafana": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 374236774,
+            "peak_sampled_cpu_percent": 16.19,
+            "mean_cpu_percent": 1.6071833333333332,
+            "maximum_sample_gap_seconds": 0.5122809410095215
+          },
+          "loki": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 106535321,
+            "peak_sampled_cpu_percent": 5.32,
+            "mean_cpu_percent": 1.6993916666666666,
+            "maximum_sample_gap_seconds": 0.5122699737548828
+          },
+          "tempo": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 305345331,
+            "peak_sampled_cpu_percent": 20.96,
+            "mean_cpu_percent": 1.0549833333333334,
+            "maximum_sample_gap_seconds": 0.5122592449188232
+          }
+        },
+        "complete_second_buckets": 600,
+        "aggregate_peak_sampled_memory_bytes": 928409188,
+        "aggregate_peak_sampled_cpu_percent": 25.37
+      },
+      "settlement_seconds": 16.638831724166835,
+      "raw_report_sha256": "sha256:49853c22943163ea37783ecfc5354a06a077744095552a7eb025cbf460979893"
+    },
+    "step9-fixed-container-r1": {
+      "resources": {
+        "services": {
+          "collector": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 64330137,
+            "peak_sampled_cpu_percent": 3.28,
+            "mean_cpu_percent": 0.6454416666666667,
+            "maximum_sample_gap_seconds": 0.5059719085693359
+          },
+          "prometheus": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 76294389,
+            "peak_sampled_cpu_percent": 3.9,
+            "mean_cpu_percent": 0.9124666666666666,
+            "maximum_sample_gap_seconds": 0.5059199333190918
+          },
+          "grafana": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 363751014,
+            "peak_sampled_cpu_percent": 9.83,
+            "mean_cpu_percent": 1.5977666666666666,
+            "maximum_sample_gap_seconds": 0.5059001445770264
+          },
+          "loki": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 108422758,
+            "peak_sampled_cpu_percent": 11.36,
+            "mean_cpu_percent": 1.7020083333333333,
+            "maximum_sample_gap_seconds": 0.5058839321136475
+          },
+          "tempo": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 276928921,
+            "peak_sampled_cpu_percent": 21.53,
+            "mean_cpu_percent": 1.0784166666666666,
+            "maximum_sample_gap_seconds": 0.5058701038360596
+          }
+        },
+        "complete_second_buckets": 601,
+        "aggregate_peak_sampled_memory_bytes": 880090805,
+        "aggregate_peak_sampled_cpu_percent": 24.84
+      },
+      "settlement_seconds": 16.46792567825321,
+      "raw_report_sha256": "sha256:6dc71e7cb3e1128c0a1db58c9b649d0048d821323fada5be11aa53f8c400d17b"
+    },
+    "step9-fixed-container-r2-retry1": {
+      "resources": {
+        "services": {
+          "collector": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 65850572,
+            "peak_sampled_cpu_percent": 4.95,
+            "mean_cpu_percent": 0.61795,
+            "maximum_sample_gap_seconds": 0.506356954574585
+          },
+          "prometheus": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 72068628,
+            "peak_sampled_cpu_percent": 3.39,
+            "mean_cpu_percent": 0.9454833333333332,
+            "maximum_sample_gap_seconds": 0.5063738822937012
+          },
+          "grafana": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 378640793,
+            "peak_sampled_cpu_percent": 15.31,
+            "mean_cpu_percent": 1.5803666666666667,
+            "maximum_sample_gap_seconds": 0.5063822269439697
+          },
+          "loki": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 108632473,
+            "peak_sampled_cpu_percent": 5.74,
+            "mean_cpu_percent": 1.6700833333333334,
+            "maximum_sample_gap_seconds": 0.5063910484313965
+          },
+          "tempo": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 287100108,
+            "peak_sampled_cpu_percent": 20.23,
+            "mean_cpu_percent": 1.0701333333333334,
+            "maximum_sample_gap_seconds": 0.5063991546630859
+          }
+        },
+        "complete_second_buckets": 601,
+        "aggregate_peak_sampled_memory_bytes": 895347587,
+        "aggregate_peak_sampled_cpu_percent": 24.48
+      },
+      "settlement_seconds": 16.47135869789122,
+      "raw_report_sha256": "sha256:da5d071915b4c50ec6a6e9e04090b6b0159cad75007ff3c3f350971d4c596e46"
+    },
+    "step9-fixed-container-r3": {
+      "resources": {
+        "services": {
+          "collector": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 69814190,
+            "peak_sampled_cpu_percent": 3.32,
+            "mean_cpu_percent": 0.6237916666666666,
+            "maximum_sample_gap_seconds": 0.5046899318695068
+          },
+          "prometheus": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 74522296,
+            "peak_sampled_cpu_percent": 3.68,
+            "mean_cpu_percent": 0.9572583333333333,
+            "maximum_sample_gap_seconds": 0.504662036895752
+          },
+          "grafana": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 367525888,
+            "peak_sampled_cpu_percent": 15.41,
+            "mean_cpu_percent": 1.6239833333333333,
+            "maximum_sample_gap_seconds": 0.504605770111084
+          },
+          "loki": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 98178170,
+            "peak_sampled_cpu_percent": 6.63,
+            "mean_cpu_percent": 1.7707249999999999,
+            "maximum_sample_gap_seconds": 0.5044610500335693
+          },
+          "tempo": {
+            "sample_count": 1200,
+            "peak_sampled_memory_bytes": 315201945,
+            "peak_sampled_cpu_percent": 17.73,
+            "mean_cpu_percent": 1.0370916666666667,
+            "maximum_sample_gap_seconds": 0.5044269561767578
+          }
+        },
+        "complete_second_buckets": 601,
+        "aggregate_peak_sampled_memory_bytes": 909000047,
+        "aggregate_peak_sampled_cpu_percent": 24.07
+      },
+      "settlement_seconds": 16.472861492156994,
+      "raw_report_sha256": "sha256:1ebf068e0f9a2c6483bab90df0b6d481185b543257ef97c95cc98932e0282159"
+    }
+  },
+  "disk_budget": {
+    "prometheus": {
+      "retention_days": 7,
+      "worst_observed_allocated_growth_bytes_per_second": 3773.278717061586,
+      "maximum_end_allocated_bytes": 2879488,
+      "linear_retained_growth_bytes": 2282078968.0788474,
+      "planning_gib": 5
+    },
+    "grafana": {
+      "retention_days": 0,
+      "worst_observed_allocated_growth_bytes_per_second": 0.0,
+      "maximum_end_allocated_bytes": 1667072,
+      "linear_retained_growth_bytes": 0.0,
+      "planning_gib": 1
+    },
+    "loki": {
+      "retention_days": 3,
+      "worst_observed_allocated_growth_bytes_per_second": 1383.0328190006996,
+      "maximum_end_allocated_bytes": 1048576,
+      "linear_retained_growth_bytes": 358482106.68498135,
+      "planning_gib": 2
+    },
+    "tempo": {
+      "retention_days": 3,
+      "worst_observed_allocated_growth_bytes_per_second": 2859.940000436598,
+      "maximum_end_allocated_bytes": 2609152,
+      "linear_retained_growth_bytes": 741296448.1131662,
+      "planning_gib": 2
+    }
+  },
+  "disk_budget_formula": "per store ceil((2 * (maximum end allocated bytes + worst measured positive allocated growth rate * retention seconds) + 512 MiB) / GiB); total ceil((sum store GiB + 64 MiB container log allowance) * 1.25)",
+  "total_planning_gib": 13,
+  "failed_fixed_attempts": {
+    "step9-fixed-container-r2": {
+      "reason": "One strict >50 ms pacing miss; all 3600 operations generated and all 1809 requests acknowledged; storage/resource final reconciliation not reached",
+      "cleanup_verified": true,
+      "raw_report_sha256": "sha256:4f8353d777e6f73d44927988d529cd1d6f8af76cae7870621365fb67c54b18af"
+    }
+  },
+  "passing_trial_count": 4,
+  "failed_fixed_attempt_count": 1
+}

@@ -255,6 +255,7 @@ class Monitoring:
 
 @contextmanager
 def disposable_monitoring(mode: str = "host"):
+    require_local_engine()
     with tempfile.TemporaryDirectory(
         prefix="restaurantos-monitoring-test-"
     ) as temporary:

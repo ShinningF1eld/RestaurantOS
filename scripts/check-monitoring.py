@@ -10,6 +10,7 @@ import json
 import math
 import subprocess
 import sys
+import time
 from itertools import pairwise
 from pathlib import Path
 from urllib.error import HTTPError
@@ -96,7 +97,7 @@ def generate(stack, duration: int, seed: str, *, rate: int = 5, warmup: int = 0)
     )
     try:
         output, _ = child.communicate(timeout=duration + 90)
-        result = json.loads(output)
+        result = json.loads(output.splitlines()[-1])
         if child.returncode or not result["complete"]:
             raise RuntimeError("Synthetic producer incomplete: " + json.dumps(result))
         return result
@@ -350,22 +351,26 @@ def outage(stack, seconds=180):
     return report
 
 
-def scraper(stack):
+def scraper(stack, seconds=180):
     wait_until(lambda: prom(stack, 'up{job="collector-self"}'))
     stack.compose("stop", "prometheus")
-    generate(stack, 30, "scraper-gap")
+    stopped = time.monotonic()
+    generate(stack, seconds, "scraper-gap")
+    paused_seconds = time.monotonic() - stopped
     stack.compose("start", "prometheus")
 
     def gap():
-        rows = prom(stack, 'up{job="collector-self"}[5m]')
+        rows = prom(stack, 'up{job="collector-self"}[10m]')
         if not rows:
             return None
         stamps = [float(row[0]) for row in rows[0]["values"]]
         gaps = [b - a for a, b in pairwise(stamps)]
-        return max(gaps) if gaps and max(gaps) > 25 else None
+        return max(gaps) if gaps and max(gaps) > seconds - 5 else None
 
     observed = wait_until(gap, 120)
     return {
+        "requested_fault_seconds": seconds,
+        "observed_stopped_seconds": paused_seconds,
         "raw_scrape_sample_gap_seconds": observed,
         "missing_samples_not_backfilled": True,
     }
@@ -466,7 +471,7 @@ def main():
                     "smoke": smoke,
                     "restart": restart,
                     "outage": lambda stack: outage(stack, args.fault_seconds),
-                    "scraper": scraper,
+                    "scraper": lambda stack: scraper(stack, args.fault_seconds),
                     "saturation": saturation,
                 }[args.scenario](stack)
         finally:

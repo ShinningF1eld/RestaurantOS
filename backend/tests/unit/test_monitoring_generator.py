@@ -49,3 +49,21 @@ def test_encoded_requests_respect_actual_byte_limit(producer):
     )
     with pytest.raises(ValueError):
         producer.encode("logs", [{"body": "x" * 100000}])
+
+
+def test_uncertain_transport_is_reported_without_replay(producer, monkeypatch):
+    calls = []
+
+    class Unavailable:
+        def open(self, request, **kwargs):
+            calls.append(request)
+            raise OSError("synthetic transport failure")
+
+    monkeypatch.setattr(producer, "build_opener", lambda *args: Unavailable())
+    monkeypatch.setattr(producer.time, "monotonic", lambda: 0)
+    monkeypatch.setattr(producer.time, "sleep", lambda seconds: None)
+    result = producer.generate("http://localhost:4318", 1, 1, "test", False)
+    assert not result["complete"]
+    assert result["failed_or_uncertain_requests"] == 3
+    assert result["acknowledged_requests"] == 0
+    assert len(calls) == 3

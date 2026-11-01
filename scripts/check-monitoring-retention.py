@@ -217,9 +217,7 @@ def run(stack, report):
         blocks = []
         for name, meta in snapshot["metadata"].items():
             if name.startswith("blocks/") and "endTime" in meta:
-                end = datetime.datetime.fromisoformat(
-                    meta["endTime"].replace("Z", "+00:00")
-                ).timestamp()
+                end = datetime.datetime.fromisoformat(meta["endTime"]).timestamp()
                 if end < now - 3 * 86400:
                     blocks.append(name.rsplit("/", 1)[0])
         return blocks

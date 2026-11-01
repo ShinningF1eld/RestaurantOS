@@ -97,3 +97,9 @@ def test_writable_storage_is_project_owned_and_configuration_fails_closed():
         assert environment[f"GF_SECURITY_{setting}__FILE"] == (f"/run/secrets/{secret}")
         assert compose["secrets"][secret]["file"].startswith("${MONITORING_STATE_DIR:?")
     assert "/.local-monitoring/" in (ROOT / ".gitignore").read_text()
+
+
+def test_grafana_cannot_download_unpinned_plugins_at_startup():
+    env = load_compose("compose.yaml")["services"]["grafana"]["environment"]
+    assert env["GF_PLUGINS_PREINSTALL_DISABLED"] == "true"
+    assert env["GF_PLUGINS_PREINSTALL_AUTO_UPDATE"] == "false"

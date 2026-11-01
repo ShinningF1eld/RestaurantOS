@@ -200,6 +200,16 @@ def generate(
         result["generated_operations"] = index
         if index == rate * warmup:
             result["warmup_completed_unix_seconds"] = time.time()
+            print(
+                json.dumps(
+                    {
+                        "phase": "warmup_complete",
+                        "completed_operations": index,
+                        "observed_unix_seconds": time.time(),
+                    }
+                ),
+                flush=True,
+            )
         if now - last_flush >= 1 or index == rate * duration:
             flush()
             last_flush = time.monotonic()

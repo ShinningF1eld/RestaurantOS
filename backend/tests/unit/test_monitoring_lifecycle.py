@@ -46,6 +46,7 @@ def test_tampered_test_identity_cannot_select_developer_resources(tmp_path):
 
 
 def test_context_cleans_owned_resources_when_startup_or_work_fails(monkeypatch):
+    monkeypatch.setattr(environment, "require_local_engine", lambda: None)
     removed = []
     monkeypatch.setattr(
         environment.Monitoring,
@@ -57,3 +58,18 @@ def test_context_cleans_owned_resources_when_startup_or_work_fails(monkeypatch):
             raise RuntimeError("injected")
     assert removed == [(state.project, True)]
     assert state.project.startswith("restaurantos-monitoring-test-")
+
+
+def test_disposable_context_rejects_remote_engine_before_initialization(monkeypatch):
+    def reject():
+        raise RuntimeError("remote engine rejected")
+
+    monkeypatch.setattr(environment, "require_local_engine", reject)
+    monkeypatch.setattr(
+        environment.Monitoring,
+        "initialize",
+        lambda *a, **k: pytest.fail("State initialized"),
+    )
+    with pytest.raises(RuntimeError, match="remote engine rejected"):
+        with environment.disposable_monitoring():
+            pytest.fail("Caller could build or create resources")

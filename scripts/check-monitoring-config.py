@@ -8,6 +8,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import yaml
+from test_support.monitoring_environment import require_local_engine
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = {
@@ -23,6 +24,7 @@ CASES = {
 
 
 def main() -> None:
+    require_local_engine()
     lock = json.loads((ROOT / "monitoring/images.lock.json").read_text())
     compose = yaml.safe_load((ROOT / "monitoring/compose.yaml").read_text())
     for service, (filename, entrypoint, arguments) in CASES.items():

@@ -120,6 +120,7 @@ def test_parser_checker_cleans_only_its_container_and_preserves_failure(
             raise error
         return subprocess.CompletedProcess(command, 1, "", "No such container")
 
+    monkeypatch.setattr(checker, "require_local_engine", lambda: None)
     monkeypatch.setattr(checker.subprocess, "run", run)
     with pytest.raises(type(error)) as caught:
         checker.main()
