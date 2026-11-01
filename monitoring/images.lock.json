@@ -1,0 +1,243 @@
+{
+  "schema_version": 1,
+  "recorded_date": "2026-11-01",
+  "timezone": "Asia/Bangkok",
+  "issue": "https://github.com/ShinningF1eld/RestaurantOS/issues/58",
+  "restaurantos_source_revision": "50160a1a00d7261971e8fb7d72fdb8238224e7fe",
+  "status": "registry-and-source-reviewed; runtime acceptance pending",
+  "verification": {
+    "method": "Anonymous Docker Registry v2 index reads; response SHA-256 compared with Docker-Content-Digest; platform descriptors inspected. GitHub source tags resolved to commits and reviewed documents hashed.",
+    "image_layers_pulled": false,
+    "containers_started": false,
+    "runtime_interoperability_verified": false,
+    "native_platform_execution_verified": false,
+    "resource_fit_verified": false
+  },
+  "required_platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "monitoring_memory_budget_bytes": 2000000000,
+  "images": {
+    "prometheus": {
+      "repository": "docker.io/prom/prometheus",
+      "tag": "v3.15.1",
+      "index_digest": "sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2",
+      "reference": "docker.io/prom/prometheus:v3.15.1@sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2",
+      "index_media_type": "application/vnd.docker.distribution.manifest.list.v2+json",
+      "registry_manifest_url": "https://registry-1.docker.io/v2/prom/prometheus/manifests/sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2",
+      "platforms": {
+        "linux/amd64": {
+          "manifest_digest": "sha256:d445d1806b38f85b5c394a1b87f94113fde0473b45245922c2e8b1bd41fa68ae"
+        },
+        "linux/arm64": {
+          "manifest_digest": "sha256:13020b7e520d56fef031135b91f5635888de441d6c4cfda3608bfbf6f4916dcb"
+        }
+      },
+      "source_repository": "prometheus/prometheus",
+      "source_ref": "v3.15.1",
+      "source_commit": "bae3eced0a5369e050e83ea73bc381d7c4b1a719"
+    },
+    "grafana": {
+      "repository": "docker.io/grafana/grafana",
+      "tag": "13.3.0",
+      "index_digest": "sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205",
+      "reference": "docker.io/grafana/grafana:13.3.0@sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205",
+      "index_media_type": "application/vnd.docker.distribution.manifest.list.v2+json",
+      "registry_manifest_url": "https://registry-1.docker.io/v2/grafana/grafana/manifests/sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205",
+      "platforms": {
+        "linux/amd64": {
+          "manifest_digest": "sha256:6e5d306338670f381a942f1c50d3c266bf71531e5ddd9ee4fc1a133dac5ce63d"
+        },
+        "linux/arm64": {
+          "manifest_digest": "sha256:868b6ae6642ec09a71a1273d4c0eb952856c1f421137b33e26038e629ee3c208"
+        }
+      },
+      "source_repository": "grafana/grafana",
+      "source_ref": "v13.3.0",
+      "source_commit": "752e3462ff71a43a5c1fb62d00a482fa2dc0ee6a"
+    },
+    "loki": {
+      "repository": "docker.io/grafana/loki",
+      "tag": "3.7.9",
+      "index_digest": "sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28",
+      "reference": "docker.io/grafana/loki:3.7.9@sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28",
+      "index_media_type": "application/vnd.docker.distribution.manifest.list.v2+json",
+      "registry_manifest_url": "https://registry-1.docker.io/v2/grafana/loki/manifests/sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28",
+      "platforms": {
+        "linux/amd64": {
+          "manifest_digest": "sha256:569e5cab050b7705eb82080335ff9a8bd329650b358bb0d42131e3ced8d9492e"
+        },
+        "linux/arm64": {
+          "manifest_digest": "sha256:1a779c5f714e795ac698b125fc265ae97292f792a91535fa29726073d03d5580"
+        }
+      },
+      "source_repository": "grafana/loki",
+      "source_ref": "v3.7.9",
+      "source_commit": "d3b4a2f76bfc5625abee7ceb00b8896fa3c31549"
+    },
+    "tempo": {
+      "repository": "docker.io/grafana/tempo",
+      "tag": "2.10.10",
+      "index_digest": "sha256:12b0820f13ffa10ce956b6e9acc3b03f3cffded99109be6cc09d106fe56e5d38",
+      "reference": "docker.io/grafana/tempo:2.10.10@sha256:12b0820f13ffa10ce956b6e9acc3b03f3cffded99109be6cc09d106fe56e5d38",
+      "index_media_type": "application/vnd.docker.distribution.manifest.list.v2+json",
+      "registry_manifest_url": "https://registry-1.docker.io/v2/grafana/tempo/manifests/sha256:12b0820f13ffa10ce956b6e9acc3b03f3cffded99109be6cc09d106fe56e5d38",
+      "platforms": {
+        "linux/amd64": {
+          "manifest_digest": "sha256:2cd56a993318ae307f58289ebc89ae6cb5edc7e82c069371fd5225c393aca867"
+        },
+        "linux/arm64": {
+          "manifest_digest": "sha256:2c83eaca29ec658a3077f34ae5de67f4793ff210d09b4c55335376d2c8a457f9"
+        }
+      },
+      "source_repository": "grafana/tempo",
+      "source_ref": "v2.10.10",
+      "source_commit": "f317720e7e5191a7f282e8f7d6fe5387ae6015b4"
+    },
+    "collector": {
+      "repository": "docker.io/otel/opentelemetry-collector-contrib",
+      "tag": "0.164.0",
+      "index_digest": "sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b",
+      "reference": "docker.io/otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b",
+      "index_media_type": "application/vnd.docker.distribution.manifest.list.v2+json",
+      "registry_manifest_url": "https://registry-1.docker.io/v2/otel/opentelemetry-collector-contrib/manifests/sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b",
+      "platforms": {
+        "linux/amd64": {
+          "manifest_digest": "sha256:ac0bb9cdc844b55d2fd2655d03e596243787d6a8c52dd408b1dc96dd1bd372ee"
+        },
+        "linux/arm64": {
+          "manifest_digest": "sha256:91433e0cbe761c34e4c98714b509cd46021b84ce8cb67001d01e34cf7594e109"
+        }
+      },
+      "source_repository": "open-telemetry/opentelemetry-collector-releases",
+      "source_ref": "v0.164.0",
+      "source_commit": "bf626fce5c8053ac6ae9c6c5f4c408c8c182740e"
+    }
+  },
+  "collector_source_modules": {
+    "core": "v0.164.0",
+    "contrib": "v0.164.1",
+    "evidence": "sources.open-telemetry/opentelemetry-collector-releases.sources[0]",
+    "runtime_component_inspection_pending": true
+  },
+  "sources": {
+    "prometheus/prometheus": {
+      "tag": "v3.15.1",
+      "commit": "bae3eced0a5369e050e83ea73bc381d7c4b1a719",
+      "sources": [
+        {
+          "path": "docs/storage.md",
+          "url": "https://github.com/prometheus/prometheus/blob/bae3eced0a5369e050e83ea73bc381d7c4b1a719/docs/storage.md",
+          "sha256": "7ea93bb1e7b4a733072d510dc068d0f66d678b46285c76fae55fa96a58d9173a"
+        }
+      ]
+    },
+    "grafana/grafana": {
+      "tag": "v13.3.0",
+      "commit": "752e3462ff71a43a5c1fb62d00a482fa2dc0ee6a",
+      "sources": [
+        {
+          "path": "docs/sources/administration/provisioning/index.md",
+          "url": "https://github.com/grafana/grafana/blob/752e3462ff71a43a5c1fb62d00a482fa2dc0ee6a/docs/sources/administration/provisioning/index.md",
+          "sha256": "ae39c9c2a4c0e896492c8df476ac2f5ddb821206f6828b18e8d6bb1c2489bf61"
+        }
+      ]
+    },
+    "grafana/loki": {
+      "tag": "v3.7.9",
+      "commit": "d3b4a2f76bfc5625abee7ceb00b8896fa3c31549",
+      "sources": [
+        {
+          "path": "docs/sources/shared/otel.md",
+          "url": "https://github.com/grafana/loki/blob/d3b4a2f76bfc5625abee7ceb00b8896fa3c31549/docs/sources/shared/otel.md",
+          "sha256": "f5ae304e2c8dd0acbf99b6816a9d3b0519f816357cd7bc68dab72ef8c384438a"
+        },
+        {
+          "path": "docs/sources/operations/storage/retention.md",
+          "url": "https://github.com/grafana/loki/blob/d3b4a2f76bfc5625abee7ceb00b8896fa3c31549/docs/sources/operations/storage/retention.md",
+          "sha256": "9f71d2fce13bfc05175d1e50bdc5322cd0e20b0a768c1cdf7781b90bcb1abe30"
+        },
+        {
+          "path": "cmd/loki/loki-local-config.yaml",
+          "url": "https://github.com/grafana/loki/blob/d3b4a2f76bfc5625abee7ceb00b8896fa3c31549/cmd/loki/loki-local-config.yaml",
+          "sha256": "b0512247b74062a2df69acdd26f1292fb7750d41330b3ee34d36d7511456ef90"
+        }
+      ]
+    },
+    "grafana/tempo": {
+      "tag": "v2.10.10",
+      "commit": "f317720e7e5191a7f282e8f7d6fe5387ae6015b4",
+      "sources": [
+        {
+          "path": "docs/sources/tempo/configuration/_index.md",
+          "url": "https://github.com/grafana/tempo/blob/f317720e7e5191a7f282e8f7d6fe5387ae6015b4/docs/sources/tempo/configuration/_index.md",
+          "sha256": "55d8212bd38e7b47899604b6e232c8fedae2999126ccc8167f8460bb37ff7ec7"
+        },
+        {
+          "path": "example/docker-compose/local/tempo.yaml",
+          "url": "https://github.com/grafana/tempo/blob/f317720e7e5191a7f282e8f7d6fe5387ae6015b4/example/docker-compose/local/tempo.yaml",
+          "sha256": "4a4eeb55949c500309e184cd608c7edce08011b1687f30ccd3ccca9138a3b65b"
+        }
+      ]
+    },
+    "open-telemetry/opentelemetry-collector": {
+      "tag": "v0.164.0",
+      "commit": "f532e15ef29b6ed7fefad2b23a0fefd27120ef9b",
+      "sources": [
+        {
+          "path": "receiver/otlpreceiver/README.md",
+          "url": "https://github.com/open-telemetry/opentelemetry-collector/blob/f532e15ef29b6ed7fefad2b23a0fefd27120ef9b/receiver/otlpreceiver/README.md",
+          "sha256": "1d036c6d7a2db5c53b89d80ba43c5bd6cdd24f76f300b21c1c9bb9045a94d82e"
+        },
+        {
+          "path": "exporter/otlphttpexporter/README.md",
+          "url": "https://github.com/open-telemetry/opentelemetry-collector/blob/f532e15ef29b6ed7fefad2b23a0fefd27120ef9b/exporter/otlphttpexporter/README.md",
+          "sha256": "6d16929e2f885dfd3bca16ec1822d05b8ae9ef3453cba473560f544cf90c36ed"
+        },
+        {
+          "path": "processor/memorylimiterprocessor/README.md",
+          "url": "https://github.com/open-telemetry/opentelemetry-collector/blob/f532e15ef29b6ed7fefad2b23a0fefd27120ef9b/processor/memorylimiterprocessor/README.md",
+          "sha256": "c684265071b4e453ae1b9af4ab3a9b30a367d0c0da3f15f6334a958674b34e46"
+        },
+        {
+          "path": "exporter/exporterhelper/README.md",
+          "url": "https://github.com/open-telemetry/opentelemetry-collector/blob/f532e15ef29b6ed7fefad2b23a0fefd27120ef9b/exporter/exporterhelper/README.md",
+          "sha256": "fe1f6f0f3bf74d9a107ce5885c561f8edbb79f5ef461ea14b51c49d38f022a97"
+        }
+      ]
+    },
+    "open-telemetry/opentelemetry-collector-contrib": {
+      "tag": "v0.164.1",
+      "commit": "9d85835bdee87a7e33e315da1a875cbaabd50b91",
+      "sources": [
+        {
+          "path": "receiver/postgresqlreceiver/README.md",
+          "url": "https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/9d85835bdee87a7e33e315da1a875cbaabd50b91/receiver/postgresqlreceiver/README.md",
+          "sha256": "b43f94c4dde21962a0639f3adc0760c3b890694a10ef24fecccf71b5130bb04a"
+        },
+        {
+          "path": "receiver/redisreceiver/README.md",
+          "url": "https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/9d85835bdee87a7e33e315da1a875cbaabd50b91/receiver/redisreceiver/README.md",
+          "sha256": "b3328e775a9a4cde8c87817ffd6cf1d9b1ede44ec44ace0a54f744f03c94d3c2"
+        },
+        {
+          "path": "exporter/prometheusexporter/README.md",
+          "url": "https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/9d85835bdee87a7e33e315da1a875cbaabd50b91/exporter/prometheusexporter/README.md",
+          "sha256": "2c7fb860a00b8966ff70aceef21de7165a78cf3f46435b6d090a0da09d426188"
+        }
+      ]
+    },
+    "open-telemetry/opentelemetry-collector-releases": {
+      "tag": "v0.164.0",
+      "commit": "bf626fce5c8053ac6ae9c6c5f4c408c8c182740e",
+      "sources": [
+        {
+          "path": "distributions/otelcol-contrib/manifest.yaml",
+          "url": "https://github.com/open-telemetry/opentelemetry-collector-releases/blob/bf626fce5c8053ac6ae9c6c5f4c408c8c182740e/distributions/otelcol-contrib/manifest.yaml",
+          "sha256": "4b6de908432053c7d6a137d9bdb6b74cc184121867cae246994bcfc925e50ae0"
+        }
+      ]
+    }
+  }
+}
