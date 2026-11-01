@@ -430,3 +430,24 @@ Grafana's database. There is intentionally no developer volume-delete command.
 Acceptance uses separate `restaurantos-monitoring-test-*` projects and temporary
 state; it cannot use the development deletion path. Do not remove the state
 directory while its containers/volumes are still needed to identify that project.
+
+## Acceptance smoke and failures — Step 7
+
+```sh
+backend/.venv/bin/python scripts/check-monitoring.py --mode host
+backend/.venv/bin/python scripts/check-monitoring.py --mode container
+backend/.venv/bin/python scripts/check-monitoring.py --scenario restart
+backend/.venv/bin/python scripts/check-monitoring.py --scenario outage
+backend/.venv/bin/python scripts/check-monitoring.py --scenario scraper
+backend/.venv/bin/python scripts/check-monitoring.py --scenario saturation
+backend/.venv/bin/python scripts/check-monitoring.py --scenario cleanup
+```
+
+Use a distinct `--report` path to retain each result. `cleanup` deliberately exits
+nonzero; require its error to identify the intentional interruption and
+`cleanup_verified: true`. All other cases must exit zero and report `passed`.
+Destination outages default to 180 seconds each. `saturation` is a clearly marked
+reduced-queue fixture; it never edits tracked production configurations. No case
+uses the developer's monitoring state or application database. All three stores
+were checked after a normal restart. The scraper case inspects raw stored sample
+timestamps, rather than a query that could repeat the last value during lookback.

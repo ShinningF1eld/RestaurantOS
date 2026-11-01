@@ -208,6 +208,7 @@ def gate(name, env):
             "scripts/check-backend-image.py",
             "scripts/check-frontend-image.py",
             "scripts/check-monitoring-config.py",
+            "scripts/check-monitoring.py",
             "scripts/generate-monitoring-telemetry.py",
             "scripts/local-monitoring.py",
             "scripts/test_support/monitoring_environment.py",

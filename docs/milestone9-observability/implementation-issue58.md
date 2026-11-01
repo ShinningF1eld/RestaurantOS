@@ -63,3 +63,27 @@ started each connection mode, verified four volumes survived down/up and
 authenticated Grafana after restart, then verified owned cleanup. Container mode
 also deliberately raised after startup and still removed its resources. Results:
 `evidence/issue58/step6-lifecycle.json`. No developer state was initialized or used.
+
+## Step 7 — repeatable delivery/failure verifier, 2026-11-01
+
+Added `scripts/check-monitoring.py`. Permanent smoke runs passed in host and
+container modes with exact counter/histogram/log/trace reconciliation through
+authenticated Grafana, a returned parent-child trace, correlated log IDs and
+selected synthetic-canary exclusion. Windowed trace search rejects truncation.
+The restart scenario preserved Prometheus history, all 15 logs and the trace
+across down/up; Collector's in-memory metrics cache is expected to reset.
+
+Loki and Tempo were each stopped for 180 seconds under ongoing generated traffic.
+Their exporter failure counters rose, Collector stayed running without OOM, and
+new linked data arrived after recovery. This does not claim exact accounting for
+lost telemetry. A separate Prometheus stop produced a real gap in raw scrape
+sample timestamps; missing samples were not reconstructed. A separate 1 KiB queue
+fixture with one-record batches emitted enqueue failures without killing
+Collector. It demonstrates bounded rejection, not saturation of the normal 4 MiB
+queues. The explicit cleanup scenario returned nonzero as intended and verified
+removal of only its project resources.
+
+Commands use `--scenario smoke|restart|outage|scraper|saturation|cleanup` and
+`--mode host|container`; all sanitized results are `evidence/issue58/step7-*.json`.
+The shared backend-static gate passed, including the permanent verifier. The
+normal producer's acknowledgements remain distinct from backend reconciliation.
