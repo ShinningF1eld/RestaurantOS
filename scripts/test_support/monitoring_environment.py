@@ -29,9 +29,20 @@ def command(*args: str, timeout: int = 180) -> str:
 
 
 def require_local_engine() -> None:
-    endpoint = os.environ.get("DOCKER_HOST") or command(
-        "docker", "context", "inspect", "--format", "{{.Endpoints.docker.Host}}"
-    )
+    context = os.environ.get("DOCKER_CONTEXT")
+    if context:
+        endpoint = command(
+            "docker",
+            "context",
+            "inspect",
+            context,
+            "--format",
+            "{{.Endpoints.docker.Host}}",
+        )
+    else:
+        endpoint = os.environ.get("DOCKER_HOST") or command(
+            "docker", "context", "inspect", "--format", "{{.Endpoints.docker.Host}}"
+        )
     if not endpoint.startswith(("unix://", "npipe:////./pipe/")):
         raise RuntimeError("Monitoring lifecycle requires a local Docker engine")
     if command("docker", "info", "--format", "{{.OSType}}") != "linux":
@@ -123,7 +134,12 @@ class Monitoring:
         return self.state["project"]
 
     def compose(self, *args: str) -> str:
-        if args[0] == "down" and "--volumes" in args and not self.state["ephemeral"]:
+        removes_volumes = any(
+            arg.split("=", 1)[0] == "--volumes"
+            or (arg.startswith("-") and not arg.startswith("--") and "v" in arg)
+            for arg in args[1:]
+        )
+        if args[0] == "down" and removes_volumes and not self.state["ephemeral"]:
             raise ValueError("Refusing to delete persistent development volumes")
         files = [ROOT / "monitoring/compose.yaml"]
         if self.state["mode"] == "host":

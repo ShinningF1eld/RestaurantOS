@@ -1,0 +1,57 @@
+{
+  "status": "passed",
+  "retained_resource_reports_verified": {
+    "step9-fixed-host-r1": {
+      "status": "passed",
+      "cleanup_verified": true,
+      "raw_report_sha256": "sha256:49853c22943163ea37783ecfc5354a06a077744095552a7eb025cbf460979893"
+    },
+    "step9-fixed-container-r1": {
+      "status": "passed",
+      "cleanup_verified": true,
+      "raw_report_sha256": "sha256:6dc71e7cb3e1128c0a1db58c9b649d0048d821323fada5be11aa53f8c400d17b"
+    },
+    "step9-fixed-container-r2-retry1": {
+      "status": "passed",
+      "cleanup_verified": true,
+      "raw_report_sha256": "sha256:da5d071915b4c50ec6a6e9e04090b6b0159cad75007ff3c3f350971d4c596e46"
+    },
+    "step9-fixed-container-r3": {
+      "status": "passed",
+      "cleanup_verified": true,
+      "raw_report_sha256": "sha256:1ebf068e0f9a2c6483bab90df0b6d481185b543257ef97c95cc98932e0282159"
+    }
+  },
+  "changed_measured_support_files": [
+    "scripts/check-monitoring.py",
+    "scripts/test_support/monitoring_environment.py"
+  ],
+  "change_scope": "Lifecycle preflight/developer deletion guards and fault-only assertions/reporting. Measured pipeline, workload, observer, resource limits and checker functions used by the benchmark are unchanged.",
+  "unchanged_checker_functions": [
+    "build_generator",
+    "generate",
+    "prom",
+    "exact_metric",
+    "trace_spans",
+    "hex_id",
+    "reconcile",
+    "inspect_stack",
+    "smoke",
+    "restart",
+    "scraper",
+    "saturation_config",
+    "main"
+  ],
+  "changed_checker_functions": [
+    "outage",
+    "saturation"
+  ],
+  "reviewed_base": "c9dc231",
+  "reviewed_source_sha256": {
+    "scripts/check-monitoring.py": "sha256:0f372e78802f3cddaa3ecbe8e2e1a62c3618dd643981dc2ac5586cd04bbe69f1",
+    "scripts/test_support/monitoring_environment.py": "sha256:3515b61e53ebd17619585b69330371ee4b3209aaaf1489407dbf82893def07ba"
+  },
+  "retained_timing_failure_not_discarded": true,
+  "retained_disk_planning_gib": 13,
+  "pipeline_workload_and_observer_loops_unchanged": true
+}

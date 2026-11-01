@@ -2,6 +2,16 @@
 
 ## Current M9 observability issue #58 — local foundation
 
+Pre-merge recheck on 2026-11-01: all six issue criteria were reviewed again.
+Fresh host/container, restart, 180-second destination faults, queue rejection,
+scraper gap, intentional cleanup and physical retention checks passed. Five new
+pure safety regressions bring the unit total to 451; short deletion aliases and
+explicit Docker-context precedence are now guarded, and fault checks require
+zero restarts. See [the recheck](milestone9-observability/recheck-milestone9-issue58.md).
+The user authorized a new branch and merge after success; the required ten-gate
+PR check remains authoritative for publication/merge. The original implementation
+checkpoint below records its pre-publication state.
+
 On 2026-11-01, the optional five-service monitoring foundation supplies locked
 Prometheus/Grafana/Loki/Tempo/Collector Contrib images, bounded synthetic pipelines,
 private Grafana authentication, host/container workflows and ownership-safe test

@@ -1,0 +1,16 @@
+{
+  "status": "passed",
+  "cleanup_verified": true,
+  "prometheus_old_and_control_blocks_stored_before_start": true,
+  "prometheus_old_blocks_physically_deleted_control_retained": true,
+  "old_trace_and_log_queryable_before_cleanup": true,
+  "loki_flushed_chunks_and_subsequent_checkpoint_verified": true,
+  "old_log_chunks_stored_count": 2,
+  "tempo_old_block_files_deleted_old_trace_absent_recent_trace_present": true,
+  "loki_old_chunk_files_deleted_old_log_absent_recent_log_present": true,
+  "retention_durations_preserved": {
+    "prometheus": "7d",
+    "loki": "72h",
+    "tempo": "72h"
+  }
+}

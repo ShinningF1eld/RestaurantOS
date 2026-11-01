@@ -1,5 +1,9 @@
 # Issue #58 — local monitoring foundation verification
 
+This is the original implementation checkpoint. See the later
+[pre-merge recheck](recheck-milestone9-issue58.md) for renewed criteria evidence
+and lifecycle/fault-assertion fixes.
+
 Recorded 2026-11-01 (Asia/Bangkok). Local implementation; no push, issue closure,
 remote CI or deployment. GitHub issue #58 was fetched again on this date; its six
 acceptance criteria match task-plan revision 1. Current M9 is observability;

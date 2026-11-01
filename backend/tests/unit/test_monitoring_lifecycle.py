@@ -73,3 +73,41 @@ def test_disposable_context_rejects_remote_engine_before_initialization(monkeypa
     with pytest.raises(RuntimeError, match="remote engine rejected"):
         with environment.disposable_monitoring():
             pytest.fail("Caller could build or create resources")
+
+
+@pytest.mark.parametrize(
+    "flags", [("-v",), ("--volumes=true",), ("-v=true",), ("-vt", "3")]
+)
+def test_development_volume_aliases_are_rejected_before_compose(
+    tmp_path, monkeypatch, flags
+):
+    state = environment.Monitoring.initialize(tmp_path / "state")
+    monkeypatch.setattr(
+        environment.subprocess, "run", lambda *a, **k: pytest.fail("Docker called")
+    )
+    with pytest.raises(ValueError, match="persistent"):
+        state.compose("down", *flags)
+
+
+def test_explicit_remote_context_cannot_hide_behind_local_docker_host(monkeypatch):
+    monkeypatch.setenv("DOCKER_CONTEXT", "remote")
+    monkeypatch.setenv("DOCKER_HOST", "unix:///local.sock")
+    calls = []
+
+    def command(*args):
+        calls.append(args)
+        return "ssh://remote.example.test"
+
+    monkeypatch.setattr(environment, "command", command)
+    with pytest.raises(RuntimeError, match="local Docker engine"):
+        environment.require_local_engine()
+    assert calls == [
+        (
+            "docker",
+            "context",
+            "inspect",
+            "remote",
+            "--format",
+            "{{.Endpoints.docker.Host}}",
+        )
+    ]

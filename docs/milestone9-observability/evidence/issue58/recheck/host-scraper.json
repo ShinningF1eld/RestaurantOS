@@ -1,0 +1,23 @@
+{
+  "mode": "host",
+  "scenario": "scraper",
+  "source_base": "c9dc231",
+  "configurations": {
+    "monitoring/loki.yaml": "sha256:cdf4abf70fec8838c4829ac23ed28d0d604e9e99a518ef5042317a5bbff5a895",
+    "monitoring/otel-collector.yaml": "sha256:d7833982080ae26f9e634e9185d16e6d1205f8296e6e00d5174748ac230c001f",
+    "monitoring/compose.host.yaml": "sha256:3f5fcba771a8973586b4425d7cfeff726714be5b8f35ac980b3405c69de2fd14",
+    "monitoring/prometheus.yaml": "sha256:95a0fb3892e7e8bcec5a1bc2f82632d354c22474d09dcd6544aa0286a5101e3b",
+    "monitoring/compose.yaml": "sha256:a491578800d039b0b06c2fae098a70fd7df39e3cb05ee9f3f81c9c93c523b71e",
+    "monitoring/tempo.yaml": "sha256:edeeadb07cd2989ed7c27ea466dd51917317206e47fcd2297e303079d6456b39",
+    "monitoring/testing/retention.yaml": "sha256:0f056e6216a399746a8d82f0e0772c710e0e4b5377489855fc8da550db20cd82",
+    "monitoring/grafana/provisioning/datasources/datasources.yaml": "sha256:95510eb351d7730a341b997b84f2ff166bd5164b6c8dcad221eb151f734c3575"
+  },
+  "status": "passed",
+  "cleanup_verified": true,
+  "results": {
+    "requested_fault_seconds": 180,
+    "observed_stopped_seconds": 189.94338991699624,
+    "raw_scrape_sample_gap_seconds": 199.99799990653992,
+    "missing_samples_not_backfilled": true
+  }
+}

@@ -305,7 +305,11 @@ def outage(stack, seconds=180):
         state = json.loads(command("docker", "inspect", stack.container("collector")))[
             0
         ]
-        assert state["State"]["Running"] and not state["State"]["OOMKilled"]
+        assert (
+            state["State"]["Running"]
+            and not state["State"]["OOMKilled"]
+            and state["RestartCount"] == 0
+        )
         stack.compose("start", destination)
         wait_until(
             lambda destination=destination: stack.internal(
@@ -325,6 +329,13 @@ def outage(stack, seconds=180):
         report[destination] = {
             "failure_or_queue_signal": True,
             "collector_survived": True,
+            "collector_restarts": state["RestartCount"],
+            "collector_memory_limit_bytes": state["HostConfig"]["Memory"],
+            "export_failure_metrics": [
+                row
+                for row in failures
+                if row["metric"].get("exporter") == "otlp_http/" + destination
+            ],
             "producer": generated,
         }
     recovered = generate(stack, 3, "recovered-" + uuid4().hex[:8])
@@ -413,7 +424,11 @@ def saturation(stack):
         for row in failures
     )
     state = json.loads(command("docker", "inspect", stack.container("collector")))[0]
-    assert state["State"]["Running"] and not state["State"]["OOMKilled"]
+    assert (
+        state["State"]["Running"]
+        and not state["State"]["OOMKilled"]
+        and state["RestartCount"] == 0
+    )
     stack.compose("start", "loki")
     wait_until(
         lambda: (
@@ -427,6 +442,8 @@ def saturation(stack):
         "enqueue_failures_observed": True,
         "collector_survived": True,
         "production_queue_saturation_claimed": False,
+        "collector_restarts": state["RestartCount"],
+        "enqueue_failure_metrics": failures,
     }
 
 
