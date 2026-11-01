@@ -1,0 +1,87 @@
+{
+  "mode": "host",
+  "scenario": "smoke",
+  "source_base": "468128c",
+  "configurations": {
+    "monitoring/loki.yaml": "sha256:cdf4abf70fec8838c4829ac23ed28d0d604e9e99a518ef5042317a5bbff5a895",
+    "monitoring/otel-collector.yaml": "sha256:d7833982080ae26f9e634e9185d16e6d1205f8296e6e00d5174748ac230c001f",
+    "monitoring/compose.host.yaml": "sha256:3f5fcba771a8973586b4425d7cfeff726714be5b8f35ac980b3405c69de2fd14",
+    "monitoring/prometheus.yaml": "sha256:95a0fb3892e7e8bcec5a1bc2f82632d354c22474d09dcd6544aa0286a5101e3b",
+    "monitoring/compose.yaml": "sha256:a491578800d039b0b06c2fae098a70fd7df39e3cb05ee9f3f81c9c93c523b71e",
+    "monitoring/tempo.yaml": "sha256:edeeadb07cd2989ed7c27ea466dd51917317206e47fcd2297e303079d6456b39",
+    "monitoring/testing/retention.yaml": "sha256:0f056e6216a399746a8d82f0e0772c710e0e4b5377489855fc8da550db20cd82",
+    "monitoring/grafana/provisioning/datasources/datasources.yaml": "sha256:95510eb351d7730a341b997b84f2ff166bd5164b6c8dcad221eb151f734c3575"
+  },
+  "status": "passed",
+  "cleanup_verified": true,
+  "results": {
+    "producer": {
+      "seed": "smoke-bcabd12d",
+      "rate": 5,
+      "duration_seconds": 3,
+      "expected_operations": 15,
+      "generated_operations": 15,
+      "export_requests": 9,
+      "acknowledged_requests": 9,
+      "failed_or_uncertain_requests": 0,
+      "schedule_misses": 0,
+      "warmup_seconds": 0,
+      "started_unix_seconds": 1793527199.69008,
+      "elapsed_seconds": 2.813,
+      "warmup_operations": 0,
+      "measurement_operations": 15,
+      "complete": true
+    },
+    "reconciliation": {
+      "operations": 15,
+      "logs": 15,
+      "traces": 15,
+      "spans_expected": 30,
+      "histogram_sum_seconds": 0.255,
+      "trace_parentage_and_log_link": true,
+      "queried_canary_absent": true
+    },
+    "containers": {
+      "collector": {
+        "memory_limit": 250000000,
+        "memory_plus_swap_limit": 250000000,
+        "user": "10001:10001",
+        "oom": false,
+        "restarts": 0,
+        "image_id": "sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b"
+      },
+      "prometheus": {
+        "memory_limit": 300000000,
+        "memory_plus_swap_limit": 300000000,
+        "user": "nobody",
+        "oom": false,
+        "restarts": 0,
+        "image_id": "sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2"
+      },
+      "grafana": {
+        "memory_limit": 650000000,
+        "memory_plus_swap_limit": 650000000,
+        "user": "472",
+        "oom": false,
+        "restarts": 0,
+        "image_id": "sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205"
+      },
+      "loki": {
+        "memory_limit": 400000000,
+        "memory_plus_swap_limit": 400000000,
+        "user": "10001",
+        "oom": false,
+        "restarts": 0,
+        "image_id": "sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28"
+      },
+      "tempo": {
+        "memory_limit": 400000000,
+        "memory_plus_swap_limit": 400000000,
+        "user": "10001:10001",
+        "oom": false,
+        "restarts": 0,
+        "image_id": "sha256:12b0820f13ffa10ce956b6e9acc3b03f3cffded99109be6cc09d106fe56e5d38"
+      }
+    }
+  }
+}

@@ -1,5 +1,111 @@
 # RestaurantOS current state
 
+## Current M9 observability issue #58 — local foundation
+
+Pre-merge recheck on 2026-11-01: all six issue criteria were reviewed again.
+Fresh host/container, restart, 180-second destination faults, queue rejection,
+scraper gap, intentional cleanup and physical retention checks passed. Five new
+pure safety regressions bring the unit total to 451; short deletion aliases and
+explicit Docker-context precedence are now guarded, and fault checks require
+zero restarts. See [the recheck](milestone9-observability/recheck-milestone9-issue58.md).
+The user authorized a new branch and merge after success; the required ten-gate
+PR check remains authoritative for publication/merge. The original implementation
+checkpoint below records its pre-publication state.
+
+On 2026-11-01, the optional five-service monitoring foundation supplies locked
+Prometheus/Grafana/Loki/Tempo/Collector Contrib images, bounded synthetic pipelines,
+private Grafana authentication, host/container workflows and ownership-safe test
+cleanup. [The monitoring guide](../monitoring/README.md) explains setup and data
+contracts; [the issue review](milestone9-observability/verification-milestone9-issue58.md)
+maps the six acceptance criteria to retained evidence.
+
+Both synthetic modes, restart persistence, 180-second Loki/Tempo outages,
+reduced-queue rejection, intentional-failure cleanup and physical aged-fixture
+retention have passed locally. Production retention is seven days for metrics
+and 72 hours for logs/traces; durations are not byte quotas. The same
+2,000,000,000-byte hard memory total was reallocated after retained Grafana startup
+OOM failures: Collector 250 MB, Prometheus 300 MB, Grafana 650 MB, Loki/Tempo
+400 MB each. One host and three container resource trials passed at five
+operations/second for 120 seconds warmup plus 600 seconds measurement. Aggregate
+sampled peaks were 0.880–0.928 GB; each reconciled 3,600 logs/traces and exact
+counter/histogram totals without observed OOM/restarts/export failures. One
+additional attempt failed a strict pacing check and is retained with an identical
+passing retry. Initial disk planning is 13 GiB plus image/build cache, not a quota
+or multi-day capacity guarantee. Unpinned Grafana startup plugins were discovered
+in earlier candidates and disabled before the final trials. Baseline, backend-static,
+446 pure tests, four native parsers and the separate image gate passed locally;
+[the protocol/results](milestone9-observability/performance-milestone9-issue58.md)
+records the workload and measurement limits.
+
+No application instrumentation, schema, HTTP API, dependency lock, developer
+monitoring state or application database changed. PostgreSQL/Redis receivers
+remain disabled pending #61. No push, issue closure, remote CI, AMD64 runtime
+acceptance or full M9 acceptance is claimed. #59–#67 still own application/worker
+correlation, dashboards, operational objectives and incident exercises.
+The dated Step 2/3 sections below are historical checkpoints, not outstanding
+setup instructions. Historical deployment headings refer to current M15.
+
+## Current M9 observability issue #58 — Step 3 signal pipelines
+
+On 2026-11-01, Step 2 was committed locally as `1875fef` without pushing.
+Step 3 adds Collector, Prometheus, Loki and Tempo configurations plus a pinned
+binary parser checker and focused pure regressions. Collector accepts only the
+declared synthetic fixture; no application instrumentation or PostgreSQL/Redis
+collection is enabled. See the [configuration guide](../monitoring/README.md) and
+[dated Step 3 verification](milestone9-observability/verification-milestone9-issue58-step3.md).
+
+All four pinned native ARM64 parsers passed. A disposable four-service smoke
+verified a counter, seconds histogram, freshness gauge, Loki log and two-span
+Tempo trace, selected canary filtering, five healthy scrape jobs and stale-series
+expiry. The host overlay required an additional bridge for Collector/Grafana after
+the internal-only network made the published port unusable; failed and corrected
+results are retained. The four non-Grafana services started as nonroot with their
+declared limits, with no observed OOM/restarts. Exact project-label cleanup removed
+only smoke resources. This is not full-stack resource/capacity evidence.
+
+The backend unit gate passed 425 tests and backend-static passed. Baseline passed
+after refreshing only existing public-hash line references in `.secrets.baseline`;
+image references and detector policy are unchanged. Commands and omissions are
+recorded in the verification. No application database was used or migrated and no
+schema/API/dependency locks changed. Grafana provisioning, permanent lifecycle/
+acceptance tools, retention deletion, restart/outage pressure and the sustained
+resource workload remain pending. Issue #58 and M9 acceptance remain open.
+
+## Current M9 observability issue #58 — Compose wiring, runtime pending
+
+On 2026-11-01, Step 1's experiment and immutable five-image inventory were
+committed locally as `394ac80`. Step 2 adds separate monitoring Compose files:
+an internal project-scoped network with no host ports, plus an optional override
+publishing only Grafana and OTLP/HTTP on loopback. Four project-owned data volumes
+and hard memory limits totaling 2,000,000,000 bytes are declared. Grafana requires
+private username/password files; no credentials are tracked. See the
+[monitoring foundation](../monitoring/README.md) for allocations and boundaries.
+
+The base, host and ephemeral-port Compose models passed configuration rendering;
+missing state-directory configuration fails as intended. The backend unit gate
+passed 420 tests, including four monitoring isolation/budget regressions, and
+backend-static passed. These were partial `--no-install` checks. The initial
+baseline run found missing pip in the local venv and public commit/documentation
+hash false positives in the Step 1 lock. Python's bundled pip was restored with
+`backend/.venv/bin/python -m ensurepip`; 23 distinct public hashes were reviewed
+in the existing secret baseline without changing detector policy.
+The final `baseline --no-install` rerun passed. Exact gate commands from the root:
+
+```sh
+backend/.venv/bin/python scripts/validate.py --gate baseline --no-install
+backend/.venv/bin/python scripts/validate.py --gate backend-static --no-install
+backend/.venv/bin/python scripts/validate.py --gate backend-unit --no-install
+```
+
+No monitoring containers were started and no application schema/API/dependency
+locks changed. Service configurations (Step 3), data-source provisioning (Step 4)
+and lifecycle initialization are still pending; this wiring is not yet a runnable
+stack. Applied engine limits, nonroot volume permissions, host connectivity,
+retention cleanup, restart persistence, telemetry delivery and resource fit remain
+unverified. No application database was used or migrated. This is current M9
+observability preparation; the historical deployment headings below belong to
+current M15 under the roadmap's renumbering.
+
 ## Milestone 9 S2 preparation — hosted evidence pending
 
 On 2026-10-28 S1 was merged through [PR #56](https://github.com/ShinningF1eld/RestaurantOS/pull/56).

@@ -173,6 +173,21 @@ def gate(name, env):
     print(f"==> {name}", flush=True)
     if name == "baseline":
         run("docker", "compose", "config", "--quiet")
+        # Render both optional models without secrets, startup or an engine call.
+        with tempfile.TemporaryDirectory(
+            prefix="restaurantos-monitoring-config-"
+        ) as state:
+            monitoring_env = {**env, "MONITORING_STATE_DIR": state}
+            base = ("docker", "compose", "-f", str(ROOT / "monitoring/compose.yaml"))
+            run(*base, "config", "--quiet", env=monitoring_env)
+            run(
+                *base,
+                "-f",
+                str(ROOT / "monitoring/compose.host.yaml"),
+                "config",
+                "--quiet",
+                env=monitoring_env,
+            )
         run(python, "-m", "pip", "check")
         files = (
             subprocess.check_output(
@@ -207,6 +222,13 @@ def gate(name, env):
             "scripts/benchmark-event-freshness.py",
             "scripts/check-backend-image.py",
             "scripts/check-frontend-image.py",
+            "scripts/check-monitoring-config.py",
+            "scripts/check-monitoring.py",
+            "scripts/check-monitoring-retention.py",
+            "scripts/benchmark-monitoring.py",
+            "scripts/generate-monitoring-telemetry.py",
+            "scripts/local-monitoring.py",
+            "scripts/test_support/monitoring_environment.py",
             "scripts/local-gateway.py",
             "scripts/prepare-oci-hosts.py",
             "scripts/check-oci-host-bundle.py",

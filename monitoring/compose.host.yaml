@@ -1,0 +1,23 @@
+# Explicit opt-in host connectivity. Use together with compose.yaml.
+# Set either port to 0 for an ephemeral loopback port in isolated host-mode tests.
+services:
+  grafana:
+    networks: [monitoring, host_ingress]
+    ports:
+      - target: 3000
+        published: "${MONITORING_GRAFANA_PORT:-3001}"
+        host_ip: 127.0.0.1
+        protocol: tcp
+  collector:
+    networks: [monitoring, host_ingress]
+    ports:
+      - target: 4318
+        published: "${MONITORING_OTLP_HTTP_PORT:-4318}"
+        host_ip: 127.0.0.1
+        protocol: tcp
+
+# Published ports need a non-internal bridge on Docker Desktop. Storage services
+# remain attached only to the internal monitoring bridge from compose.yaml.
+networks:
+  host_ingress:
+    driver: bridge

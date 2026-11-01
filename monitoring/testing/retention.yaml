@@ -1,0 +1,32 @@
+# Test schedules and admission of backdated WAL timestamps only.
+# Actual 7-day / 72-hour retention periods are preserved.
+# Used exclusively with owned disposable volumes; never apply to development.
+loki:
+  ingester:
+    flush_check_period: 1s
+    chunk_idle_period: 1s
+    chunk_retain_period: 0s
+    wal:
+      checkpoint_duration: 5s
+      flush_on_shutdown: true
+  storage_config:
+    tsdb_shipper:
+      resync_interval: 5s
+  compactor:
+    compaction_interval: 5s
+    retention_delete_delay: 1s
+    retention_delete_worker_count: 1
+tempo:
+  ingester:
+    max_block_duration: 10s
+    max_block_bytes: 1048576
+    complete_block_timeout: 5s
+  storage:
+    trace:
+      blocklist_poll: 5s
+      wal:
+        ingestion_time_range_slack: 120h
+  compactor:
+    compaction:
+      compaction_cycle: 5s
+      compacted_block_retention: 5s

@@ -1,0 +1,44 @@
+{
+  "scope": "Four-service Step 3 synthetic smoke; no Grafana, no application services",
+  "project": "restaurantos-monitoring-step3-ee8b32fe0c",
+  "source_base": "1875fef",
+  "configuration_hashes": {
+    "compose.yaml": "sha256:3b6b53398134791efd1280ee36a51843126897be7887ff0b66ac15f48193a32b",
+    "otel-collector.yaml": "sha256:25e142f616a5aada0e5b23438cd4fd02dbf637f91df04717e599ea2c6b954b73",
+    "prometheus.yaml": "sha256:95a0fb3892e7e8bcec5a1bc2f82632d354c22474d09dcd6544aa0286a5101e3b",
+    "loki.yaml": "sha256:cdf4abf70fec8838c4829ac23ed28d0d604e9e99a518ef5042317a5bbff5a895",
+    "tempo.yaml": "sha256:edeeadb07cd2989ed7c27ea466dd51917317206e47fcd2297e303079d6456b39"
+  },
+  "checks": {
+    "collector_ready": true,
+    "prometheus_ready": true,
+    "loki_ready": true,
+    "tempo_ready": true
+  },
+  "cleanup_completed": true,
+  "status": "failed",
+  "error": "<urlopen error [Errno 49] Can't assign requested address>",
+  "diagnostics": {
+    "collector": "",
+    "prometheus": "",
+    "loki": "",
+    "tempo": ""
+  },
+  "isolated_port_observation": {
+    "project": "restaurantos-monitoring-port-f4eef6f747",
+    "mode": "base internal bridge only; no host overlay",
+    "compose_port_output": ":0",
+    "requested_bindings": {
+      "4318/tcp": [
+        {
+          "HostIp": "127.0.0.1",
+          "HostPort": ""
+        }
+      ]
+    },
+    "applied_bindings": {
+      "4318/tcp": []
+    },
+    "cleanup_completed": true
+  }
+}

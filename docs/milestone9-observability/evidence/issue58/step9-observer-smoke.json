@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "observer_samples": 15,
+  "disk_readers": {
+    "observed_unix_seconds": 1793524906.617198,
+    "volumes": {
+      "prometheus": {
+        "logical_bytes": 159473,
+        "allocated_bytes": 163840,
+        "files": 3
+      },
+      "grafana": {
+        "logical_bytes": 48273026,
+        "allocated_bytes": 48623616,
+        "files": 161
+      },
+      "loki": {
+        "logical_bytes": 49184,
+        "allocated_bytes": 45056,
+        "files": 5
+      },
+      "tempo": {
+        "logical_bytes": 0,
+        "allocated_bytes": 0,
+        "files": 0
+      }
+    }
+  },
+  "cleanup_verified": true
+}

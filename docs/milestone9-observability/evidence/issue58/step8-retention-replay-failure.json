@@ -1,0 +1,11 @@
+{
+  "status": "failed",
+  "cleanup_verified": true,
+  "prometheus_old_and_control_blocks_stored_before_start": true,
+  "prometheus_old_blocks_physically_deleted_control_retained": true,
+  "old_trace_and_log_queryable_before_cleanup": true,
+  "old_log_chunks_stored_count": 2,
+  "tempo_old_block_files_deleted_old_trace_absent_recent_trace_present": true,
+  "error": "RuntimeError: Monitoring check exceeded its readiness/query deadline",
+  "diagnosis": "Prometheus and Tempo deletion/control checks passed, but the first Loki restart fixture still returned its backdated record after WAL replay/index state. It did not satisfy query absence. The corrected fixture waits for flushed hot chunks and a new atomically completed checkpoint, and accelerates index resync."
+}

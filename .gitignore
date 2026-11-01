@@ -35,6 +35,7 @@ Thumbs.db
 /.local-backups/
 /.local-gateway/
 /.local-oci/
+/.local-monitoring/
 
 # Logs
 *.log

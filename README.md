@@ -92,6 +92,14 @@ pooled connections, so this does not establish equivalent production speedup.
 See its [verification](docs/milestone8/verification-milestone8-worker-db-pool.md)
 for current gates and remaining acceptance boundaries.
 
+## Optional local monitoring
+
+Current M9 observability starts with a five-service synthetic monitoring foundation.
+See the [monitoring guide](monitoring/README.md) for optional startup, private
+Grafana credentials, isolated acceptance and measured resource limits. It does
+not start with the application or migrate its database. Application tracing,
+operational dashboards and final alert objectives follow in later M9 issues.
+
 ## Prerequisites
 
 - Python 3.12 (the supported documentation and CI version)

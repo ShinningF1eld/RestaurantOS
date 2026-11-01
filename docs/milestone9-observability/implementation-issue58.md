@@ -1,0 +1,206 @@
+# Issue #58 implementation checkpoints
+
+These steps refer to the ten-step implementation plan for issue #58, not the
+ten separate M9 issues. Work stays local; no push or issue closure is authorized.
+
+## Step 4 — Grafana provisioning, 2026-11-01
+
+Provisioned three stable data sources with internal proxy URLs and trace/log
+links. Grafana's own provisioning expansion requires the escaped trace expression
+`$${__value.raw}`. A temporary authenticated five-container smoke confirmed all
+three source health checks and real metric/log/trace queries through Grafana.
+Anonymous data-source access returned 401. All five nonroot processes retained
+their declared memory/swap limits and had zero observed OOM/restarts on the final
+run; its project-owned volumes/networks/containers were removed.
+
+The original Grafana 350 MB allocation failed (exit 137; OOM confirmed on the
+second run). Adding a 280 MB Go target alone also failed. Preserved failures and
+the successful result are under `evidence/issue58/step4-*.json`. Before the final
+run, the same 2 GB total was reallocated: Collector 250 MB, Prometheus 300 MB,
+Grafana 650 MB, Loki/Tempo 400 MB each. Collector's limiter is now 160 MiB with a
+200 MB Go target; Grafana's Go target is 420 MB. No image pins changed.
+
+The targeted configuration suite passed six checks. The temporary smoke command
+was `backend/.venv/bin/python -u /tmp/restaurantos-step4-smoke.py`; its durable
+replacement follows in Step 7. Credentials existed only in a private temporary
+directory. Persistent secret initialization follows in Step 6. Grafana Explore
+was verified through authenticated source-proxy APIs; no rendered UI evidence or
+four operational dashboards are claimed. Sustained capacity remains Step 9.
+
+## Step 5 — deterministic generator, 2026-11-01
+
+Added the standard-library OTLP/HTTP JSON generator and a nonroot image on the
+same pinned Python base used by the backend. Dockerfile-specific ignore rules
+restrict the repository-root build context to the generator script (9.65 kB at
+the observed build); no application files or local environments are copied.
+Requests split by actual encoded bytes at 64 KiB. Cumulative counter/histogram
+values, deterministic trace/log identities, phase counts, pacing misses and
+failed/uncertain acknowledgements are reported without replaying failed requests.
+The generator bounds rate, duration, seed length and hold time.
+
+The image built successfully with
+`docker build -f monitoring/synthetic/Dockerfile -t restaurantos-monitoring-generator:local .`.
+Three pure fixture/boundary tests passed. A five-service disposable smoke invoked
+the same script from the host and the built container (private collector address),
+each at five operations/second for three seconds: 15 operations, nine acknowledged
+export requests, zero failures and zero pacing misses in each mode. See
+`evidence/issue58/step5-generator.json`. This is transport smoke, not the sustained
+workload. The existing script static gate now includes the generator.
+
+## Step 6 — lifecycle and ownership, 2026-11-01
+
+Added `scripts/local-monitoring.py` and the shared monitoring environment helper.
+Initialization creates a private directory, stable random project identity and
+independent Grafana password, and refuses to replace existing credentials.
+Developer shutdown retains all volumes; even a direct helper call cannot request
+development volume deletion. Disposable projects use a separate `test-` identity,
+random ports and mandatory finally cleanup verified by exact project labels.
+Remote Docker engines are rejected. Local file secrets are readable by Grafana's
+UID inside the mount while the containing host directory is restricted.
+
+Four pure ownership/error-path tests passed. The real temporary lifecycle check
+started each connection mode, verified four volumes survived down/up and
+authenticated Grafana after restart, then verified owned cleanup. Container mode
+also deliberately raised after startup and still removed its resources. Results:
+`evidence/issue58/step6-lifecycle.json`. No developer state was initialized or used.
+
+## Step 7 — repeatable delivery/failure verifier, 2026-11-01
+
+Added `scripts/check-monitoring.py`. Permanent smoke runs passed in host and
+container modes with exact counter/histogram/log/trace reconciliation through
+authenticated Grafana, a returned parent-child trace, correlated log IDs and
+selected synthetic-canary exclusion. Windowed trace search rejects truncation.
+The restart scenario preserved Prometheus history, all 15 logs and the trace
+across down/up; Collector's in-memory metrics cache is expected to reset.
+
+Loki and Tempo were each stopped for 180 seconds under ongoing generated traffic.
+Their exporter failure counters rose, Collector stayed running without OOM, and
+new linked data arrived after recovery. This does not claim exact accounting for
+lost telemetry. A separate Prometheus stop produced a real gap in raw scrape
+sample timestamps; missing samples were not reconstructed. A separate 1 KiB queue
+fixture with one-record batches emitted enqueue failures without killing
+Collector. It demonstrates bounded rejection, not saturation of the normal 4 MiB
+queues. The explicit cleanup scenario returned nonzero as intended and verified
+removal of only its project resources.
+
+Commands use `--scenario smoke|restart|outage|scraper|saturation|cleanup` and
+`--mode host|container`; all sanitized results are `evidence/issue58/step7-*.json`.
+The shared backend-static gate passed, including the permanent verifier. The
+normal producer's acknowledgements remain distinct from backend reconciliation.
+
+## Step 8 — physical retention, 2026-11-01
+
+Added the isolated retention checker and `monitoring/testing/retention.yaml`.
+The final run passed: pre-existing eight-day Prometheus blocks were physically
+removed under seven-day retention, while a recent control survived. Four-day-old
+Loki/Tempo fixtures were first queryable and physically stored; their expired
+chunk/block files were then removed, their queries became absent and recent
+controls remained. Cleanup removed only the disposable project's resources.
+
+The test preserves seven-day/72-hour production retention and never changes the
+host clock. It accelerates compaction/index/WAL schedules and widens Tempo's
+test-only WAL timestamp window so a backdated span produces a genuinely old
+block. A normal two-minute WAL window had stamped the first fixture block with
+current time, correctly failing the test. Another attempt exposed old query
+visibility after Loki WAL replay. The final fixture waits for zero hot chunks
+and a new atomically completed checkpoint before restarting; a checkpoint-start
+counter alone is insufficient. Both failed attempts are retained alongside
+`evidence/issue58/step8-retention.json`.
+
+Command: `backend/.venv/bin/python scripts/check-monitoring-retention.py --report
+docs/milestone9-observability/evidence/issue58/step8-retention.json`.
+The two pure fixture/ownership checks passed. Production configuration and image
+pins are unchanged by this step. Duration-based cleanup is proven for the stored
+fixtures; it does not establish a disk byte ceiling or continuous capacity.
+
+## Step 9 — resource experiment implementation, 2026-11-01
+
+`scripts/benchmark-monitoring.py` runs the same five-operation/second producer
+for 120 seconds warmup and 600 seconds measurement in a fresh owned project.
+The producer emits an explicit warmup event; the smoke helper reads its final
+JSON line. This separates phase accounting from repeated cumulative scrapes.
+The observer retains raw Docker working-set/CPU samples, exact units and IDs,
+near-concurrent aggregate buckets, per-volume logical/allocated bytes and full
+post-load backend reconciliation. It records image/source/config hashes,
+actual limits, OOM/restarts, failure counters and cleanup. Existing report paths
+are never overwritten. Unknown/malformed resource readings fail instead of zero.
+
+`test_monitoring_benchmark.py` protects binary/decimal conversion, unknown data,
+container identity ambiguity and native Docker terminal-control frames. A new
+producer regression verifies uncertain transport failure is counted without
+replay. The native observer smoke passed before timed trials. Static verification
+also removed an unnecessary timestamp conversion in the retention helper; Python
+3.12 accepts the `Z` suffix directly, preserving behavior.
+
+The original host/first container candidates passed, but differing Grafana
+startup disk sizes exposed default unpinned plugin downloads. The second
+container candidate was interrupted and cleanup verified; no fourth candidate
+was started. All observations are retained. Compose now disables automatic
+preinstallation/startup updates, with a pure regression and an actual empty
+plugin-directory check. The benchmark requires the empty directory before load.
+Final corrected-profile results use `step9-fixed-*` and are not pooled with the
+uncontrolled candidates. The total memory budget and workload were unchanged.
+
+The final audit also moved local-engine rejection ahead of yielding disposable
+state (before build/create), protected that ordering with a regression, and added
+the same guard to native parser checks. The original shorter scraper fixture is
+retained; the full 180-second generation-under-stop check passed with 189.935
+seconds stopped and a 205-second raw sample gap, then verified owned cleanup.
+The related source changes were frozen before the corrected resource trials.
+
+Final measurement status is recorded in
+[the resource report](performance-milestone9-issue58.md) and its retained raw JSON.
+
+
+Final Step 9 results: one host and three completed container trials passed with
+identical recorded source/config inputs and producer filesystem/runtime settings.
+Local producer build IDs varied in metadata/descriptor/identity fields; the
+layers and runtime configuration were independently inspected and matched.
+Aggregate sampled memory peaks were 880.1–928.4 MB under the unchanged 2,000 MB
+limit. Each passing trial reconciled 3,600 operations/logs/traces and a 63-second
+histogram sum, with zero pacing misses/failed requests/observed OOM/restarts or
+nonzero export/refusal counters. All owned cleanup passed. The original corrected
+container repetition 2 had one >50 ms pacing miss and correctly failed; its
+unchanged retry passed. That attempt and the uncontrolled earlier candidates
+remain retained, without pooling their results into passing cells.
+
+The initial disk allowance is 13 GiB including reserve (Prometheus 5, Grafana 1,
+Loki 2 and Tempo 2 GiB before the log allowance/overall reserve), plus separate
+image/build cache. It is a short-run planning extrapolation, not a byte cap or
+full-retention capacity claim. Raw samples, derived calculations and inspected
+producer provenance are committed alongside the measured report. Backend-static
+and 446 pure tests passed after measurement; four native parsers and the earlier
+separate application image gate also passed. No application source/schema changed.
+
+
+## Step 10 — shared checks and operating handoff, 2026-11-01
+
+Step 9 was committed locally as `ff1d3a4`. The shared baseline now renders both
+monitoring Compose models using a temporary absolute placeholder directory,
+without reading credentials, contacting the engine or starting services for those
+renders. Backend-static includes every new monitoring helper. A validation-policy
+regression requires both renders, rejects ambient credential-path reuse and
+preserves the existing ten-gate matrix/required acceptance name.
+
+The monitoring README is now a current configuration guide; separate operator and
+testing runbooks provide exact lifecycle/scenario commands. The pre-measurement
+experiment declaration is preserved separately, and the final verification maps
+all six issue criteria to evidence and explains each file. Root setup/testing,
+current-state and roadmap links identify T1's local foundation while leaving
+#59–#67, application/worker tracing, dashboards, objectives and M9 acceptance open.
+
+Final commands passed: `scripts/validate.py --gate baseline --no-install`,
+`--gate backend-static --no-install` and `--gate backend-unit --no-install` using
+`backend/.venv/bin/python` (446 pure tests). The four native configuration parsers
+passed, and the earlier separate `--gate image --no-install` passed with cleanup.
+Both corrected-profile connection-mode smokes passed; the full scraper fixture
+proved a 205-second raw gap. The passing retention, restart, destination-outage,
+reduced-queue and intended nonzero cleanup evidence is retained. Four resource
+trials passed; one additional strict-pacing failure remains explicitly reported.
+
+No developer monitoring state was initialized; all monitoring test containers
+were absent at final inspection and each trial verified its owned cleanup.
+No developer application database, business/API/schema code, dependency lock or
+frontend code changed. Integration/migration/frontend/browser shared gates were
+not rerun; the full ten-gate milestone/remote CI, Windows and AMD64 runtime are
+not claimed. Work remains local: no push, issue closure or deployment.

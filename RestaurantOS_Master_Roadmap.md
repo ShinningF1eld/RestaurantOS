@@ -1025,6 +1025,13 @@ implementation and acceptance exercises run locally against the real API,
 database, Redis and worker. Track hosted alert delivery, deployed resource limits
 and environment-specific service-level evidence separately for later validation.
 
+Implementation evidence (2026-11-01): T1/#58 packages the optional synthetic
+five-service foundation with isolated workflow, failure and retention checks.
+See the [issue review](docs/milestone9-observability/verification-milestone9-issue58.md)
+and [resource experiment](docs/milestone9-observability/performance-milestone9-issue58.md)
+for current measured status. T2–T10 and both application/incident exit criteria
+remain open; local foundation evidence is separate from milestone acceptance.
+
 ### Objective
 
 Make failures and performance understandable without attaching a debugger.
@@ -1672,7 +1679,7 @@ After Milestone 0, give Sol only one milestone or vertical slice at a time. A st
 | 6. Test architecture and quality gates | Not verified | |
 | 7. Redis caching and rate limiting | Not started/verify | |
 | 8. Background jobs and events | In progress — T9 scoped alert API/UI implemented; T10–T11 and full M8 acceptance remain open | [Issue #39 verification](docs/milestone8/verification-milestone8-issue39.md); [`docs/current-state.md`](docs/current-state.md#milestone-8-issue-39-t9-implementation); [`docs/api/events.md`](docs/api/events.md) |
-| 9. Observability | Next priority — local monitoring planned; implementation/acceptance not yet verified | Execute before resuming M15 deployment; retain hosted checks for later |
+| 9. Observability | In progress — T1 local synthetic foundation verified with retained timing-failure evidence; T2–T10 pending | [Issue #58 review](docs/milestone9-observability/verification-milestone9-issue58.md); hosted and full M9 acceptance remain separate |
 | 10. Analytics model | Early work/verify | |
 | 11. AI analyst | Planned after M9 monitoring and M10 metrics — initial read-only agent; not started | M12/M13/M14 add document/forecast/anomaly extensions after their own validation |
 | 12. Evaluated RAG | Not started | |

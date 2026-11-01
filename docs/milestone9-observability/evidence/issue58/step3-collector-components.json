@@ -1,0 +1,106 @@
+{
+  "recorded_date": "2026-11-01",
+  "buildinfo": {
+    "command": "otelcol-contrib",
+    "description": "OpenTelemetry Collector Contrib",
+    "version": "0.164.0"
+  },
+  "components": {
+    "receivers": [
+      {
+        "name": "otlp",
+        "module": "go.opentelemetry.io/collector/receiver/otlpreceiver v0.164.0",
+        "stability": {
+          "logs": "Stable",
+          "metrics": "Stable",
+          "traces": "Stable"
+        }
+      },
+      {
+        "name": "postgresql",
+        "module": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/postgresqlreceiver v0.164.1",
+        "stability": {
+          "logs": "Development",
+          "metrics": "Beta",
+          "traces": "Undefined"
+        }
+      },
+      {
+        "name": "redis",
+        "module": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/redisreceiver v0.164.1",
+        "stability": {
+          "logs": "Undefined",
+          "metrics": "Beta",
+          "traces": "Undefined"
+        }
+      }
+    ],
+    "processors": [
+      {
+        "name": "memory_limiter",
+        "module": "go.opentelemetry.io/collector/processor/memorylimiterprocessor v0.164.0",
+        "stability": {
+          "logs": "Beta",
+          "metrics": "Beta",
+          "traces": "Beta"
+        }
+      },
+      {
+        "name": "filter",
+        "module": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/filterprocessor v0.164.1",
+        "stability": {
+          "logs": "Alpha",
+          "metrics": "Alpha",
+          "traces": "Alpha"
+        }
+      },
+      {
+        "name": "transform",
+        "module": "github.com/open-telemetry/opentelemetry-collector-contrib/processor/transformprocessor v0.164.1",
+        "stability": {
+          "logs": "Beta",
+          "metrics": "Beta",
+          "traces": "Beta"
+        }
+      },
+      {
+        "name": "batch",
+        "module": "go.opentelemetry.io/collector/processor/batchprocessor v0.164.0",
+        "stability": {
+          "logs": "Beta",
+          "metrics": "Beta",
+          "traces": "Beta"
+        }
+      }
+    ],
+    "exporters": [
+      {
+        "name": "prometheus",
+        "module": "github.com/open-telemetry/opentelemetry-collector-contrib/exporter/prometheusexporter v0.164.1",
+        "stability": {
+          "logs": "Undefined",
+          "metrics": "Beta",
+          "traces": "Undefined"
+        }
+      },
+      {
+        "name": "otlp_http",
+        "module": "go.opentelemetry.io/collector/exporter/otlphttpexporter v0.164.0",
+        "stability": {
+          "logs": "Stable",
+          "metrics": "Stable",
+          "traces": "Stable"
+        }
+      }
+    ],
+    "extensions": [
+      {
+        "name": "health_check",
+        "module": "github.com/open-telemetry/opentelemetry-collector-contrib/extension/healthcheckextension v0.164.1",
+        "stability": {
+          "extension": "Alpha"
+        }
+      }
+    ]
+  }
+}

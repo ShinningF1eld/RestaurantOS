@@ -1,0 +1,74 @@
+{
+  "scope": "Step 4 Grafana provisioning smoke",
+  "project": "restaurantos-monitoring-step3-31bd1641c1",
+  "source_base": "f004bfb",
+  "configuration_hashes": {
+    "compose.yaml": "sha256:c917173a8a74ca77da49a6769e0114d517ef2ab4fa4cf1226b7e20a1b2787044",
+    "compose.host.yaml": "sha256:3f5fcba771a8973586b4425d7cfeff726714be5b8f35ac980b3405c69de2fd14",
+    "otel-collector.yaml": "sha256:d7833982080ae26f9e634e9185d16e6d1205f8296e6e00d5174748ac230c001f",
+    "prometheus.yaml": "sha256:95a0fb3892e7e8bcec5a1bc2f82632d354c22474d09dcd6544aa0286a5101e3b",
+    "loki.yaml": "sha256:cdf4abf70fec8838c4829ac23ed28d0d604e9e99a518ef5042317a5bbff5a895",
+    "tempo.yaml": "sha256:edeeadb07cd2989ed7c27ea466dd51917317206e47fcd2297e303079d6456b39",
+    "grafana/provisioning/datasources/datasources.yaml": "sha256:95510eb351d7730a341b997b84f2ff166bd5164b6c8dcad221eb151f734c3575"
+  },
+  "checks": {
+    "collector_ready": true,
+    "prometheus_ready": true,
+    "loki_ready": true,
+    "tempo_ready": true,
+    "authenticated_provisioning_and_health": true,
+    "anonymous_datasources_denied": true,
+    "trace_parentage_and_log_correlation_verified": true,
+    "counter_value": 1,
+    "histogram_sum_seconds": 0.01,
+    "freshness_gauge_present": true,
+    "trace_span_count": 2,
+    "correlated_log_present": true,
+    "seeded_canary_absent_from_queried_signals": true,
+    "all_five_scrape_jobs_up": true,
+    "three_signals_through_authenticated_grafana_proxy": true,
+    "workload_series_expired_after_generator_stop": true,
+    "runtime_limits_and_nonroot_startup": true,
+    "native_architecture": "arm64"
+  },
+  "cleanup_completed": true,
+  "containers": {
+    "collector": {
+      "memory_limit_bytes": 250000000,
+      "memory_plus_swap_limit_bytes": 250000000,
+      "user": "10001:10001",
+      "oom_killed": false,
+      "restart_count": 0
+    },
+    "prometheus": {
+      "memory_limit_bytes": 300000000,
+      "memory_plus_swap_limit_bytes": 300000000,
+      "user": "nobody",
+      "oom_killed": false,
+      "restart_count": 0
+    },
+    "loki": {
+      "memory_limit_bytes": 400000000,
+      "memory_plus_swap_limit_bytes": 400000000,
+      "user": "10001",
+      "oom_killed": false,
+      "restart_count": 0
+    },
+    "tempo": {
+      "memory_limit_bytes": 400000000,
+      "memory_plus_swap_limit_bytes": 400000000,
+      "user": "10001:10001",
+      "oom_killed": false,
+      "restart_count": 0
+    },
+    "grafana": {
+      "memory_limit_bytes": 650000000,
+      "memory_plus_swap_limit_bytes": 650000000,
+      "user": "472",
+      "oom_killed": false,
+      "restart_count": 0
+    }
+  },
+  "status": "passed",
+  "recorded_date": "2026-11-01"
+}

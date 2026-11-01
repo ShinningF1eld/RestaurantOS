@@ -1,0 +1,65 @@
+{
+  "all_six_issue_criteria_verified": true,
+  "reviewed_base": "c9dc231",
+  "runtime_cases": {
+    "host-smoke": {
+      "expected_outcome_verified": true,
+      "recorded_status": "passed",
+      "cleanup_verified": true,
+      "report_sha256": "sha256:1dbdbced48c58c5d4ad013c9a4985520c6649a92d805dbdf1eae74d7abc7d57e"
+    },
+    "container-smoke": {
+      "expected_outcome_verified": true,
+      "recorded_status": "passed",
+      "cleanup_verified": true,
+      "report_sha256": "sha256:620d8990d96c84e882f398a2f160fc684947e4c4ac2045193a4f86ef1c381720"
+    },
+    "host-restart": {
+      "expected_outcome_verified": true,
+      "recorded_status": "passed",
+      "cleanup_verified": true,
+      "report_sha256": "sha256:4d301b18508ae73737e2c819ccd3a19339591ba66e48b3ec31c95e77784bfc38"
+    },
+    "host-outage-reviewed": {
+      "expected_outcome_verified": true,
+      "recorded_status": "passed",
+      "cleanup_verified": true,
+      "report_sha256": "sha256:4ff40f3659cdfcf1b7c49ec0b89d68cf50cdebf6ce8d4e88dae61c4ecaa00aff"
+    },
+    "host-saturation": {
+      "expected_outcome_verified": true,
+      "recorded_status": "passed",
+      "cleanup_verified": true,
+      "report_sha256": "sha256:a3c0c9910784cc72f38e7f719bd11bce7c35e9662970fe2f7d7d4da8babec234"
+    },
+    "host-scraper": {
+      "expected_outcome_verified": true,
+      "recorded_status": "passed",
+      "cleanup_verified": true,
+      "report_sha256": "sha256:0b6baf21927d970939ba077a7f6f591d6b9bb58e2db7ea7b1609ab036c3aecc1"
+    },
+    "host-cleanup": {
+      "expected_outcome_verified": true,
+      "recorded_status": "failed",
+      "cleanup_verified": true,
+      "report_sha256": "sha256:da60cf769b91212b1d948b4455440bf1da0a6d3fccc1d07897a54d9ef6b39502"
+    },
+    "retention": {
+      "expected_outcome_verified": true,
+      "recorded_status": "passed",
+      "cleanup_verified": true,
+      "report_sha256": "sha256:35adef917439bc89f2601f891dfe8db83174e15dcf1ab2c754851f0c4ff0888c"
+    }
+  },
+  "native_parsers": "four passed",
+  "backend_unit": "451 passed",
+  "backend_static": "passed",
+  "baseline": "passed including completed recheck evidence",
+  "current_source_sha256": {
+    "scripts/test_support/monitoring_environment.py": "sha256:3515b61e53ebd17619585b69330371ee4b3209aaaf1489407dbf82893def07ba",
+    "scripts/check-monitoring.py": "sha256:0f372e78802f3cddaa3ecbe8e2e1a62c3618dd643981dc2ac5586cd04bbe69f1",
+    "backend/tests/unit/test_monitoring_lifecycle.py": "sha256:625030d19f8c44885ae556b3e194ea7c50b310a6f810fc97b9a729c310811d29"
+  },
+  "retained_prototype_failure_disclosed": true,
+  "full_pr_ci_required_before_merge": true
+}
