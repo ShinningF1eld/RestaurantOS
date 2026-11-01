@@ -1,7 +1,7 @@
 # Local monitoring foundation — issue #58
 
-Status: Step 1 baseline declared; registry/source inspection only, runtime
-acceptance pending. Recorded 2026-11-01 (Asia/Bangkok) against RestaurantOS
+Status: Steps 1/2 baseline and Compose wiring declared; runtime acceptance pending.
+Recorded 2026-11-01 (Asia/Bangkok) against RestaurantOS
 `50160a1a00d7261971e8fb7d72fdb8238224e7fe`.
 
 This directory starts [issue #58](https://github.com/ShinningF1eld/RestaurantOS/issues/58),
@@ -12,11 +12,12 @@ Historical `docs/milestone9/` deployment work belongs to current M15.
 
 ## What this step establishes
 
-The experiment and image identities are fixed before collecting results. Later
-steps will add Compose files, backend configurations, a synthetic generator,
-lifecycle helpers and executable verification. There is no runnable monitoring
-stack or startup command yet. No application code, dependencies, schema, database,
-cloud resources or CI enforcement are changed by Step 1.
+The experiment and image identities are fixed before collecting results. Step 2
+adds Compose wiring, with backend configurations, a synthetic generator,
+lifecycle helpers and executable runtime verification still to follow. There is
+no runnable monitoring stack or supported startup command yet. No application
+code, dependencies, schema, database, cloud resources or CI enforcement are changed
+by these steps.
 
 Metrics answer how much/how often, logs record individual observations, and traces
 connect timed operations. The Collector receives all three; it is not their
@@ -35,6 +36,88 @@ Use five permanent services only. The temporary generator is test infrastructure
 and its resources must still be measured. Application instrumentation, live
 PostgreSQL/Redis collection, four operational dashboards and alert objectives
 belong to subsequent issues.
+
+## Compose wiring — Step 2
+
+[compose.yaml](compose.yaml) describes the five services on a project-owned
+internal bridge. It publishes no host ports and connects to no application
+network or database. Each image reference is copied exactly from the lock;
+pure regressions check for drift. A temporary acceptance generator will join the
+same project network. `--project-name` scopes resources so later acceptance runs
+can use unique projects without sharing developer volumes.
+
+[compose.host.yaml](compose.host.yaml) is an explicit additional file that
+publishes only Grafana on `127.0.0.1:3001` and Collector OTLP/HTTP on
+`127.0.0.1:4318`. Override `MONITORING_GRAFANA_PORT` or
+`MONITORING_OTLP_HTTP_PORT` when occupied; `0` requests an ephemeral host port for
+later acceptance runs. Container target ports remain fixed. No storage API, OTLP
+gRPC listener, health endpoint or metrics endpoint is published. Host-ingress
+reachability on the internal bridge still needs a running-stack check.
+
+The initial split uses decimal bytes, with equal `mem_limit` and `memswap_limit`
+so Docker does not grant an additional swap allowance:
+
+| Service | Hard memory bytes | Decimal MB | Writable persistent volume |
+|---|---:|---:|---|
+| Collector | 300,000,000 | 300 | None; best-effort queues will be bounded in memory |
+| Prometheus | 350,000,000 | 350 | `prometheus_data` at `/prometheus` |
+| Grafana | 350,000,000 | 350 | `grafana_data` at `/var/lib/grafana` |
+| Loki | 500,000,000 | 500 | `loki_data` at `/loki` |
+| Tempo | 500,000,000 | 500 | `tempo_data` at `/var/tempo` |
+| Total | 2,000,000,000 | 2,000 | Project-scoped volumes; no fixed/external names |
+
+Loki and Tempo get the larger initial shares for ingestion, querying and
+compaction. This is an unmeasured starting allocation, not a capacity result.
+Collector's `GOMEMLIMIT=240000000B` is a soft Go runtime target below its hard
+limit; it neither caps all process memory nor replaces Step 3's memory limiter.
+Normal shutdown will retain these volumes. Deletion of acceptance volumes belongs
+to the ownership-checked helper in Step 6, not a generic cleanup command here.
+
+Services use read-only root filesystems, drop Linux capabilities, prohibit gaining
+privileges and have a 256-process limit. Their `/tmp` tmpfs is bounded to 16 MiB
+and counts toward container memory; the named data volumes remain writable.
+Container JSON logs rotate at two 5 MiB files per service. Restart attempts are
+bounded to three on failure, and stop grace is 30 seconds. No startup ordering is
+presented as readiness; later verification will poll real readiness endpoints.
+
+Configuration binds are read-only with `create_host_path: false`. Missing files
+must fail startup instead of silently creating directories. Required later files:
+`otel-collector.yaml`, `prometheus.yaml`, `loki.yaml`, `tempo.yaml` (Step 3), and
+`grafana/provisioning/` (Step 4). Step 3 must put all Loki durable/Compactor paths
+under `/loki` and Tempo WAL/block paths under `/var/tempo`. Prometheus's command
+already selects `/prometheus` and seven-day retention; size budgeting remains
+measurement work.
+
+Grafana anonymous access and signup are disabled now, before host exposure is
+added. Admin username/password are read from Compose secret files in the required
+`MONITORING_STATE_DIR`, with no tracked credential defaults. Step 4/6 will supply
+private-file initialization. The normal repository-local state location
+`.local-monitoring/` is already ignored; that small ignore rule was brought forward
+from Step 4 so runtime secrets cannot accidentally be tracked. File-based local
+Compose secrets are mounted files, not an encrypted secret-management service.
+
+From the repository root, validate the models without creating secret files,
+pulling images or contacting the Docker engine:
+
+```sh
+MONITORING_STATE_DIR="$PWD/.local-monitoring" docker compose -f monitoring/compose.yaml config --quiet
+MONITORING_STATE_DIR="$PWD/.local-monitoring" docker compose -f monitoring/compose.yaml -f monitoring/compose.host.yaml config --quiet
+```
+
+These commands check Compose syntax/interpolation only; they do not check that
+the future configuration/secret files exist or validate service-specific settings.
+Leaving `MONITORING_STATE_DIR` unset fails interpolation deliberately. Supplying
+an absolute directory is the caller's responsibility until the lifecycle helper
+can enforce it. Do not run `up` until the later configuration/provisioning steps.
+Applied engine limits, nonroot data-path permissions, readiness, restart
+persistence and end-to-end delivery remain unverified.
+
+Pure regressions in `backend/tests/unit/test_monitoring_compose.py` protect the
+image lock, combined budget, internal/project-owned resources, host exposure and
+secret/configuration mount rules. They run in the existing backend-unit gate
+without Docker or services. The secret baseline contains reviewed entries for
+the lock's exact public commit IDs and documentation hashes; detector settings
+and existing findings are unchanged.
 
 ## Image selection and evidence
 
@@ -144,8 +227,8 @@ links through Grafana as well as reconciling backend counts. Merely checking HTT
 
 The combined five-container hard memory budget is **2,000,000,000 bytes** (decimal
 2 GB). This definition resolves the design's otherwise ambiguous GB/GiB unit.
-Step 2 must declare per-service byte limits summing to no more than that value
-and verify the limits actually applied by Docker. Leave headroom for each
+Step 2 declares per-service byte limits summing to that value. Verify the limits
+actually applied by Docker during the first running-stack check. Leave headroom for each
 process inside its limit. Any reallocation is recorded; raising the total requires
 an explicit proposed adjustment and preserved failing evidence.
 
@@ -195,7 +278,8 @@ the inspected registry responses, both required platform descriptors exist,
 reviewed source references are immutable, and workload arithmetic is consistent.
 Those checks do not satisfy issue #58's runtime acceptance criteria.
 
-Next, implement Compose/network/storage/resource wiring from this inventory.
+Compose/network/storage/resource wiring is present; next implement the Step 3
+service configurations and bounded Collector pipelines.
 Later evidence must retain exact commands, source/config hashes, image IDs,
 architecture/native-or-emulated status, workload settings, sanitized results,
 loss/restarts, failures and owned-resource cleanup. Keep final issue acceptance

@@ -1,0 +1,124 @@
+# Optional monitoring only. Do not merge with the application Compose project.
+# Service configuration/provisioning files arrive in Steps 3/4; see README.md.
+name: restaurantos-monitoring
+
+x-runtime: &runtime
+  restart: "on-failure:3"
+  networks: [monitoring]
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  pids_limit: 256
+  stop_grace_period: 30s
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=16m
+  logging:
+    driver: json-file
+    options:
+      max-size: "5m"
+      max-file: "2"
+
+services:
+  collector:
+    <<: *runtime
+    image: docker.io/otel/opentelemetry-collector-contrib:0.164.0@sha256:340c9ca6a36617084c6661bdc4f0fe92b7cda5a805d61673ec8db375fddc522b
+    command: [--config=/etc/otelcol-contrib/config.yaml]
+    # Decimal bytes, not Compose's binary m/g suffixes. Total below: 2 GB.
+    mem_limit: 300000000
+    memswap_limit: 300000000
+    environment:
+      GOMEMLIMIT: 240000000B
+    volumes:
+      - type: bind
+        source: ./otel-collector.yaml
+        target: /etc/otelcol-contrib/config.yaml
+        read_only: true
+        bind: {create_host_path: false}
+
+  prometheus:
+    <<: *runtime
+    image: docker.io/prom/prometheus:v3.15.1@sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    mem_limit: 350000000
+    memswap_limit: 350000000
+    volumes:
+      - type: bind
+        source: ./prometheus.yaml
+        target: /etc/prometheus/prometheus.yml
+        read_only: true
+        bind: {create_host_path: false}
+      - prometheus_data:/prometheus
+
+  grafana:
+    <<: *runtime
+    image: docker.io/grafana/grafana:13.3.0@sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205
+    mem_limit: 350000000
+    memswap_limit: 350000000
+    environment:
+      GF_PATHS_DATA: /var/lib/grafana
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+      GF_SECURITY_ADMIN_USER__FILE: /run/secrets/grafana_admin_user
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+    secrets: [grafana_admin_user, grafana_admin_password]
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - type: bind
+        source: ./grafana/provisioning
+        target: /etc/grafana/provisioning
+        read_only: true
+        bind: {create_host_path: false}
+
+  loki:
+    <<: *runtime
+    image: docker.io/grafana/loki:3.7.9@sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28
+    command: [-config.file=/etc/loki/config.yaml, -target=all]
+    mem_limit: 500000000
+    memswap_limit: 500000000
+    volumes:
+      - type: bind
+        source: ./loki.yaml
+        target: /etc/loki/config.yaml
+        read_only: true
+        bind: {create_host_path: false}
+      - loki_data:/loki
+
+  tempo:
+    <<: *runtime
+    image: docker.io/grafana/tempo:2.10.10@sha256:12b0820f13ffa10ce956b6e9acc3b03f3cffded99109be6cc09d106fe56e5d38
+    command: [-config.file=/etc/tempo/config.yaml, -target=all]
+    mem_limit: 500000000
+    memswap_limit: 500000000
+    volumes:
+      - type: bind
+        source: ./tempo.yaml
+        target: /etc/tempo/config.yaml
+        read_only: true
+        bind: {create_host_path: false}
+      - tempo_data:/var/tempo
+
+networks:
+  monitoring:
+    driver: bridge
+    internal: true
+
+# No fixed names or external resources: --project-name scopes every volume/network.
+volumes:
+  prometheus_data: {}
+  grafana_data: {}
+  loki_data: {}
+  tempo_data: {}
+
+# No credential defaults. The caller must supply a private state directory.
+secrets:
+  grafana_admin_user:
+    file: ${MONITORING_STATE_DIR:?set MONITORING_STATE_DIR to a private absolute directory}/grafana_admin_user
+  grafana_admin_password:
+    file: ${MONITORING_STATE_DIR:?set MONITORING_STATE_DIR to a private absolute directory}/grafana_admin_password

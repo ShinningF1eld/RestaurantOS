@@ -1,5 +1,40 @@
 # RestaurantOS current state
 
+## Current M9 observability issue #58 — Compose wiring, runtime pending
+
+On 2026-11-01, Step 1's experiment and immutable five-image inventory were
+committed locally as `394ac80`. Step 2 adds separate monitoring Compose files:
+an internal project-scoped network with no host ports, plus an optional override
+publishing only Grafana and OTLP/HTTP on loopback. Four project-owned data volumes
+and hard memory limits totaling 2,000,000,000 bytes are declared. Grafana requires
+private username/password files; no credentials are tracked. See the
+[monitoring foundation](../monitoring/README.md) for allocations and boundaries.
+
+The base, host and ephemeral-port Compose models passed configuration rendering;
+missing state-directory configuration fails as intended. The backend unit gate
+passed 420 tests, including four monitoring isolation/budget regressions, and
+backend-static passed. These were partial `--no-install` checks. The initial
+baseline run found missing pip in the local venv and public commit/documentation
+hash false positives in the Step 1 lock. Python's bundled pip was restored with
+`backend/.venv/bin/python -m ensurepip`; 23 distinct public hashes were reviewed
+in the existing secret baseline without changing detector policy.
+The final `baseline --no-install` rerun passed. Exact gate commands from the root:
+
+```sh
+backend/.venv/bin/python scripts/validate.py --gate baseline --no-install
+backend/.venv/bin/python scripts/validate.py --gate backend-static --no-install
+backend/.venv/bin/python scripts/validate.py --gate backend-unit --no-install
+```
+
+No monitoring containers were started and no application schema/API/dependency
+locks changed. Service configurations (Step 3), data-source provisioning (Step 4)
+and lifecycle initialization are still pending; this wiring is not yet a runnable
+stack. Applied engine limits, nonroot volume permissions, host connectivity,
+retention cleanup, restart persistence, telemetry delivery and resource fit remain
+unverified. No application database was used or migrated. This is current M9
+observability preparation; the historical deployment headings below belong to
+current M15 under the roadmap's renumbering.
+
 ## Milestone 9 S2 preparation — hosted evidence pending
 
 On 2026-10-28 S1 was merged through [PR #56](https://github.com/ShinningF1eld/RestaurantOS/pull/56).
