@@ -43,7 +43,7 @@ print(json.dumps({'token':jwt.encode(payload,s.auth_jwt_secret.get_secret_value(
 """
 PROBE_HOOK = """
 # Mounted only by the disposable runner; never copied into application images.
-import json,logging
+import json
 from pathlib import Path
 from app.modules.auth import dependencies
 original = dependencies.client_ip
@@ -54,9 +54,11 @@ def observed(request):
         data=json.loads(Path('/gateway-probe/sources.json').read_text())
         source=data['sources'].get(label)
         peer=source if label=='C' else data['proxy']
-        logging.getLogger('gateway_test_probe').info(
-            'gateway_probe|%s|%s|%s',label,
-            int(request.client.host==peer),int(resolved==source))
+        # Test-owned stdout marker: production logging intentionally suppresses
+        # arbitrary messages. Emit only the fixed peer label and boolean checks,
+        # never credentials, addresses or request/header contents.
+        print('gateway_probe|%s|%s|%s' % (
+            label,int(request.client.host==peer),int(resolved==source)),flush=True)
     return resolved
 dependencies.client_ip=observed
 """

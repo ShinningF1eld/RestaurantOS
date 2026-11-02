@@ -92,6 +92,25 @@ than those frontend gates. No new actionable finding was identified in the
 focused re-review; this is not proof that every possible SDK or transport failure
 has been injected. Raw logs are ignored local artifacts, not a committed bundle.
 
+## Publication CI follow-up
+
+After the user authorized commit/push/merge, commit `8e45eeb` was pushed in
+[PR #70](https://github.com/ShinningF1eld/RestaurantOS/pull/70).
+The first remote CI execution passed eight gates and the 29-test Chromium suite,
+then failed the separate gateway rehearsal's controlled-identity fixture.
+Its test-only `gateway_test_probe` logger relied on interpolated raw messages
+that the new production formatter intentionally suppresses. The harness is updated
+to emit its existing fixed marker directly to stdout, exclusively from the
+disposable mounted probe: an allowlisted A/B/C label and two boolean checks.
+No addresses, credentials or arbitrary header values are emitted. All existing
+identity, forged-header and quota assertions remain unchanged; the production
+formatter and its privacy policy remain unchanged.
+
+Ruff lint and format checks pass for the runner. A new CI execution must verify
+the corrected harness before merging. This section records the discovery and fix;
+GitHub's current PR checks are the source for subsequent remote CI/merge status.
+The snapshot fingerprint above predates this additional test-harness change.
+
 ## Initial review — historical findings and evidence
 
 Everything below records the original report-only review **before the fixes**.
