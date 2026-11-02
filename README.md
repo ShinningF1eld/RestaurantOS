@@ -99,7 +99,8 @@ FastAPI HTTP logs, metrics and traces. See the [API telemetry contract](docs/api
 for explicit configuration, units, privacy and failure behavior.
 See the [monitoring guide](monitoring/README.md) for optional startup, private
 Grafana credentials, isolated acceptance and measured resource limits. It does
-not start with the application or migrate its database. Frontend/infrastructure/worker tracing,
+not start with the application or migrate its database. Optional [Next.js server tracing](docs/api/frontend-observability.md)
+connects authenticated SSR requests to API traces. Infrastructure/worker tracing,
 operational dashboards and final alert objectives follow in later M9 issues.
 
 ## Prerequisites

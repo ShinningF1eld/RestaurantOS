@@ -23,8 +23,10 @@ Metrics describe counts/distributions, logs preserve individual observations and
 traces connect operations. Collector receives and routes signals; the three
 stores persist them. Grafana queries those stores through authenticated proxy
 APIs. The temporary synthetic producer is acceptance infrastructure, outside the
-five permanent services. Application instrumentation, restricted PostgreSQL/Redis
-collection, operational dashboards and alert objectives belong to #59–#67.
+five permanent services. Optional [API HTTP telemetry](../docs/api/observability.md)
+and [Next.js SSR traces](../docs/api/frontend-observability.md) now use independent
+Collector policies. Restricted PostgreSQL/Redis collection, worker tracing,
+operational dashboards and alert objectives remain #61–#67 work.
 
 ## Operate the stack
 

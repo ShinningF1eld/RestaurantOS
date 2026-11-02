@@ -34,8 +34,14 @@ function inspectBundles(path) {
   for (const entry of fs.readdirSync(path, {withFileTypes: true})) {
     const file = path + '/' + entry.name;
     if (entry.isDirectory()) inspectBundles(file);
-    else if (entry.name.endsWith('.js') && fs.readFileSync(file, 'utf8').includes('/backend'))
-      prefixedClient = true;
+    else if (entry.name.endsWith('.js')) {
+      const source = fs.readFileSync(file, 'utf8');
+      if (source.includes('/backend')) prefixedClient = true;
+      for (const marker of ['MONITORING_ENDPOINT', 'telemetry_export_failed',
+                            'restaurantos-frontend', 'OTLPTraceExporter', 'BatchSpanProcessor']) {
+        if (source.includes(marker)) throw new Error('Server tracing code in browser bundle');
+      }
+    }
   }
 }
 inspectBundles('/app/.next/static');

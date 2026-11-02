@@ -6,7 +6,7 @@ const webPort = Number(process.env.PLAYWRIGHT_WEB_PORT ?? "3000");
 // A production Next build exercises server rendering as deployed.
 export default defineConfig({
   testDir: "./tests",
-  testIgnore: ["**/component/**", "**/client/**"],
+  testIgnore: ["**/component/**", "**/client/**", "**/server/**"],
   outputDir: process.env.PLAYWRIGHT_ARTIFACTS
     ? `${process.env.PLAYWRIGHT_ARTIFACTS}/screenshots`
     : "test-results/browser/screenshots",

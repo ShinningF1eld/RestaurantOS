@@ -1,4 +1,4 @@
-# Synthetic and API signals have independent deny-by-default policies.
+# Synthetic, API and frontend traces have independent deny-by-default policies.
 # The private network/loopback listener is the access boundary, not service.name.
 receivers:
   otlp:
@@ -158,6 +158,32 @@ processors:
       - set(log.severity_number, SEVERITY_NUMBER_INFO)
       - delete_key(log.attributes, "request_id") where not IsMatch(log.attributes["request_id"], "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
+  filter/frontend:
+    error_mode: propagate
+    trace_conditions:
+      - context: resource
+        conditions: ['resource.attributes["service.name"] != "restaurantos-frontend"']
+      - context: span
+        conditions:
+          - 'span.name != "Next.js request" and span.name != "Next.js render" and span.name != "API request"'
+          - 'Len(span.links) > 0'
+      - context: spanevent
+        conditions: ['true']
+
+  transform/frontend:
+    error_mode: propagate
+    trace_statements:
+      - set(resource.schema_url, "")
+      - keep_keys(resource.attributes, ["service.name"])
+      - set(scope.schema_url, "")
+      - keep_keys(scope.attributes, [])
+      - set(scope.name, "restaurantos.frontend")
+      - set(scope.version, "1")
+      - keep_keys(span.attributes, ["http.route"])
+      - set(span.attributes["http.route"], "<unmatched>") where not IsMatch(span.attributes["http.route"], "^(/|/login|/session/renew|/dashboard/restaurants|/restaurants/\\[restaurant_id\\]/(dashboard|employees|inventory|orders|menu|menu/\\[menu_id\\])|<unmatched>)$")
+      - set(span.status.message, "")
+      - set(span.trace_state, "")
+
   batch:
     timeout: 1s
     send_batch_size: 64
@@ -250,4 +276,8 @@ service:
     traces/api:
       receivers: [otlp]
       processors: [memory_limiter, filter/api, transform/api, batch]
+      exporters: [otlp_http/tempo]
+    traces/frontend:
+      receivers: [otlp]
+      processors: [memory_limiter, filter/frontend, transform/frontend, batch]
       exporters: [otlp_http/tempo]
