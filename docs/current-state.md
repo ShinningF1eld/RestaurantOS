@@ -1,5 +1,23 @@
 # RestaurantOS current state
 
+## Current M9 observability issue #59 — API implementation
+
+The working implementation adds optional process-scoped API OpenTelemetry HTTP
+pipelines and separate Collector API admission/sanitization, preserving the
+synthetic policy. The [API contract](api/observability.md) documents settings,
+metrics/units/outcomes, normalized routes, safe logs, correlation and lifecycle
+loss boundaries. [Monitoring tests](testing/monitoring.md) describe SDK, real
+PostgreSQL/export-failure and stored-signal checks. No application migration or
+business endpoint change is required. Runtime dependencies and hash locks change.
+The [Issue #59 verification](milestone9-observability/verification-milestone9-issue59.md)
+records the initial review and the authorized corrections for large metric
+snapshots and partial SDK initialization cleanup. Fresh verification includes
+485 unit tests, 355 PostgreSQL integration tests, static/baseline/image gates,
+and actual stored signals after a quiet cumulative re-export. This is API-slice
+evidence, not full M9 acceptance. No commits or publication were requested.
+Next.js, infrastructure, outbox/worker tracing, business signals and dashboards
+remain #60–#64 work. The #58 entries below retain their dated scope.
+
 ## Current M9 observability issue #58 — local foundation
 
 Pre-merge recheck on 2026-11-01: all six issue criteria were reviewed again.

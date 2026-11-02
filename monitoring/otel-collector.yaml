@@ -1,5 +1,5 @@
-# Foundation accepts the declared synthetic service only. Application telemetry
-# needs its own reviewed source policy in #59; a service name is not authentication.
+# Synthetic and API signals have independent deny-by-default policies.
+# The private network/loopback listener is the access boundary, not service.name.
 receivers:
   otlp:
     protocols:
@@ -78,6 +78,85 @@ processors:
       - set(log.body, "synthetic operation completed")
       - set(log.severity_text, "INFO")
       - set(log.severity_number, SEVERITY_NUMBER_INFO)
+
+  # Independent application admission/sanitization, not an authentication boundary.
+  filter/api:
+    error_mode: propagate
+    trace_conditions:
+      - context: resource
+        conditions: ['resource.attributes["service.name"] != "restaurantos-api"']
+      - context: span
+        conditions:
+          - 'span.name != "HTTP request"'
+          - 'Len(span.links) > 0'
+          - 'not IsMatch(span.attributes["http.route"], "^(/auth/login|/auth/refresh|/auth/logout|/auth/me|/api/restaurants|/api/restaurants/\\{restaurant_id\\}|/restaurants/\\{restaurant_id\\}/menus|/menus/\\{menu_id\\}|/menus/\\{menu_id\\}/items|/menu\\-items/\\{menu_item_id\\}|/api/restaurants/\\{restaurant_id\\}/orders|/api/orders/\\{order_id\\}|/api/restaurants/\\{restaurant_id\\}/analytics/dashboard|/api/access|/api/organizations|/api/organization|/api/memberships|/api/memberships/\\{membership_id\\}|/api/audit|/api/restaurants/\\{restaurant_id\\}/inventory/ingredients|/api/restaurants/\\{restaurant_id\\}/inventory/ingredients/\\{ingredient_id\\}|/api/restaurants/\\{restaurant_id\\}/inventory/ingredients/\\{ingredient_id\\}/movements|/api/restaurants/\\{restaurant_id\\}/inventory/alerts|/api/restaurants/\\{restaurant_id\\}/inventory/alerts/history|/menu\\-items/\\{menu_item_id\\}/recipe|/health|/ready|/api/test|/openapi\\.json|/docs|/docs/oauth2\\-redirect|/redoc|/api/test\\-db|<unmatched>)$")'
+          - 'not IsMatch(span.attributes["http.request.method"], "^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE|OTHER)$")'
+          - 'not IsMatch(span.attributes["outcome"], "^(success|authentication|forbidden|not_found|conflict|validation|rate_limit|client_error|server_error|cancelled)$")'
+          - '(span.attributes["http.response.status_code"] < 100 and span.attributes["http.response.status_code"] != 0) or span.attributes["http.response.status_code"] > 599'
+      - context: spanevent
+        conditions: ['true']
+    metric_conditions:
+      - context: resource
+        conditions: ['resource.attributes["service.name"] != "restaurantos-api"']
+      - context: metric
+        conditions:
+          - 'metric.name != "restaurantos.http.requests" and metric.name != "restaurantos.http.duration" and metric.name != "restaurantos.http.inflight" and metric.name != "restaurantos.http.last_observation"'
+      - context: datapoint
+        conditions:
+          - 'Len(datapoint.exemplars) > 0'
+          - '(not IsMatch(datapoint.attributes["http.route"], "^(/auth/login|/auth/refresh|/auth/logout|/auth/me|/api/restaurants|/api/restaurants/\\{restaurant_id\\}|/restaurants/\\{restaurant_id\\}/menus|/menus/\\{menu_id\\}|/menus/\\{menu_id\\}/items|/menu\\-items/\\{menu_item_id\\}|/api/restaurants/\\{restaurant_id\\}/orders|/api/orders/\\{order_id\\}|/api/restaurants/\\{restaurant_id\\}/analytics/dashboard|/api/access|/api/organizations|/api/organization|/api/memberships|/api/memberships/\\{membership_id\\}|/api/audit|/api/restaurants/\\{restaurant_id\\}/inventory/ingredients|/api/restaurants/\\{restaurant_id\\}/inventory/ingredients/\\{ingredient_id\\}|/api/restaurants/\\{restaurant_id\\}/inventory/ingredients/\\{ingredient_id\\}/movements|/api/restaurants/\\{restaurant_id\\}/inventory/alerts|/api/restaurants/\\{restaurant_id\\}/inventory/alerts/history|/menu\\-items/\\{menu_item_id\\}/recipe|/health|/ready|/api/test|/openapi\\.json|/docs|/docs/oauth2\\-redirect|/redoc|/api/test\\-db|<unmatched>)$")) and metric.name != "restaurantos.http.last_observation"'
+          - '(not IsMatch(datapoint.attributes["http.request.method"], "^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE|OTHER)$")) and metric.name != "restaurantos.http.last_observation"'
+          - '(IsInt(datapoint.attributes["http.response.status_code"]) == false or datapoint.attributes["http.response.status_code"] < 0 or datapoint.attributes["http.response.status_code"] > 599) and metric.name != "restaurantos.http.inflight" and metric.name != "restaurantos.http.last_observation"'
+          - 'not IsMatch(datapoint.attributes["outcome"], "^(success|authentication|forbidden|not_found|conflict|validation|rate_limit|client_error|server_error|cancelled)$") and metric.name != "restaurantos.http.inflight" and metric.name != "restaurantos.http.last_observation"'
+    log_conditions:
+      - context: resource
+        conditions: ['resource.attributes["service.name"] != "restaurantos-api"']
+      - context: log
+        conditions:
+          - 'not IsMatch(log.attributes["http.route"], "^(/auth/login|/auth/refresh|/auth/logout|/auth/me|/api/restaurants|/api/restaurants/\\{restaurant_id\\}|/restaurants/\\{restaurant_id\\}/menus|/menus/\\{menu_id\\}|/menus/\\{menu_id\\}/items|/menu\\-items/\\{menu_item_id\\}|/api/restaurants/\\{restaurant_id\\}/orders|/api/orders/\\{order_id\\}|/api/restaurants/\\{restaurant_id\\}/analytics/dashboard|/api/access|/api/organizations|/api/organization|/api/memberships|/api/memberships/\\{membership_id\\}|/api/audit|/api/restaurants/\\{restaurant_id\\}/inventory/ingredients|/api/restaurants/\\{restaurant_id\\}/inventory/ingredients/\\{ingredient_id\\}|/api/restaurants/\\{restaurant_id\\}/inventory/ingredients/\\{ingredient_id\\}/movements|/api/restaurants/\\{restaurant_id\\}/inventory/alerts|/api/restaurants/\\{restaurant_id\\}/inventory/alerts/history|/menu\\-items/\\{menu_item_id\\}/recipe|/health|/ready|/api/test|/openapi\\.json|/docs|/docs/oauth2\\-redirect|/redoc|/api/test\\-db|<unmatched>)$")'
+          - 'not IsMatch(log.attributes["http.request.method"], "^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE|OTHER)$")'
+          - 'IsInt(log.attributes["http.response.status_code"]) == false or log.attributes["http.response.status_code"] < 0 or log.attributes["http.response.status_code"] > 599'
+          - 'not IsMatch(log.attributes["outcome"], "^(success|authentication|forbidden|not_found|conflict|validation|rate_limit|client_error|server_error|cancelled)$")'
+
+  transform/api:
+    error_mode: propagate
+    trace_statements:
+      - keep_keys(resource.attributes, ["service.name"])
+      - set(resource.schema_url, "")
+      - set(scope.schema_url, "")
+      - keep_keys(scope.attributes, [])
+      - set(scope.name, "restaurantos.api.http")
+      - set(scope.version, "1")
+      - keep_keys(span.attributes, ["http.route", "http.request.method", "http.response.status_code", "outcome", "request_id"])
+      - set(span.status.message, "")
+      - set(span.trace_state, "")
+      - delete_key(span.attributes, "request_id") where not IsMatch(span.attributes["request_id"], "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+    metric_statements:
+      - keep_keys(resource.attributes, ["service.name"])
+      - set(resource.schema_url, "")
+      - set(scope.schema_url, "")
+      - keep_keys(scope.attributes, [])
+      - set(scope.name, "restaurantos.api.http")
+      - set(scope.version, "1")
+      - set(metric.description, "")
+      - set(metric.unit, "s") where metric.name == "restaurantos.http.duration" or metric.name == "restaurantos.http.last_observation"
+      - set(metric.unit, "1") where metric.name == "restaurantos.http.requests" or metric.name == "restaurantos.http.inflight"
+      - keep_keys(datapoint.attributes, ["http.route", "http.request.method", "http.response.status_code", "outcome"])
+      - keep_keys(datapoint.attributes, ["http.route", "http.request.method"]) where metric.name == "restaurantos.http.inflight"
+      - keep_keys(datapoint.attributes, []) where metric.name == "restaurantos.http.last_observation"
+    log_statements:
+      - keep_keys(resource.attributes, ["service.name"])
+      - set(resource.schema_url, "")
+      - set(scope.schema_url, "")
+      - keep_keys(scope.attributes, [])
+      - set(scope.name, "restaurantos.api.http")
+      - set(scope.version, "1")
+      - keep_keys(log.attributes, ["http.route", "http.request.method", "http.response.status_code", "outcome", "request_id"])
+      - set(log.event_name, "")
+      - set(log.body, "HTTP request completed")
+      - set(log.severity_text, "INFO")
+      - set(log.severity_number, SEVERITY_NUMBER_INFO)
+      - delete_key(log.attributes, "request_id") where not IsMatch(log.attributes["request_id"], "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
   batch:
     timeout: 1s
@@ -159,4 +238,16 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, filter/synthetic, transform/synthetic, batch]
+      exporters: [otlp_http/tempo]
+    metrics/api:
+      receivers: [otlp]
+      processors: [memory_limiter, filter/api, transform/api, batch]
+      exporters: [prometheus]
+    logs/api:
+      receivers: [otlp]
+      processors: [memory_limiter, filter/api, transform/api, batch]
+      exporters: [otlp_http/loki]
+    traces/api:
+      receivers: [otlp]
+      processors: [memory_limiter, filter/api, transform/api, batch]
       exporters: [otlp_http/tempo]

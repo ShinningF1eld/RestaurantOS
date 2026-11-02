@@ -1,8 +1,27 @@
 # Optional local monitoring
 
-This runbook covers issue #58's synthetic monitoring foundation. Application
-instrumentation, operational dashboards and final alert objectives belong to
-later M9 issues. No application migration is involved.
+This runbook covers issue #58's monitoring foundation and issue #59's optional
+API HTTP telemetry. Frontend/infrastructure/worker tracing, operational dashboards
+and final alert objectives belong to later M9 issues. No application migration
+is involved.
+
+API HTTP signals are optional through `MONITORING_ENABLED=true` and
+`MONITORING_ENDPOINT=http://localhost:4318` (or the chosen loopback port).
+For an API container on the isolated monitoring network, use
+`http://collector:4318`. Keep `DATABASE_ECHO=false`. See the
+[API contract](../api/observability.md) for all bounded settings and metrics.
+Start the API with `--no-proxy-headers` before trusting exact upstream peer IPs.
+The default trusts no incoming trace headers. Never expose OTLP publicly or
+interpret trace context/service names as authentication. `/health` and `/ready`
+remain independent of the monitoring stack.
+
+In Explore, API logs use `{service_name="restaurantos-api"}` and metrics start
+with `restaurantos_http_`. Inspect `telemetry_queue_full`,
+`telemetry_export_diagnostic` and shutdown/startup diagnostics in local JSON when
+remote collection is broken. Logs deliberately suppress raw messages/stacks.
+Check `restaurantos_http_last_observation_seconds` age and scrape/export health;
+missing or old data is not healthy zero activity. Do not replay business commands
+because an associated trace is absent. Remote logs use only OTLP, not stdout.
 
 ## Start and stop
 
@@ -41,8 +60,9 @@ private temporary secrets and owned cleanup on success/failure.
 backend/.venv/bin/python scripts/generate-monitoring-telemetry.py --endpoint http://localhost:4318 --duration 10
 ```
 
-Only the declared synthetic service/metric/span names are accepted. No business
-API, database receiver or worker is automatically instrumented. In Grafana Explore,
+Synthetic signals must use the declared service/metric/span names. API signals
+have a separate admission policy and require the explicit opt-in above; database
+receivers and workers remain uninstrumented. In Grafana Explore,
 select RestaurantOS Metrics, Logs or Traces. Workload metrics include
 `restaurantos_synthetic_operations_total` and the seconds histogram. Loki uses
 `{service_name="restaurantos-monitoring-synthetic"}`. Trace/log IDs are metadata,

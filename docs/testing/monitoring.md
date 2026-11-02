@@ -4,6 +4,45 @@ All commands run from the root with the supported Python 3.12 test environment.
 They use local Docker only and never select the application database or developer
 monitoring project. No credentialed browser traces are collected.
 
+## API HTTP acceptance (#59)
+
+```powershell
+backend/.venv/Scripts/python.exe scripts/check-api-observability.py
+backend/.venv/Scripts/python.exe scripts/check-api-observability.py --container-smoke
+```
+
+On Linux/macOS use `backend/.venv/bin/python`. The helper owns fresh monitoring
+and PostgreSQL/Redis projects and a guarded unique `_test` database; it never
+selects the developer application database. It runs the real API workload, checks
+committed orders, one stock movement and audit replay semantics, then queries
+stored Prometheus counters/histogram quantiles/in-flight/freshness, Loki logs and
+Tempo spans with a distinctive canary. An independent spoofed-service probe checks
+Collector sanitization, including schema/scope metadata and exception/status text.
+The workload also records the registered business route/method operations across
+six approved outcomes, then checks every combination after a quiet cumulative
+re-export. This is a label-capacity and recovery check, not a load benchmark.
+It prints results and verifies owned teardown; it does not write an issue report.
+
+The container smoke requires the locally built `restaurantos-backend:m6` image
+from the image gate (override with `--image`). It starts that nonroot API runtime
+on the owned private network and verifies all three stores via `collector:4318`,
+with no published API port. Its deliberately unused `_test` URL proves only the
+health/export path; the host workload supplies the real database/business checks.
+
+`backend-unit` includes SDK in-memory privacy/correlation, normalized labels,
+trusted/malformed context, cancellation and overlapping lifecycle tests.
+`unit/test_telemetry_recovery.py` adds real SDK large-snapshot/idle-export,
+shared-deadline/recovery and partial-construction resource-ownership regressions.
+`backend-integration` includes actual OTLP HTTP exporters, pre-start absence,
+mid-workload failure, repeated rejection, slow consumption/queue overflow and
+PostgreSQL order/inventory/audit checks. The stored-workload test is skipped in
+ordinary integration runs because it requires this explicit five-service runner.
+Never point `TEST_MONITORING_ENDPOINT` at a shared environment. SDK force-flush
+calls exist only in acceptance after transaction completion, not in business code.
+
+Run the #58 host/container synthetic checks below after changing either policy;
+parser success and successful OTLP admission alone do not prove stored signals.
+
 ## Configuration and fast regressions
 
 ```sh

@@ -29,9 +29,10 @@ def test_collector_limits_apply_before_buffering_and_export():
     batch = collector["processors"]["batch"]
     assert 0 < batch["send_batch_size"] <= batch["send_batch_max_size"] <= 128
     assert batch["metadata_keys"] == []
-    for pipeline in collector["service"]["pipelines"].values():
+    for name, pipeline in collector["service"]["pipelines"].items():
         assert pipeline["processors"][0] == "memory_limiter"
-        assert pipeline["processors"].index("transform/synthetic") < pipeline[
+        policy = "api" if name.endswith("/api") else "synthetic"
+        assert pipeline["processors"].index("transform/" + policy) < pipeline[
             "processors"
         ].index("batch")
     for name in ("otlp_http/loki", "otlp_http/tempo"):
@@ -70,6 +71,12 @@ def test_stores_configure_real_retention_and_persistent_paths():
     loki = config("loki.yaml")
     assert loki["limits_config"]["retention_period"] == "72h"
     assert loki["limits_config"]["allow_structured_metadata"] is True
+    assert loki["limits_config"]["otlp_config"]["resource_attributes"] == {
+        "ignore_defaults": True,
+        "attributes_config": [
+            {"action": "index_label", "attributes": ["service.name"]}
+        ],
+    }
     assert loki["compactor"]["retention_enabled"] is True
     assert loki["compactor"]["delete_request_store"] == "filesystem"
     assert loki["compactor"]["working_directory"].startswith("/loki/")

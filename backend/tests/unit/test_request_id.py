@@ -50,6 +50,25 @@ def test_request_id_middleware_replaces_invalid_header() -> None:
     assert response.json() == {"request_id": echoed}
 
 
+def test_request_logs_use_route_templates_and_hide_unknown_paths(caplog) -> None:
+    app = FastAPI()
+    app.add_middleware(RequestIdMiddleware)
+
+    @app.get("/items/{item_id}")
+    async def item(item_id: str) -> dict[str, str]:
+        return {"item_id": item_id}
+
+    with caplog.at_level(logging.INFO, logger="restaurantos.request"):
+        with TestClient(app) as client:
+            client.get("/items/private-value?secret=canary")
+            client.get("/unknown/private-value?secret=canary")
+
+    paths = [
+        record.http_path for record in caplog.records if hasattr(record, "http_path")
+    ]
+    assert paths == ["/items/{item_id}", "<unmatched>"]
+
+
 def test_json_logging_keeps_request_metadata_but_not_arbitrary_extras() -> None:
     record = logging.LogRecord(
         name="restaurantos.request",
