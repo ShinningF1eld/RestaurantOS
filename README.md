@@ -94,10 +94,12 @@ for current gates and remaining acceptance boundaries.
 
 ## Optional local monitoring
 
-Current M9 observability starts with a five-service synthetic monitoring foundation.
+Current M9 observability has a five-service monitoring foundation and optional
+FastAPI HTTP logs, metrics and traces. See the [API telemetry contract](docs/api/observability.md)
+for explicit configuration, units, privacy and failure behavior.
 See the [monitoring guide](monitoring/README.md) for optional startup, private
 Grafana credentials, isolated acceptance and measured resource limits. It does
-not start with the application or migrate its database. Application tracing,
+not start with the application or migrate its database. Frontend/infrastructure/worker tracing,
 operational dashboards and final alert objectives follow in later M9 issues.
 
 ## Prerequisites

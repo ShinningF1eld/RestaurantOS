@@ -2,6 +2,8 @@ from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 import logging
 from threading import Lock
+import asyncio
+from app.core.telemetry import lifecycle as telemetry_lifecycle
 
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -51,6 +53,7 @@ configure_json_logging(level=settings.log_level)
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     adapter = RedisAdapter(settings)
     await adapter.open()
+    telemetry = telemetry_lifecycle.acquire(settings)
     # Test clients may nest/overlap lifespans and shut down out of order. Track
     # active owners rather than restore a possibly already closed predecessor.
     with application.state.redis_lifecycle_lock:
@@ -72,6 +75,14 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
                     application.state.redis = application.state.redis_lifespans[-1]
                 elif hasattr(application.state, "redis"):
                     del application.state.redis
+            retired = telemetry_lifecycle.release(telemetry)
+            finished = await asyncio.to_thread(
+                retired.wait, settings.monitoring_shutdown_seconds
+            )
+            if not finished:
+                logging.getLogger("restaurantos.telemetry").warning(
+                    "telemetry shutdown timed out"
+                )
 
 
 app = FastAPI(
@@ -152,7 +163,6 @@ async def handle_domain_error(request: Request, error: Exception) -> Response:
 
 app.add_exception_handler(DomainError, handle_domain_error)
 app.add_middleware(AuthBoundaryMiddleware)
-app.add_middleware(RequestIdMiddleware)
 
 # -------- CORS --------#
 app.add_middleware(
@@ -163,6 +173,8 @@ app.add_middleware(
     allow_headers=["Content-Type", "X-CSRF-Protection", "X-Request-ID"],
     expose_headers=["Retry-After", "X-Request-ID"],
 )
+# Observe the final status emitted by CORS and the auth boundary as well as routes.
+app.add_middleware(RequestIdMiddleware)
 
 
 @app.get("/health")

@@ -95,7 +95,7 @@ intervals, ten-second maximum elapsed retry). That retry bound is not a queue
 residence TTL. In-memory queues can lose data on forced shutdown/process failure.
 No raw debug exporter or stdout collection duplicates the log pipeline.
 
-Only service `restaurantos-monitoring-synthetic`, spans `synthetic.operation` and
+The synthetic pipelines admit only service `restaurantos-monitoring-synthetic`, spans `synthetic.operation` and
 `synthetic.child`, and these three metrics are admitted:
 
 | OTLP metric | Prometheus series | Meaning |
@@ -118,6 +118,15 @@ counts, acknowledgements and pacing misses, and never automatically replays an
 uncertain export. A successful send is checked separately against stored data.
 Normal proposal for this small local synthetic workload is 100% trace emission;
 application sampling must be measured and reconsidered with #59/#65.
+
+Issue #59 adds separate API pipelines for `restaurantos-api`, with exact route,
+method/outcome/status validation and source-side allowlisted SDK instrumentation.
+See the [API telemetry contract](../docs/api/observability.md) for configuration,
+metric types/units, correlation, loss and privacy rules. The synthetic admission
+policy remains intact; neither service name is an authentication boundary. Host
+API exports use the loopback OTLP port; isolated containers use `collector:4318`.
+There is no stdout collection or generic Python log forwarding. Prometheus's
+workload sample limit is now 20,000 to accommodate bounded API histograms.
 
 ## Compatibility and immutable images
 

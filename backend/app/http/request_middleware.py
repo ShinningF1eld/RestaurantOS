@@ -1,9 +1,12 @@
 """ASGI middleware for request-ID propagation without request-body access."""
 
 import logging
+import asyncio
 from time import perf_counter
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from app.core.telemetry import lifecycle
+from app.http.observability import HttpObservation, category, method
 
 from app.core.request_id import (
     REQUEST_ID_HEADER,
@@ -14,6 +17,13 @@ from app.core.request_id import (
 
 
 logger = logging.getLogger("restaurantos.request")
+
+
+def normalized_route(scope: Scope) -> str:
+    """Return a registered route template, never an untrusted request path."""
+    route = scope.get("route")
+    path = getattr(route, "path", None)
+    return path if isinstance(path, str) else "<unmatched>"
 
 
 class RequestIdMiddleware:
@@ -40,10 +50,15 @@ class RequestIdMiddleware:
         token = set_request_id(request_id)
         started_at = perf_counter()
         status_code = 500
+        response_started = False
+        failed = False
+        cancelled = False
+        observation = HttpObservation(lifecycle.runtime, scope)
 
         async def send_with_request_id(message: Message) -> None:
-            nonlocal status_code
+            nonlocal status_code, response_started
             if message["type"] == "http.response.start":
+                response_started = True
                 status_code = message["status"]
                 response_headers = list(message.get("headers", []))
                 header_name = REQUEST_ID_HEADER.lower().encode("latin-1")
@@ -54,16 +69,33 @@ class RequestIdMiddleware:
 
         try:
             await self.app(scope, receive, send_with_request_id)
+        except asyncio.CancelledError:
+            cancelled = True
+            if not response_started:
+                status_code = 0
+            logger.info(
+                "request cancelled",
+                extra={
+                    "http_method": method(scope),
+                    "http_path": normalized_route(scope),
+                    "status_code": status_code,
+                    "outcome": "cancelled",
+                    "duration_ms": round((perf_counter() - started_at) * 1000, 2),
+                },
+            )
+            raise
         except Exception:
+            failed = True
             # Do not attach the exception here: database exceptions can embed
             # SQL and parameter values. Later error tracking must apply its own
             # sensitive-data filtering.
             logger.error(
                 "request failed",
                 extra={
-                    "http_method": scope.get("method"),
-                    "http_path": scope.get("path"),
+                    "http_method": method(scope),
+                    "http_path": normalized_route(scope),
                     "status_code": status_code,
+                    "outcome": "server_error",
                     "duration_ms": round((perf_counter() - started_at) * 1000, 2),
                 },
             )
@@ -72,11 +104,20 @@ class RequestIdMiddleware:
             logger.info(
                 "request completed",
                 extra={
-                    "http_method": scope.get("method"),
-                    "http_path": scope.get("path"),
+                    "http_method": method(scope),
+                    "http_path": normalized_route(scope),
                     "status_code": status_code,
+                    "outcome": category(status_code, cancelled=False, failed=False),
                     "duration_ms": round((perf_counter() - started_at) * 1000, 2),
                 },
             )
         finally:
-            reset_request_id(token)
+            try:
+                observation.finish(
+                    status_code,
+                    cancelled=cancelled,
+                    failed=failed,
+                    request_id=request_id,
+                )
+            finally:
+                reset_request_id(token)

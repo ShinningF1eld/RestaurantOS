@@ -34,6 +34,13 @@ class Settings(BaseSettings):
         default="development", validation_alias="ENVIRONMENT"
     )
     log_level: LogLevel = Field(default="INFO", validation_alias="LOG_LEVEL")
+    monitoring_enabled: bool = False
+    monitoring_endpoint: str = Field(default="http://localhost:4318", max_length=256)
+    monitoring_trusted_upstream_ips: list[str] = Field(default_factory=list)
+    monitoring_export_timeout_seconds: float = Field(default=1, ge=0.1, le=2)
+    monitoring_export_interval_ms: int = Field(default=5000, ge=1000, le=30000)
+    monitoring_queue_size: int = Field(default=256, ge=16, le=1024)
+    monitoring_shutdown_seconds: float = Field(default=3, ge=0.1, le=5)
     database_echo: bool = Field(default=False, validation_alias="DATABASE_ECHO")
     database_pool_size: int = Field(default=5, gt=0, le=100)
     database_max_overflow: int = Field(default=10, ge=0, le=100)
@@ -126,6 +133,8 @@ class Settings(BaseSettings):
             raise ValueError(
                 "Production requires secure cookies, HTTPS origins and disabled SQL echo"
             )
+        if self.monitoring_enabled and self.database_echo:
+            raise ValueError("Monitoring requires disabled SQL echo")
         if (
             self.event_worker_redis_block_ms
             >= self.event_worker_redis_operation_budget_ms
@@ -154,6 +163,42 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_log_level(cls, value: object) -> object:
         return value.upper() if isinstance(value, str) else value
+
+    @field_validator("monitoring_endpoint")
+    @classmethod
+    def validate_monitoring_endpoint(cls, value: str) -> str:
+        from urllib.parse import urlsplit
+
+        try:
+            url = urlsplit(value)
+            valid = (
+                url.scheme in {"http", "https"}
+                and bool(url.hostname)
+                and not any(character.isspace() for character in value)
+                and url.username is None
+                and url.password is None
+                and not url.query
+                and not url.fragment
+                and url.path in {"", "/"}
+                and (url.port is None or 0 < url.port <= 65535)
+            )
+        except ValueError:
+            valid = False
+        if not valid:
+            raise ValueError("Monitoring endpoint must be an HTTP(S) origin")
+        return value.rstrip("/")
+
+    @field_validator("monitoring_trusted_upstream_ips")
+    @classmethod
+    def validate_monitoring_upstreams(cls, value: list[str]) -> list[str]:
+        from ipaddress import ip_address
+
+        if len(value) > 16:
+            raise ValueError("At most 16 exact upstream IPs are supported")
+        try:
+            return [str(ip_address(address)) for address in value]
+        except ValueError:
+            raise ValueError("Trusted upstreams must be exact IP addresses") from None
 
     @field_validator("auth_refresh_cookie_path")
     @classmethod
