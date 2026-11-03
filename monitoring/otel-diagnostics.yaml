@@ -1,0 +1,324 @@
+# Opt-in second Collector config; no query logs or per-table metrics.
+# Redis uses finite go-redis socket/retry defaults: see database-redis.md.
+receivers:
+  postgresql/diagnostics:
+    endpoint: ${env:MONITORING_POSTGRES_ENDPOINT}
+    username: restaurantos_monitor
+    password: ${file:/run/secrets/postgres_monitor_password}
+    connect_database: ${env:MONITORING_POSTGRES_DATABASE}
+    databases:
+    - ${env:MONITORING_POSTGRES_DATABASE}
+    collection_interval: 10s
+    timeout: 2s
+    tls:
+      insecure: true
+    metrics:
+      postgresql.backends:
+        enabled: true
+      postgresql.bgwriter.buffers.allocated:
+        enabled: false
+      postgresql.bgwriter.buffers.writes:
+        enabled: false
+      postgresql.bgwriter.checkpoint.count:
+        enabled: false
+      postgresql.bgwriter.duration:
+        enabled: false
+      postgresql.bgwriter.maxwritten:
+        enabled: false
+      postgresql.blks_hit:
+        enabled: true
+      postgresql.blks_read:
+        enabled: true
+      postgresql.blocks_read:
+        enabled: false
+      postgresql.commits:
+        enabled: true
+      postgresql.connection.max:
+        enabled: true
+      postgresql.database.count:
+        enabled: false
+      postgresql.database.locks:
+        enabled: true
+      postgresql.db_size:
+        enabled: false
+      postgresql.deadlocks:
+        enabled: true
+      postgresql.function.calls:
+        enabled: false
+      postgresql.index.scans:
+        enabled: false
+      postgresql.index.size:
+        enabled: false
+      postgresql.operations:
+        enabled: false
+      postgresql.query.conflicts:
+        enabled: false
+      postgresql.query.execution.time:
+        enabled: false
+      postgresql.replication.data_delay:
+        enabled: false
+      postgresql.rollbacks:
+        enabled: true
+      postgresql.rows:
+        enabled: false
+      postgresql.sequential_scans:
+        enabled: false
+      postgresql.table.count:
+        enabled: false
+      postgresql.table.size:
+        enabled: false
+      postgresql.table.vacuum.count:
+        enabled: false
+      postgresql.temp.io:
+        enabled: true
+      postgresql.temp_files:
+        enabled: true
+      postgresql.tup_deleted:
+        enabled: false
+      postgresql.tup_fetched:
+        enabled: false
+      postgresql.tup_inserted:
+        enabled: false
+      postgresql.tup_returned:
+        enabled: false
+      postgresql.tup_updated:
+        enabled: false
+      postgresql.vector.insert.duration:
+        enabled: false
+      postgresql.vector.insert.rows:
+        enabled: false
+      postgresql.vector.search.calls:
+        enabled: false
+      postgresql.vector.search.duration:
+        enabled: false
+      postgresql.vector.search.rows_returned:
+        enabled: false
+      postgresql.wal.age:
+        enabled: false
+      postgresql.wal.delay:
+        enabled: false
+      postgresql.wal.lag:
+        enabled: false
+    connection_pool:
+      max_open: 1
+      max_idle: 1
+      max_idle_time: 60s
+  redis/diagnostics:
+    endpoint: ${env:MONITORING_REDIS_ENDPOINT}
+    username: restaurantos_monitor
+    password: ${file:/run/secrets/redis_monitor_password}
+    collection_interval: 10s
+    timeout: 2s
+    tls:
+      insecure: true
+    metrics:
+      redis.clients.blocked:
+        enabled: true
+      redis.clients.connected:
+        enabled: true
+      redis.clients.max_input_buffer:
+        enabled: false
+      redis.clients.max_output_buffer:
+        enabled: false
+      redis.cluster.cluster_enabled:
+        enabled: false
+      redis.cluster.known_nodes:
+        enabled: false
+      redis.cluster.links_buffer_limit_exceeded.count:
+        enabled: false
+      redis.cluster.node.count:
+        enabled: false
+      redis.cluster.node.uptime:
+        enabled: false
+      redis.cluster.slots_assigned:
+        enabled: false
+      redis.cluster.slots_fail:
+        enabled: false
+      redis.cluster.slots_ok:
+        enabled: false
+      redis.cluster.slots_pfail:
+        enabled: false
+      redis.cluster.state:
+        enabled: false
+      redis.cluster.stats_messages_received:
+        enabled: false
+      redis.cluster.stats_messages_sent:
+        enabled: false
+      redis.cluster.uptime:
+        enabled: false
+      redis.cmd.calls:
+        enabled: false
+      redis.cmd.latency:
+        enabled: false
+      redis.cmd.usec:
+        enabled: false
+      redis.commands:
+        enabled: true
+      redis.commands.processed:
+        enabled: true
+      redis.connections.received:
+        enabled: true
+      redis.connections.rejected:
+        enabled: true
+      redis.cpu.time:
+        enabled: true
+      redis.db.avg_ttl:
+        enabled: false
+      redis.db.expires:
+        enabled: false
+      redis.db.keys:
+        enabled: false
+      redis.keys.evicted:
+        enabled: true
+      redis.keys.expired:
+        enabled: true
+      redis.keyspace.hits:
+        enabled: true
+      redis.keyspace.misses:
+        enabled: true
+      redis.latest_fork:
+        enabled: false
+      redis.maxmemory:
+        enabled: true
+      redis.memory.fragmentation_ratio:
+        enabled: true
+      redis.memory.lua:
+        enabled: false
+      redis.memory.peak:
+        enabled: true
+      redis.memory.rss:
+        enabled: true
+      redis.memory.used:
+        enabled: true
+      redis.memory.used_memory_overhead:
+        enabled: false
+      redis.memory.used_memory_startup:
+        enabled: false
+      redis.mode:
+        enabled: false
+      redis.net.input:
+        enabled: true
+      redis.net.output:
+        enabled: true
+      redis.pubsub.channel.status:
+        enabled: false
+      redis.pubsub.connection.count:
+        enabled: false
+      redis.pubsub.pattern.status:
+        enabled: false
+      redis.rdb.changes_since_last_save:
+        enabled: false
+      redis.replication.backlog_first_byte_offset:
+        enabled: false
+      redis.replication.offset:
+        enabled: false
+      redis.replication.replica_offset:
+        enabled: false
+      redis.role:
+        enabled: false
+      redis.sentinel.masters:
+        enabled: false
+      redis.sentinel.running_scripts:
+        enabled: false
+      redis.sentinel.scripts_queue_length:
+        enabled: false
+      redis.sentinel.simulate_failure_flags:
+        enabled: false
+      redis.sentinel.tilt_since_seconds:
+        enabled: false
+      redis.sentinel.total_tilt:
+        enabled: false
+      redis.slaves.connected:
+        enabled: false
+      redis.tracking_total_keys:
+        enabled: false
+      redis.uptime:
+        enabled: true
+processors:
+  filter/postgresql:
+    error_mode: propagate
+    metric_conditions:
+    - context: metric
+      conditions:
+      - metric.name != "postgresql.backends" and metric.name != "postgresql.blks_hit"
+        and metric.name != "postgresql.blks_read" and metric.name != "postgresql.commits"
+        and metric.name != "postgresql.connection.max" and metric.name != "postgresql.database.locks"
+        and metric.name != "postgresql.deadlocks" and metric.name != "postgresql.rollbacks"
+        and metric.name != "postgresql.temp.io" and metric.name != "postgresql.temp_files"
+  transform/postgresql:
+    error_mode: propagate
+    metric_statements:
+    - context: datapoint
+      statements:
+      - set(datapoint.attributes["collection_scope"], "server") where metric.name
+        == "postgresql.database.locks"
+      - set(datapoint.attributes["collection_scope"], "database") where metric.name
+        == "postgresql.database.locks" and resource.attributes["postgresql.database.name"]
+        != nil and resource.attributes["postgresql.database.name"] != ""
+    - context: metric
+      statements:
+      - aggregate_on_attributes("sum", ["mode", "lock_type", "collection_scope"])
+        where metric.name == "postgresql.database.locks"
+    - context: datapoint
+      statements:
+      - keep_keys(resource.attributes, [])
+      - set(resource.attributes["service.name"], "restaurantos-postgresql")
+      - set(resource.schema_url, "")
+      - set(scope.schema_url, "")
+      - keep_keys(scope.attributes, [])
+      - set(scope.name, "restaurantos.receiver.postgresql")
+      - set(scope.version, "1")
+      - set(metric.description, "")
+      - keep_keys(datapoint.attributes, ["mode", "lock_type", "collection_scope"])
+        where metric.name == "postgresql.database.locks"
+      - keep_keys(datapoint.attributes, []) where metric.name != "postgresql.database.locks"
+  filter/redis:
+    error_mode: propagate
+    metric_conditions:
+    - context: metric
+      conditions:
+      - metric.name != "redis.clients.blocked" and metric.name != "redis.clients.connected"
+        and metric.name != "redis.commands" and metric.name != "redis.commands.processed"
+        and metric.name != "redis.connections.received" and metric.name != "redis.connections.rejected"
+        and metric.name != "redis.cpu.time" and metric.name != "redis.keys.evicted"
+        and metric.name != "redis.keys.expired" and metric.name != "redis.keyspace.hits"
+        and metric.name != "redis.keyspace.misses" and metric.name != "redis.maxmemory"
+        and metric.name != "redis.memory.fragmentation_ratio" and metric.name != "redis.memory.peak"
+        and metric.name != "redis.memory.rss" and metric.name != "redis.memory.used"
+        and metric.name != "redis.net.input" and metric.name != "redis.net.output"
+        and metric.name != "redis.uptime"
+  transform/redis:
+    error_mode: propagate
+    metric_statements:
+    - keep_keys(resource.attributes, [])
+    - set(resource.attributes["service.name"], "restaurantos-redis")
+    - set(resource.schema_url, "")
+    - set(scope.schema_url, "")
+    - keep_keys(scope.attributes, [])
+    - set(scope.name, "restaurantos.receiver.redis")
+    - set(scope.version, "1")
+    - set(metric.description, "")
+    - keep_keys(datapoint.attributes, ["state"]) where metric.name == "redis.cpu.time"
+    - keep_keys(datapoint.attributes, []) where metric.name != "redis.cpu.time"
+service:
+  pipelines:
+    metrics/postgresql:
+      receivers:
+      - postgresql/diagnostics
+      processors:
+      - memory_limiter
+      - filter/postgresql
+      - transform/postgresql
+      - batch
+      exporters:
+      - prometheus
+    metrics/redis:
+      receivers:
+      - redis/diagnostics
+      processors:
+      - memory_limiter
+      - filter/redis
+      - transform/redis
+      - batch
+      exporters:
+      - prometheus

@@ -8,6 +8,7 @@ import signal
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.core.config import Settings, get_settings
+from app.core.telemetry import worker_lifecycle
 from app.core.logging import configure_json_logging
 from app.db.worker import create_worker_engine
 from app.modules.events.worker.runtime import EventWorker, WorkerHooks
@@ -22,13 +23,22 @@ async def run_worker(
     """Run transport loops without starting FastAPI or applying migrations."""
     active_settings = settings or get_settings()
     configure_json_logging(level=active_settings.log_level)
-    engine = create_worker_engine(active_settings)
+    telemetry = worker_lifecycle.acquire(active_settings)
+    engine = None
     try:
+        engine = create_worker_engine(active_settings)
         sessions = async_sessionmaker(engine, expire_on_commit=False)
         worker = EventWorker(active_settings, sessions, hooks=hooks)
         await worker.run(stop)
     finally:
-        await engine.dispose()
+        try:
+            if engine is not None:
+                await engine.dispose()
+        finally:
+            retired = worker_lifecycle.release(telemetry)
+            await asyncio.to_thread(
+                retired.wait, active_settings.monitoring_shutdown_seconds
+            )
 
 
 async def _serve() -> None:

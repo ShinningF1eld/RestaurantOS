@@ -184,6 +184,41 @@ processors:
       - set(span.status.message, "")
       - set(span.trace_state, "")
 
+  filter/diagnostics:
+    error_mode: propagate
+    metric_conditions:
+      - context: resource
+        conditions: ['resource.attributes["service.name"] != "restaurantos-api" and resource.attributes["service.name"] != "restaurantos-worker"']
+      - context: metric
+        conditions:
+          - 'metric.name != "restaurantos.sql.duration" and metric.name != "restaurantos.sql.slow" and metric.name != "restaurantos.sql.failures" and metric.name != "restaurantos.transaction.failures" and metric.name != "restaurantos.pool.acquire.duration" and metric.name != "restaurantos.pool.acquire.failures" and metric.name != "restaurantos.pool.acquiring" and metric.name != "restaurantos.pool.capacity" and metric.name != "restaurantos.pool.limit" and metric.name != "restaurantos.pool.used" and metric.name != "restaurantos.pool.idle" and metric.name != "restaurantos.pool.overflow" and metric.name != "restaurantos.redis.duration" and metric.name != "restaurantos.redis.operations" and metric.name != "restaurantos.catalog.cache.lookups"'
+      - context: datapoint
+        conditions:
+          - 'Len(datapoint.exemplars) > 0'
+          - 'not IsMatch(datapoint.attributes["role"], "^(api|worker)$")'
+          - 'resource.attributes["service.name"] != Concat(["restaurantos-", datapoint.attributes["role"]], "")'
+          - 'IsMatch(metric.name, "^restaurantos[.](sql|redis)[.].*") and (datapoint.attributes["operation"] == nil or not IsMatch(datapoint.attributes["operation"], "^(SELECT|INSERT|UPDATE|DELETE|OTHER|GET|SET|DEL|EVAL|PING|XADD|XREADGROUP|XACK|XPENDING|XCLAIM|XAUTOCLAIM|XGROUP|XLEN|XRANGE)$"))'
+          - 'not IsMatch(metric.name, "^restaurantos[.]pool[.](capacity|limit|used|idle|overflow|acquiring)$") and metric.name != "restaurantos.catalog.cache.lookups" and (datapoint.attributes["outcome"] == nil or not IsMatch(datapoint.attributes["outcome"], "^(success|timeout|connection|command|closed|internal|cancelled|database|transaction|deadlock|serialization|lock|constraint|interrupted)$"))'
+          - 'metric.name == "restaurantos.catalog.cache.lookups" and (not IsMatch(datapoint.attributes["cache"], "^(menus|menu_items)$") or not IsMatch(datapoint.attributes["outcome"], "^(hit|miss|bypass)$"))'
+
+  transform/diagnostics:
+    error_mode: propagate
+    metric_statements:
+      - keep_keys(resource.attributes, ["service.name"])
+      - set(resource.schema_url, "")
+      - set(scope.schema_url, "")
+      - keep_keys(scope.attributes, [])
+      - set(scope.name, "restaurantos.infrastructure")
+      - set(scope.version, "1")
+      - set(metric.description, "")
+      - set(metric.unit, "1")
+      - set(metric.unit, "s") where IsMatch(metric.name, "[.]duration$")
+      - set(metric.unit, "{connection}") where IsMatch(metric.name, "^restaurantos[.]pool[.](capacity|limit|used|idle|overflow|acquiring)$")
+      - keep_keys(datapoint.attributes, ["role", "operation", "outcome"]) where metric.name != "restaurantos.catalog.cache.lookups"
+      - keep_keys(datapoint.attributes, ["role", "cache", "outcome"]) where metric.name == "restaurantos.catalog.cache.lookups"
+      - keep_keys(datapoint.attributes, ["role"]) where IsMatch(metric.name, "^restaurantos[.]pool[.](capacity|limit|used|idle|overflow|acquiring)$")
+      - keep_keys(datapoint.attributes, ["role", "outcome"]) where IsMatch(metric.name, "^restaurantos[.](transaction[.]|pool[.]acquire[.])")
+
   batch:
     timeout: 1s
     send_batch_size: 64
@@ -281,3 +316,7 @@ service:
       receivers: [otlp]
       processors: [memory_limiter, filter/frontend, transform/frontend, batch]
       exporters: [otlp_http/tempo]
+    metrics/diagnostics:
+      receivers: [otlp]
+      processors: [memory_limiter, filter/diagnostics, transform/diagnostics, batch]
+      exporters: [prometheus]

@@ -32,7 +32,7 @@ def test_collector_limits_apply_before_buffering_and_export():
     for name, pipeline in collector["service"]["pipelines"].items():
         assert pipeline["processors"][0] == "memory_limiter"
         policy = name.split("/", 1)[1] if "/" in name else "synthetic"
-        assert policy in {"api", "frontend", "synthetic"}
+        assert policy in {"api", "frontend", "synthetic", "diagnostics"}
         assert pipeline["processors"].index("transform/" + policy) < pipeline[
             "processors"
         ].index("batch")
@@ -62,6 +62,7 @@ def test_frontend_policy_is_trace_only_with_independent_privacy_filtering():
         "logs",
         "traces",
         "metrics/api",
+        "metrics/diagnostics",
         "logs/api",
         "traces/api",
         "traces/frontend",
@@ -171,3 +172,44 @@ def test_parser_checker_cleans_only_its_container_and_preserves_failure(
     assert name.startswith("restaurantos-monitoring-config-")
     assert calls[1] == ["docker", "rm", "--force", "--volumes", name]
     assert len(calls) == 2
+
+
+def test_database_redis_receivers_are_opt_in_restricted_and_bounded():
+    base = config("otel-collector.yaml")
+    diagnostics = config("otel-diagnostics.yaml")
+    compose = config("compose.diagnostics.yaml")
+    assert set(compose["services"]) == {"collector"}
+    assert set(base["receivers"]) == {"otlp"}
+    receivers = diagnostics["receivers"]
+    for name, receiver in receivers.items():
+        assert receiver["username"] == "restaurantos_monitor"
+        assert receiver["password"].startswith("${file:/run/secrets/")
+        assert receiver["collection_interval"] == "10s"
+        assert receiver["timeout"] == "2s"
+        assert "events" not in receiver
+    pg = receivers["postgresql/diagnostics"]
+    assert pg["connect_database"] == pg["databases"][0]
+    assert pg["connection_pool"]["max_open"] == 1
+    enabled = {name for name, metric in pg["metrics"].items() if metric["enabled"]}
+    assert {
+        "postgresql.backends",
+        "postgresql.rollbacks",
+        "postgresql.commits",
+        "postgresql.deadlocks",
+        "postgresql.database.locks",
+        "postgresql.connection.max",
+    } <= enabled
+    assert not any(
+        "table" in name or "index" in name or "query" in name for name in enabled
+    )
+    statements = diagnostics["processors"]["transform/postgresql"]["metric_statements"]
+    assert any(
+        "aggregate_on_attributes" in " ".join(group["statements"])
+        for group in statements
+    )
+    assert base["service"]["pipelines"]["metrics/diagnostics"]["processors"] == [
+        "memory_limiter",
+        "filter/diagnostics",
+        "transform/diagnostics",
+        "batch",
+    ]

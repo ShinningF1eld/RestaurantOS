@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from time import monotonic
 from collections.abc import Awaitable, Callable
 from enum import StrEnum
 from typing import Protocol
@@ -19,6 +20,7 @@ from redis.exceptions import (
 )
 
 from app.core.config import Settings
+from app.core.diagnostics import record, redis_operation
 
 
 class WorkerFailureKind(StrEnum):
@@ -116,10 +118,40 @@ class WorkerRedisTransport:
         raise failure from None
 
     async def execute(self, *arguments: object) -> object:
-        client = self._client
-        if client is None:
-            raise WorkerRedisFailure(WorkerFailureKind.CONNECTION)
-        return await self._bounded(lambda: client.execute_command(*arguments))
+        started = monotonic()
+        outcome = "success"
+        try:
+            client = self._client
+            if client is None:
+                outcome = "closed"
+                raise WorkerRedisFailure(WorkerFailureKind.CONNECTION)
+            return await self._bounded(lambda: client.execute_command(*arguments))
+        except WorkerRedisFailure as error:
+            if outcome != "closed":
+                outcome = error.kind.value
+            raise
+        except asyncio.CancelledError:
+            outcome = "cancelled"
+            raise
+        except Exception:
+            outcome = "internal"
+            raise
+        finally:
+            operation = redis_operation(arguments)
+            record(
+                "redis.duration",
+                monotonic() - started,
+                role="worker",
+                operation=operation,
+                outcome=outcome,
+            )
+            record(
+                "redis.operations",
+                1,
+                role="worker",
+                operation=operation,
+                outcome=outcome,
+            )
 
     async def pending_range(
         self,
@@ -130,12 +162,41 @@ class WorkerRedisTransport:
         count: int,
     ) -> object:
         """Use redis-py's ranged response parser for XPENDING detail rows."""
-        client = self._client
-        if client is None:
-            raise WorkerRedisFailure(WorkerFailureKind.CONNECTION)
-        return await self._bounded(
-            lambda: client.xpending_range(stream, group, start, end, count)
-        )
+        started = monotonic()
+        outcome = "success"
+        try:
+            client = self._client
+            if client is None:
+                outcome = "closed"
+                raise WorkerRedisFailure(WorkerFailureKind.CONNECTION)
+            return await self._bounded(
+                lambda: client.xpending_range(stream, group, start, end, count)
+            )
+        except WorkerRedisFailure as error:
+            if outcome != "closed":
+                outcome = error.kind.value
+            raise
+        except asyncio.CancelledError:
+            outcome = "cancelled"
+            raise
+        except Exception:
+            outcome = "internal"
+            raise
+        finally:
+            record(
+                "redis.duration",
+                monotonic() - started,
+                role="worker",
+                operation="XPENDING",
+                outcome=outcome,
+            )
+            record(
+                "redis.operations",
+                1,
+                role="worker",
+                operation="XPENDING",
+                outcome=outcome,
+            )
 
     async def close(self) -> None:
         client, self._client = self._client, None

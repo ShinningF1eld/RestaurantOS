@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     monitoring_queue_size: int = Field(default=256, ge=16, le=1024)
     monitoring_shutdown_seconds: float = Field(default=3, ge=0.1, le=5)
     database_echo: bool = Field(default=False, validation_alias="DATABASE_ECHO")
+    monitoring_sql_slow_seconds: float = Field(default=0.5, ge=0.001, le=60)
+
     database_pool_size: int = Field(default=5, gt=0, le=100)
     database_max_overflow: int = Field(default=10, ge=0, le=100)
     database_pool_timeout_seconds: int = Field(default=30, gt=0, le=120)

@@ -1,0 +1,23 @@
+# Explicit opt-in, merged with compose.yaml (and compose.host.yaml for host mode).
+# No new service, database port publication, or Grafana SQL credentials.
+services:
+  collector:
+    command:
+      - --config=/etc/otelcol-contrib/config.yaml
+      - --config=/etc/otelcol-contrib/diagnostics.yaml
+    environment:
+      MONITORING_POSTGRES_ENDPOINT: ${MONITORING_POSTGRES_ENDPOINT:?set monitoring PostgreSQL host:port}
+      MONITORING_POSTGRES_DATABASE: ${MONITORING_POSTGRES_DATABASE:?set the one monitored database}
+      MONITORING_REDIS_ENDPOINT: ${MONITORING_REDIS_ENDPOINT:?set monitoring Redis host:port}
+    secrets: [postgres_monitor_password, redis_monitor_password]
+    volumes:
+      - type: bind
+        source: ./otel-diagnostics.yaml
+        target: /etc/otelcol-contrib/diagnostics.yaml
+        read_only: true
+        bind: {create_host_path: false}
+secrets:
+  postgres_monitor_password:
+    file: ${MONITORING_STATE_DIR:?set private state directory}/postgres_monitor_password
+  redis_monitor_password:
+    file: ${MONITORING_STATE_DIR:?set private state directory}/redis_monitor_password

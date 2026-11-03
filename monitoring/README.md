@@ -25,8 +25,9 @@ stores persist them. Grafana queries those stores through authenticated proxy
 APIs. The temporary synthetic producer is acceptance infrastructure, outside the
 five permanent services. Optional [API HTTP telemetry](../docs/api/observability.md)
 and [Next.js SSR traces](../docs/api/frontend-observability.md) now use independent
-Collector policies. Restricted PostgreSQL/Redis collection, worker tracing,
-operational dashboards and alert objectives remain #61–#67 work.
+Collector policies. Optional [PostgreSQL/Redis diagnostics](database-redis.md) add
+restricted server receivers and API/worker pool/SQL/Redis/cache observations.
+Worker tracing, operational dashboards and alert objectives remain #62–#67 work.
 
 ## Operate the stack
 
@@ -77,8 +78,9 @@ Containers use nonroot users, read-only roots, dropped capabilities, no new
 privileges, bounded PIDs and 16 MiB temporary filesystems. Configuration mounts
 are read-only and refuse missing host files. JSON container logs rotate at two
 5 MiB files each. Restart attempts are bounded; readiness is polled explicitly.
-No application network, database, Redis, cloud service or startup migration is
-involved. Temporary producer/reader containers have separate 128 MB limits.
+The base stack requires no application network/database/Redis or startup
+migration. Opt-in diagnostics give only the Collector access to the chosen local
+PostgreSQL/Redis targets with separate restricted identities. Temporary producer/reader containers have separate 128 MB limits.
 
 Prometheus retains seven days; Loki and Tempo retain 72 hours. Loki has persistent
 WAL/index/chunks/compactor state with deletion enabled; Tempo has persistent local

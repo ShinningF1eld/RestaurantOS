@@ -19,6 +19,7 @@ Set these in the API environment, independently of optional monitoring startup:
 | `MONITORING_EXPORT_TIMEOUT_SECONDS` | `1` | 0.1–2 seconds, SDK HTTP export/retry budget |
 | `MONITORING_EXPORT_INTERVAL_MS` | `5000` | 1,000–30,000 ms metric collection interval |
 | `MONITORING_QUEUE_SIZE` | `256` | 16–1,024 records **per** log/span queue; oldest records drop on overflow |
+| `MONITORING_SQL_SLOW_SECONDS` | `0.5` | 0.001–60 seconds; slow SQL cursor-operation threshold |
 | `MONITORING_SHUTDOWN_SECONDS` | `3` | 0.1–5 seconds maximum lifespan wait for background shutdown |
 
 `DATABASE_ECHO=true` is rejected with monitoring enabled: SQLAlchemy echo has
@@ -166,3 +167,8 @@ An absent/old timestamp, missing scrape or zero traffic in a stopped process is
 **unknown/stale**, not healthy zero activity. `/health` and `/ready` never query
 monitoring. Business retries must reuse existing idempotency keys after uncertain
 failures; missing telemetry never justifies repeating a committed command.
+
+Infrastructure diagnostics for API/worker SQL, pools, Redis and feature-owned catalog
+cache outcomes use this same optional SDK lifecycle and exporter budget. See the
+[PostgreSQL/Redis contract](../../monitoring/database-redis.md) for exact metrics,
+restricted receiver setup, unavailable measurements and failure/staleness behavior.

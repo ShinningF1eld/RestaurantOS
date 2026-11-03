@@ -1,0 +1,297 @@
+{
+  "date": "2026-11-03",
+  "timezone": "Asia/Bangkok",
+  "status": "passed",
+  "source_base": "See verification-milestone9-issue61.md (public base Git revision)",
+  "candidate": "uncommitted working tree; see verification document",
+  "platform": "local Docker linux/arm64; Python 3.12.16",
+  "protocol": "Existing five-service stack, two 10s stats receivers, sequential synthetic API/worker SQL/Redis commands with intentional pool timeout; default pool limits. Approximately 3s between non-continuous Docker samples plus observer command cost. Not an M9 latency/overhead baseline.",
+  "hard_monitoring_memory_budget_bytes": 2000000000,
+  "no_oom_or_automatic_restarts": true,
+  "owned_cleanup_verified": true,
+  "resource_samples": [
+    {
+      "seconds": 0.0,
+      "services": {
+        "collector": {
+          "displayed_memory": "64.66MiB",
+          "displayed_memory_bytes": 67800924,
+          "cpu_percent": 1.27
+        },
+        "prometheus": {
+          "displayed_memory": "61.99MiB",
+          "displayed_memory_bytes": 65001226,
+          "cpu_percent": 0.56
+        },
+        "grafana": {
+          "displayed_memory": "332.5MiB",
+          "displayed_memory_bytes": 348651520,
+          "cpu_percent": 1.15
+        },
+        "loki": {
+          "displayed_memory": "59.52MiB",
+          "displayed_memory_bytes": 62411244,
+          "cpu_percent": 0.89
+        },
+        "tempo": {
+          "displayed_memory": "32.13MiB",
+          "displayed_memory_bytes": 33690747,
+          "cpu_percent": 0.34
+        }
+      }
+    },
+    {
+      "seconds": 5.44,
+      "services": {
+        "collector": {
+          "displayed_memory": "65.14MiB",
+          "displayed_memory_bytes": 68304241,
+          "cpu_percent": 2.23
+        },
+        "prometheus": {
+          "displayed_memory": "62.8MiB",
+          "displayed_memory_bytes": 65850573,
+          "cpu_percent": 0.39
+        },
+        "grafana": {
+          "displayed_memory": "332.3MiB",
+          "displayed_memory_bytes": 348441805,
+          "cpu_percent": 1.33
+        },
+        "loki": {
+          "displayed_memory": "59.25MiB",
+          "displayed_memory_bytes": 62128128,
+          "cpu_percent": 0.71
+        },
+        "tempo": {
+          "displayed_memory": "33.87MiB",
+          "displayed_memory_bytes": 35515269,
+          "cpu_percent": 0.56
+        }
+      }
+    },
+    {
+      "seconds": 10.91,
+      "services": {
+        "collector": {
+          "displayed_memory": "65.14MiB",
+          "displayed_memory_bytes": 68304241,
+          "cpu_percent": 1.07
+        },
+        "prometheus": {
+          "displayed_memory": "62.43MiB",
+          "displayed_memory_bytes": 65462600,
+          "cpu_percent": 0.55
+        },
+        "grafana": {
+          "displayed_memory": "332.3MiB",
+          "displayed_memory_bytes": 348441805,
+          "cpu_percent": 1.08
+        },
+        "loki": {
+          "displayed_memory": "59.74MiB",
+          "displayed_memory_bytes": 62641930,
+          "cpu_percent": 0.64
+        },
+        "tempo": {
+          "displayed_memory": "34.12MiB",
+          "displayed_memory_bytes": 35777413,
+          "cpu_percent": 0.41
+        }
+      }
+    },
+    {
+      "seconds": 16.39,
+      "services": {
+        "collector": {
+          "displayed_memory": "65.14MiB",
+          "displayed_memory_bytes": 68304241,
+          "cpu_percent": 1.73
+        },
+        "prometheus": {
+          "displayed_memory": "62.74MiB",
+          "displayed_memory_bytes": 65787658,
+          "cpu_percent": 1.29
+        },
+        "grafana": {
+          "displayed_memory": "332.3MiB",
+          "displayed_memory_bytes": 348441805,
+          "cpu_percent": 3.59
+        },
+        "loki": {
+          "displayed_memory": "61.06MiB",
+          "displayed_memory_bytes": 64026051,
+          "cpu_percent": 1.16
+        },
+        "tempo": {
+          "displayed_memory": "34.62MiB",
+          "displayed_memory_bytes": 36301701,
+          "cpu_percent": 0.4
+        }
+      }
+    },
+    {
+      "seconds": 21.86,
+      "services": {
+        "collector": {
+          "displayed_memory": "64.66MiB",
+          "displayed_memory_bytes": 67800924,
+          "cpu_percent": 2.51
+        },
+        "prometheus": {
+          "displayed_memory": "62.26MiB",
+          "displayed_memory_bytes": 65284342,
+          "cpu_percent": 0.65
+        },
+        "grafana": {
+          "displayed_memory": "331.6MiB",
+          "displayed_memory_bytes": 347707802,
+          "cpu_percent": 0.7
+        },
+        "loki": {
+          "displayed_memory": "65.07MiB",
+          "displayed_memory_bytes": 68230840,
+          "cpu_percent": 0.65
+        },
+        "tempo": {
+          "displayed_memory": "33.7MiB",
+          "displayed_memory_bytes": 35337011,
+          "cpu_percent": 2.07
+        }
+      }
+    },
+    {
+      "seconds": 26.84,
+      "services": {
+        "collector": {
+          "displayed_memory": "66.14MiB",
+          "displayed_memory_bytes": 69352817,
+          "cpu_percent": 2.17
+        },
+        "prometheus": {
+          "displayed_memory": "62.31MiB",
+          "displayed_memory_bytes": 65336771,
+          "cpu_percent": 0.29
+        },
+        "grafana": {
+          "displayed_memory": "332.1MiB",
+          "displayed_memory_bytes": 348232090,
+          "cpu_percent": 1.2
+        },
+        "loki": {
+          "displayed_memory": "66.91MiB",
+          "displayed_memory_bytes": 70160220,
+          "cpu_percent": 0.56
+        },
+        "tempo": {
+          "displayed_memory": "33.45MiB",
+          "displayed_memory_bytes": 35074867,
+          "cpu_percent": 1.15
+        }
+      }
+    },
+    {
+      "seconds": 32.28,
+      "services": {
+        "collector": {
+          "displayed_memory": "65.66MiB",
+          "displayed_memory_bytes": 68849500,
+          "cpu_percent": 1.86
+        },
+        "prometheus": {
+          "displayed_memory": "62.02MiB",
+          "displayed_memory_bytes": 65032684,
+          "cpu_percent": 0.86
+        },
+        "grafana": {
+          "displayed_memory": "331.6MiB",
+          "displayed_memory_bytes": 347707802,
+          "cpu_percent": 1.13
+        },
+        "loki": {
+          "displayed_memory": "68.96MiB",
+          "displayed_memory_bytes": 72309801,
+          "cpu_percent": 1.02
+        },
+        "tempo": {
+          "displayed_memory": "33.96MiB",
+          "displayed_memory_bytes": 35609641,
+          "cpu_percent": 1.18
+        }
+      }
+    },
+    {
+      "seconds": 36.86,
+      "services": {
+        "collector": {
+          "displayed_memory": "65.64MiB",
+          "displayed_memory_bytes": 68828529,
+          "cpu_percent": 1.77
+        },
+        "prometheus": {
+          "displayed_memory": "65.02MiB",
+          "displayed_memory_bytes": 68178412,
+          "cpu_percent": 0.68
+        },
+        "grafana": {
+          "displayed_memory": "332.4MiB",
+          "displayed_memory_bytes": 348546662,
+          "cpu_percent": 2.05
+        },
+        "loki": {
+          "displayed_memory": "71.2MiB",
+          "displayed_memory_bytes": 74658611,
+          "cpu_percent": 1.76
+        },
+        "tempo": {
+          "displayed_memory": "36.96MiB",
+          "displayed_memory_bytes": 38755369,
+          "cpu_percent": 0.41
+        }
+      }
+    }
+  ],
+  "sampled_service_peaks": {
+    "collector": {
+      "memory_bytes": 69352817,
+      "cpu_percent": 2.51
+    },
+    "prometheus": {
+      "memory_bytes": 68178412,
+      "cpu_percent": 1.29
+    },
+    "grafana": {
+      "memory_bytes": 348651520,
+      "cpu_percent": 3.59
+    },
+    "loki": {
+      "memory_bytes": 74658611,
+      "cpu_percent": 1.76
+    },
+    "tempo": {
+      "memory_bytes": 38755369,
+      "cpu_percent": 2.07
+    }
+  },
+  "sampled_aggregate_peak_bytes": 598967583,
+  "checks": [
+    "PASS: restricted PostgreSQL statistics reads and denied business/administrative access; Redis INFO-only ACL",
+    "PASS: stored PostgreSQL and Redis receiver metrics",
+    "PASS: stored API/worker SQL, pool and Redis diagnostics; exported canary exclusion",
+    "PASS: stopped receivers expose errors and missing series; recovery",
+    "PASS: Collector-absent API/worker startup, SQL/Redis work, bounded shutdown and re-export after recovery",
+    "PASS: owned teardown follows (no developer resources selected)"
+  ],
+  "retained_failed_attempts": [
+    "Initial parser rejected mixed OTTL contexts.",
+    "Initial fixture wall clock invalidated payloads.",
+    "Initial stop/start fault lost disposable tmpfs PostgreSQL state.",
+    "Pool gauge unit 1 translated to ratio suffix; changed to connection annotation.",
+    "Random Collector host port changed on restart; recovery now rediscovers endpoint."
+  ],
+  "limitations": [
+    "Finite Redis driver timeouts/retries rather than enforced scraper context deadline.",
+    "No public SQLAlchemy waiter count or Redis receiver general server-error total.",
+    "Rounded smoke resource samples, no continuous maxima or controlled speed comparison."
+  ]
+}

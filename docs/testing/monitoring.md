@@ -134,3 +134,54 @@ The application image gate remains separate:
 `backend/.venv/bin/python scripts/validate.py --gate image --no-install`.
 Issue #58 checks do not establish all ten gates, M9's application trace/incident
 exit criteria, hosted capacity, external alert delivery or AMD64 runtime evidence.
+
+## PostgreSQL, Redis and pools (#61)
+
+```sh
+backend/.venv/bin/python scripts/check-monitoring-config.py
+backend/.venv/bin/python scripts/check-infrastructure-observability.py
+backend/.venv/bin/python scripts/validate.py --gate backend-unit --gate backend-integration --gate backend-static --gate baseline --gate image --no-install
+```
+
+The configuration checker now validates both the base Collector policy and the
+opt-in receiver config with the **pinned native binary**, dummy secret mounts and
+network disabled. `unit/test_monitoring_config.py` enforces the added pipeline,
+receiver allowlists, single database, restricted-secret mounts and connection cap.
+
+`unit/test_infrastructure_diagnostics.py` uses the real in-memory SDK for safe
+Redis outcomes (including cancellation and closed transport) and exactly-once
+catalog hit/miss/bypass semantics, authorization exclusion and circuit recovery.
+The unchanged catalog suites protect age/invalidation/live-stock contracts.
+`integration/test_infrastructure_diagnostics.py` starts **separate real API and
+worker processes**, with pooled PostgreSQL engines rather than the HTTP NullPool.
+API fixture limits are two base/one overflow/one-second timeout; the worker factory
+retains its normal computed size and five-second timeout. Both synchronize an
+extra acquire while all slots are held, assert acquiring > 0 before timeout,
+cancel another waiting acquire, release a slot and execute real SQL again. Tests
+also cover duplicate-hook prevention, slow SQL, failure/cancellation privacy and
+ordinary read rollback without a failed-transaction increment. Fixture pool
+settings do not change application defaults or increase production limits.
+
+The explicit acceptance helper owns unique PostgreSQL/Redis projects, a guarded
+`*_test` database, private synthetic credentials and the existing five-service
+monitoring stack. It provisions the reviewed minimum PostgreSQL grants and Redis
+INFO-only ACL, checks read success and denied table/administrative/key access,
+then inspects **stored Prometheus** application/receiver signals and exported
+canary exclusion. Only its Collector joins its private service network. It
+pauses/unpauses its targets (so the disposable tmpfs database survives the outage),
+requires expired/missing series, observes scrape failures, and proves recovery.
+Collector-absent API/worker cold startup, SQL/Redis work, bounded shutdown and
+re-export are tested separately in that same environment. No developer resource
+is selected, restarted, migrated or removed. All normal/failure exits run the
+existing ownership-checked teardown. No raw driver exception/credentials are
+printed by the acceptance helper.
+
+Resource samples use Docker's rounded, cache-adjusted working set and CPU percent
+(one CPU = 100%), every approximately three seconds plus observer-command cost,
+during sequential API/worker SQL/Redis and pool-fault workloads. This is a bounded
+smoke cost, not the ten-minute M9 baseline or an instrumentation speed guarantee.
+See [the operational contract](../../monitoring/database-redis.md) for exact
+metrics/units/mappings, source pins, grants, cadence, unavailable measurements and
+the pinned Redis receiver's unenforced scraper-context timeout limitation.
+The existing API acceptance and #58 runtime matrix remain the HTTP/synthetic/
+log/trace/Collector interruption regressions; this check does not replace them.
