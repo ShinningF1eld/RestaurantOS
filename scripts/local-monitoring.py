@@ -11,11 +11,19 @@ def main():
     parser.add_argument("action", choices=["init", "config", "up", "status", "down"])
     parser.add_argument("--grafana-port", type=int, default=3001)
     parser.add_argument("--otlp-port", type=int, default=4318)
+    parser.add_argument(
+        "--diagnostics",
+        action="store_true",
+        help="Opt in at init to PostgreSQL/Redis receivers; provision identities and secret files before up",
+    )
     args = parser.parse_args()
     directory = ROOT / ".local-monitoring"
     if args.action == "init":
         Monitoring.initialize(
-            directory, grafana_port=args.grafana_port, otlp_port=args.otlp_port
+            directory,
+            grafana_port=args.grafana_port,
+            otlp_port=args.otlp_port,
+            diagnostics=args.diagnostics,
         )
         print(
             "Initialized private .local-monitoring state; credentials are in that directory."

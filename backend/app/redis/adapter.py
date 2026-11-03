@@ -1,6 +1,7 @@
 """Reusable async transport with one deadline and no business health state."""
 
 import asyncio
+from time import monotonic
 import re
 from collections.abc import Awaitable, Callable
 from enum import StrEnum
@@ -18,6 +19,7 @@ from redis.exceptions import (
 )
 
 from app.core.config import Settings
+from app.core.diagnostics import record, redis_operation
 
 
 class FailureKind(StrEnum):
@@ -101,10 +103,36 @@ class RedisAdapter:
 
     async def execute(self, *arguments: object) -> object:
         """Execute one low-level command; bytes/None remain normal data results."""
-        client = self._client
-        if client is None:
-            raise RedisFailure(FailureKind.CLOSED)
-        return await self._bounded(lambda: client.execute_command(*arguments))
+        started = monotonic()
+        outcome = "success"
+        try:
+            client = self._client
+            if client is None:
+                outcome = "closed"
+                raise RedisFailure(FailureKind.CLOSED)
+            return await self._bounded(lambda: client.execute_command(*arguments))
+        except RedisFailure as error:
+            if outcome != "closed":
+                outcome = error.kind.value
+            raise
+        except asyncio.CancelledError:
+            outcome = "cancelled"
+            raise
+        except Exception:
+            outcome = "internal"
+            raise
+        finally:
+            operation = redis_operation(arguments)
+            record(
+                "redis.duration",
+                monotonic() - started,
+                role="api",
+                operation=operation,
+                outcome=outcome,
+            )
+            record(
+                "redis.operations", 1, role="api", operation=operation, outcome=outcome
+            )
 
     async def close(self) -> None:
         client, self._client = self._client, None

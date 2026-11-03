@@ -1,5 +1,21 @@
 # RestaurantOS current state
 
+## Current M9 observability issue #61 — PostgreSQL and Redis diagnostics
+
+Optional API/worker engine hooks now observe safe SQL operation duration, slow/
+failed executions, failed database transactions and real pool pressure/acquisition
+outcomes. Generic Redis transports expose bounded operation/failure observations;
+catalog owns hit/miss/bypass decisions after authorization and live inventory
+validation. Dedicated PostgreSQL and Redis identities support opt-in collection
+on the existing Collector with explicit metric allowlists and no business-table
+or Redis-key access. No dependency, schema migration, business API or pool-limit
+change is required. [The infrastructure contract](../monitoring/database-redis.md)
+records exact units/mappings, minimum grants, setup, staleness and pinned receiver
+limitations; [dated evidence](milestone9-observability/verification-milestone9-issue61.md)
+records local checks and their boundaries. Worker traces/outbox correlation,
+dashboards and full M9 acceptance remain subsequent work.
+
+
 ## Current M9 observability issue #60 — Next.js server traces
 
 Optional Node-only server instrumentation now links authenticated SSR calls through

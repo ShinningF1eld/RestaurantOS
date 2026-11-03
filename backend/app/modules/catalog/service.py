@@ -8,6 +8,7 @@ from app.modules.events.service import CommandEvents, next_catalog_revision
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.diagnostics import record as observe
 from app.core.errors import ConflictError, NotFoundError
 from app.modules.catalog.domain.policies import validate_menu_price
 from app.modules.catalog.repo.models import Menu
@@ -200,6 +201,12 @@ class CatalogService:
         await self._access.restaurant(context, restaurant_id, "menu.read")
         cache_key: str | None = None
         redis_available = False
+        lookup_attempted = False
+
+        def attempted() -> None:
+            nonlocal lookup_attempted
+            lookup_attempted = True
+
         if self._menu_cache is not None and self._redis is not None:
             cache_key = self._menu_cache.key(
                 self._redis,
@@ -207,12 +214,22 @@ class CatalogService:
                 restaurant_id=restaurant_id,
             )
             cached = await self._menu_cache.lookup(
-                self._redis, cache_key, restaurant_id=restaurant_id
+                self._redis,
+                cache_key,
+                restaurant_id=restaurant_id,
+                on_attempt=attempted,
             )
             if cached.menus is not None:
+                observe("catalog.cache.lookups", 1, cache="menus", outcome="hit")
                 return cached.menus
             redis_available = cached.redis_available
 
+        observe(
+            "catalog.cache.lookups",
+            1,
+            cache="menus",
+            outcome="miss" if lookup_attempted else "bypass",
+        )
         source_started_at = time.time()
         source_started_monotonic = time.monotonic()
         menus = list(await self._catalog.list_menus_for_restaurant(restaurant_id))
@@ -342,6 +359,12 @@ class CatalogService:
         context.require("menu.read")
         cache_key: str | None = None
         redis_available = False
+        lookup_attempted = False
+
+        def attempted() -> None:
+            nonlocal lookup_attempted
+            lookup_attempted = True
+
         if self._menu_cache is not None and self._redis is not None:
             cache_key = self._menu_cache.menu_items_key(
                 self._redis,
@@ -353,6 +376,7 @@ class CatalogService:
                 cache_key,
                 menu_id=menu_id,
                 restaurant_id=menu.restaurant_id,
+                on_attempt=attempted,
             )
             if cached_items is not None:
                 cached_models = [
@@ -372,8 +396,17 @@ class CatalogService:
                     missing_is_cache_miss=True,
                 )
                 if cached_response is not None:
+                    observe(
+                        "catalog.cache.lookups", 1, cache="menu_items", outcome="hit"
+                    )
                     return cached_response
 
+        observe(
+            "catalog.cache.lookups",
+            1,
+            cache="menu_items",
+            outcome="miss" if lookup_attempted else "bypass",
+        )
         source_started_at = time.time()
         source_started_monotonic = time.monotonic()
         menu_items = list(await self._catalog.list_menu_items_for_menu(menu_id))

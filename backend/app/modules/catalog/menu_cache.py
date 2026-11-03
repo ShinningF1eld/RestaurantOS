@@ -239,11 +239,14 @@ class CatalogMenuCache:
         key: str,
         *,
         restaurant_id: int,
+        on_attempt: Callable[[], None] | None = None,
     ) -> MenuListLookup:
         allowed, is_probe = await self._begin_lookup()
         if not allowed:
             return MenuListLookup(menus=None, redis_available=False)
 
+        if on_attempt is not None:
+            on_attempt()
         try:
             raw = await redis.execute("GET", key)
         except RedisFailure as error:
@@ -277,11 +280,14 @@ class CatalogMenuCache:
         *,
         menu_id: int,
         restaurant_id: int,
+        on_attempt: Callable[[], None] | None = None,
     ) -> tuple[list[CachedMenuItem] | None, bool]:
         allowed, is_probe = await self._begin_lookup()
         if not allowed:
             return None, False
 
+        if on_attempt is not None:
+            on_attempt()
         try:
             raw = await redis.execute("GET", key)
         except RedisFailure as error:

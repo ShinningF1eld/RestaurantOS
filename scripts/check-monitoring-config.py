@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import tempfile
 from pathlib import Path
 from uuid import uuid4
 
@@ -76,6 +77,49 @@ def main() -> None:
             )
             if cleanup.returncode and "No such container" not in cleanup.stderr:
                 raise RuntimeError(f"{service}: parser container cleanup failed")
+        if service == "collector":
+            with tempfile.TemporaryDirectory(
+                prefix="restaurantos-receiver-config-"
+            ) as folder:
+                secret = Path(folder) / "password"
+                secret.write_text("parser-only")
+                secret.chmod(0o444)
+                extra = [
+                    "--env",
+                    "MONITORING_POSTGRES_ENDPOINT=localhost:5432",
+                    "--env",
+                    "MONITORING_POSTGRES_DATABASE=parser_test",
+                    "--env",
+                    "MONITORING_REDIS_ENDPOINT=localhost:6379",
+                    "--mount",
+                    f"type=bind,src={ROOT / 'monitoring/otel-diagnostics.yaml'},dst=/diagnostics.yaml,readonly",
+                    "--mount",
+                    f"type=bind,src={secret},dst=/run/secrets/postgres_monitor_password,readonly",
+                    "--mount",
+                    f"type=bind,src={secret},dst=/run/secrets/redis_monitor_password,readonly",
+                ]
+                try:
+                    subprocess.run(
+                        [
+                            *command,
+                            *extra,
+                            image,
+                            *arguments,
+                            "--config=/diagnostics.yaml",
+                        ],
+                        check=True,
+                        timeout=120,
+                    )
+                finally:
+                    cleanup = subprocess.run(
+                        ["docker", "rm", "--force", "--volumes", name],
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                        check=False,
+                    )
+                    if cleanup.returncode and "No such container" not in cleanup.stderr:
+                        raise RuntimeError("Receiver parser cleanup failed")
         print(
             f"PASS: {service} configuration (locked image, network disabled)",
             flush=True,

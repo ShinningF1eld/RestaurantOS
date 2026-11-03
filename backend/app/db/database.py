@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import NullPool
 
 from app.core.config import get_settings
+from app.db.telemetry import ObservedAsyncPool, instrument_engine
 
 
 settings = get_settings()
@@ -25,10 +26,18 @@ else:
         settings.database_url,
         echo=settings.database_echo,
         hide_parameters=True,
+        poolclass=ObservedAsyncPool,
         pool_size=settings.database_pool_size,
         max_overflow=settings.database_max_overflow,
         pool_timeout=settings.database_pool_timeout_seconds,
     )
+
+instrument_engine(
+    engine.sync_engine,
+    role="api",
+    slow_seconds=settings.monitoring_sql_slow_seconds,
+    limit=settings.database_pool_size + settings.database_max_overflow,
+)
 
 AsyncSessionLocal = async_sessionmaker(
     engine,

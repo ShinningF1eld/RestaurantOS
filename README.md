@@ -100,8 +100,9 @@ for explicit configuration, units, privacy and failure behavior.
 See the [monitoring guide](monitoring/README.md) for optional startup, private
 Grafana credentials, isolated acceptance and measured resource limits. It does
 not start with the application or migrate its database. Optional [Next.js server tracing](docs/api/frontend-observability.md)
-connects authenticated SSR requests to API traces. Infrastructure/worker tracing,
-operational dashboards and final alert objectives follow in later M9 issues.
+connects authenticated SSR requests to API traces. Optional [PostgreSQL/Redis diagnostics](monitoring/database-redis.md)
+add SQL/pool/API-worker Redis and catalog cache signals with restricted collection.
+Worker tracing, operational dashboards and final alert objectives follow in later M9 issues.
 
 ## Prerequisites
 

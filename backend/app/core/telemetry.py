@@ -1,4 +1,4 @@
-"""Optional API-only SDK pipelines. No global OTel provider or auto-instrumentation.
+"""Optional process-owned SDK pipelines. No global OTel provider or auto-instrumentation.
 
 Only immutable, bounded operational records cross this boundary. SDK workers own
 all network IO; request handling only measures/enqueues. Retiring providers fence
@@ -33,6 +33,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.trace.sampling import ALWAYS_ON
 
 from app.core.config import Settings
+from app.core.diagnostics import Diagnostics
 
 SCOPE = "restaurantos.api.http"
 BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30)
@@ -132,12 +133,12 @@ def exporter_options(settings: Settings, signal: str) -> dict:
 
 
 class Telemetry:
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, role: str = "api") -> None:
         self.settings = settings
         self.providers: list = []
         self.pending: list = []
         try:
-            resource = Resource({"service.name": "restaurantos-api"})
+            resource = Resource({"service.name": "restaurantos-" + role})
             self.traces = TracerProvider(
                 resource=resource,
                 sampler=ALWAYS_ON,
@@ -215,13 +216,14 @@ class Telemetry:
                 exemplar_filter=AlwaysOffExemplarFilter(),
                 views=[
                     View(
-                        instrument_name="restaurantos.http.duration",
+                        instrument_name="restaurantos.*duration",
                         aggregation=ExplicitBucketHistogramAggregation(BUCKETS),
                     )
                 ],
             )
             self.providers.append(self.metrics)
             self.pending.remove(reader)
+            self.diagnostics = Diagnostics(self.metrics, role)
             meter = self.metrics.get_meter(SCOPE, "1")
             self.requests = meter.create_counter("restaurantos.http.requests", unit="1")
             self.duration = meter.create_histogram(
@@ -271,7 +273,8 @@ class Telemetry:
 class TelemetryLifecycle:
     """Reference-count overlapping owners; fail open while a pipeline retires."""
 
-    def __init__(self) -> None:
+    def __init__(self, role: str = "api") -> None:
+        self.role = role
         self.lock = Lock()
         self.runtime: Telemetry | None = None
         self.owners = 0
@@ -288,7 +291,11 @@ class TelemetryLifecycle:
                 return None
             if self.runtime is None:
                 try:
-                    self.runtime = Telemetry(settings)
+                    self.runtime = (
+                        Telemetry(settings)
+                        if self.role == "api"
+                        else Telemetry(settings, role=self.role)
+                    )
                 except InitializationFailed as error:
                     self._retire(error.runtime)
                     logger.warning("telemetry startup failed")
@@ -326,7 +333,9 @@ class TelemetryLifecycle:
                 logger.warning("telemetry shutdown failed")
 
         try:
-            Thread(target=stop, name="api-telemetry-shutdown", daemon=True).start()
+            Thread(
+                target=stop, name=f"{self.role}-telemetry-shutdown", daemon=True
+            ).start()
         except Exception:
             # Keep the failed runtime fenced, even if cleanup cannot be started.
             logger.warning("telemetry shutdown failed")
@@ -334,6 +343,7 @@ class TelemetryLifecycle:
 
 
 lifecycle = TelemetryLifecycle()
+worker_lifecycle = TelemetryLifecycle("worker")
 
 
 def correlation() -> dict[str, str]:

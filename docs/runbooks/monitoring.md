@@ -106,3 +106,29 @@ If resource pressure or disk constraints prevent retention, retain the failed
 measurement and explicitly document loss/shortened retention or propose an
 adjustment. Do not delete application volumes, broaden telemetry labels or add
 permanent infrastructure to hide a failing experiment.
+
+## PostgreSQL/Redis collection and pool pressure (#61)
+
+Follow the [infrastructure contract](../../monitoring/database-redis.md) for dedicated
+identity provisioning, opt-in host/container setup, exact metric mappings, timeouts
+and receiver limitations. Application startup never provisions or requires collection.
+When SQL latency rises, compare execution histograms with pool acquiring/used/limit
+and acquisition-timeout counts, then PostgreSQL backends/max-connections, locks and
+deadlocks. Idle counts are actual connections; acquiring is not a queue-waiter count.
+Do not increase application pool limits as an observability fix. Check transaction
+failures separately from read-session cleanup and expected business rejection.
+
+For Redis degradation, compare API and worker command duration/failure categories
+with server memory/maxmemory/evictions/rejected-connections. Catalog effectiveness
+uses feature hit/miss/bypass observations; server keyspace hits/misses and auth
+limiter commands are separate denominators. Preserve cache source-age and circuit
+cooldown and worker retry/replay keys; monitoring does not authorize cache flushes
+or business repairs. A missing receiver series or failed scrape is collection loss,
+not a healthy zero. Check both Collector scrape targets and rotated Collector logs.
+The Redis scraper timeout is not enforced as a command deadline by the pinned
+receiver; use the documented finite driver bounds and missing-series checks.
+
+Rehearse only with `scripts/check-infrastructure-observability.py` and its owned
+service/network/volume identities. Never pause/restart developer containers or
+delete their volumes to test collection. Existing maintenance/backup procedures
+remain authoritative for any separately authorized live database operation.

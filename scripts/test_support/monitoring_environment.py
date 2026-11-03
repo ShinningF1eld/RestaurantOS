@@ -87,6 +87,7 @@ class Monitoring:
         mode: str = "host",
         grafana_port: int = 3001,
         otlp_port: int = 4318,
+        diagnostics: bool = False,
     ) -> Monitoring:
         if directory.exists() or directory.is_symlink():
             raise ValueError("State already exists; credentials are never overwritten")
@@ -115,6 +116,7 @@ class Monitoring:
             "mode": mode,
             "grafana_port": grafana_port,
             "otlp_port": otlp_port,
+            "diagnostics": diagnostics,
         }
         for name, value in (
             ("grafana_admin_user", "operator"),
@@ -154,6 +156,8 @@ class Monitoring:
                 "    driver: bridge\n"
             )
             files.append(overlay)
+        if self.state.get("diagnostics", False):
+            files.append(ROOT / "monitoring/compose.diagnostics.yaml")
         override = self.directory / "override.yaml"
         if override.exists():
             files.append(override)
