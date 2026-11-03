@@ -12,11 +12,18 @@
     "typecheck": "next typegen && tsc --noEmit --incremental false",
     "validate": "npm run lint && npm run typecheck && npm run build",
     "test": "vitest run",
+    "test:server": "vitest run tests/server",
     "test:client:coverage": "vitest run --coverage --coverage.reportsDirectory=coverage/client tests/client",
     "test:component:coverage": "vitest run --coverage --coverage.reportsDirectory=coverage/component tests/component",
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@opentelemetry/api": "1.9.0",
+    "@opentelemetry/context-async-hooks": "2.12.0",
+    "@opentelemetry/core": "2.12.0",
+    "@opentelemetry/exporter-trace-otlp-http": "0.223.0",
+    "@opentelemetry/resources": "2.12.0",
+    "@opentelemetry/sdk-trace": "2.12.0",
     "next": "16.3.7",
     "react": "19.2.8",
     "react-dom": "19.2.8"

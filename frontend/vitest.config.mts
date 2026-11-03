@@ -7,7 +7,11 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     fsModuleCache: true,
-    include: ["tests/component/**/*.test.{ts,tsx}", "tests/client/**/*.test.{ts,tsx}"],
+    include: [
+      "tests/component/**/*.test.{ts,tsx}",
+      "tests/client/**/*.test.{ts,tsx}",
+      "tests/server/**/*.test.ts",
+    ],
     setupFiles: ["./tests/setup.ts"],
     restoreMocks: true,
     clearMocks: true,
@@ -40,6 +44,8 @@ export default defineConfig({
         "app/restaurants/**/page.tsx",
         "app/restaurants/**/layout.tsx",
         "lib/api/server.ts",
+        // Startup wiring is exercised by the real host/standalone integration harness.
+        "lib/telemetry/node.ts",
       ],
     },
   },

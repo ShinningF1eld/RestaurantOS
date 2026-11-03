@@ -127,8 +127,10 @@ a restricted container on a random loopback port with an intentionally unavailab
 runtime API, verifies homepage/login/public assets and linked static assets, and
 executes the health command. Cleanup removes only its uniquely named container
 and verifies removal, including with `--inject-failure-after healthy`.
-It never connects to the application database. These are packaging/liveness
-checks, not HTTPS/authentication/SSR tenant-isolation proofs.
+It never connects to the application database. It also rejects server telemetry
+markers in browser bundles. These are packaging/liveness checks; actual
+authenticated SSR trace propagation, source privacy and Collector-failure checks
+use the existing [monitoring test owners](monitoring.md#nextjs-ssr-acceptance-60).
 
 The shared `image` gate now requires **both** checkers; its name and ten-gate
 aggregate remain unchanged. Unit policy tests verify both are mandatory and

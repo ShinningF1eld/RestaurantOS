@@ -1,5 +1,24 @@
 # RestaurantOS current state
 
+## Current M9 observability issue #60 — Next.js server traces
+
+Optional Node-only server instrumentation now links authenticated SSR calls through
+the existing API client to FastAPI traces. Exported spans use fixed names and
+allowlisted route templates, with privacy snapshots before bounded queueing and
+an independent Collector frontend policy. Existing access-cookie forwarding,
+no-store/redirect protections, browser renewal, CSRF and tenant policies remain.
+See the [frontend telemetry contract](api/frontend-observability.md) for explicit
+host/container settings, trusted API peer configuration and shutdown/loss limits.
+
+The [dated issue #60 evidence](milestone9-observability/verification-milestone9-issue60.md)
+records real host/container Tempo ancestry and source-export canary checks,
+Collector outage/startup/shutdown, standalone packaging, full browser journeys,
+fast/static/build gates and remaining verification limits. No schema/business API
+change or application database migration is required. Browser SDK/navigation
+timings, infrastructure/worker tracing and final M9 acceptance remain separate.
+The unchanged Next.js 16.3.7 pin has runtime security advisories recorded there;
+this tracing change does not establish production readiness.
+
 ## Current M9 observability issue #59 — API implementation
 
 The working implementation adds optional process-scoped API OpenTelemetry HTTP
@@ -15,8 +34,9 @@ snapshots and partial SDK initialization cleanup. Fresh verification includes
 485 unit tests, 355 PostgreSQL integration tests, static/baseline/image gates,
 and actual stored signals after a quiet cumulative re-export. This is API-slice
 evidence, not full M9 acceptance. No commits or publication were requested.
-Next.js, infrastructure, outbox/worker tracing, business signals and dashboards
-remain #60–#64 work. The #58 entries below retain their dated scope.
+Next.js server tracing is recorded in the #60 entry above. Infrastructure,
+outbox/worker tracing, business signals and dashboards remain #61–#64 work.
+The #58 entries below retain their dated scope.
 
 ## Current M9 observability issue #58 — local foundation
 

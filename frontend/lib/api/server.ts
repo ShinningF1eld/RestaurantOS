@@ -4,6 +4,8 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { checkResponse } from "./errors";
 import { safeReturnPath } from "@/features/auth/paths";
+import { trace, SpanKind, SpanStatusCode } from "@opentelemetry/api";
+import { apiTraceHeaders } from "@/lib/telemetry/context";
 import type { Restaurant } from "@/types/restaurant";
 import type { Menu } from "@/types/menu";
 import type { MenuItem } from "@/types/menu_item";
@@ -16,11 +18,26 @@ export { ApiError } from "./errors";
 async function read<T>(path: string): Promise<T> {
   const origin = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
   const access = (await cookies()).get("ros_access")?.value;
-  const response = await fetch(`${origin.replace(/\/$/, "")}${path}`, {
-    headers: access ? { Cookie: `ros_access=${encodeURIComponent(access)}` } : {},
-    cache: "no-store",
-    redirect: "error",
-  });
+  const destination = new URL(`${origin.replace(/\/$/, "")}${path}`);
+  const response = await trace
+    .getTracer("restaurantos.frontend", "1")
+    .startActiveSpan("API request", { kind: SpanKind.CLIENT }, async (span) => {
+      try {
+        return await fetch(destination.href, {
+          headers: {
+            ...apiTraceHeaders(destination, new URL(origin).origin),
+            ...(access ? { Cookie: `ros_access=${encodeURIComponent(access)}` } : {}),
+          },
+          cache: "no-store",
+          redirect: "error",
+        });
+      } catch (error) {
+        span.setStatus({ code: SpanStatusCode.ERROR });
+        throw error;
+      } finally {
+        span.end();
+      }
+    });
   if (response.status === 401) {
     const next = safeReturnPath((await headers()).get("x-restaurantos-path"));
     redirect(`/session/renew?next=${encodeURIComponent(next)}`);

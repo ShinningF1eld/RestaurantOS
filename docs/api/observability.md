@@ -3,7 +3,8 @@
 Issue #59 adds optional API-boundary telemetry using OpenTelemetry Python SDK
 1.45.1 and OTLP/HTTP protobuf. It changes no HTTP routes, bodies, authentication,
 database schema, transaction ownership, or health/readiness dependencies.
-Next.js, database/Redis spans, outbox trace persistence, workers, business metrics
+Optional [Next.js server traces](frontend-observability.md) continue SSR requests through
+this API boundary. Database/Redis spans, outbox trace persistence, workers, business metrics
 and operator dashboards remain separate M9 work.
 
 ## Configuration

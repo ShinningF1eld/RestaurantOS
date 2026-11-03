@@ -222,6 +222,7 @@ def gate(name, env):
             "scripts/benchmark-event-freshness.py",
             "scripts/check-backend-image.py",
             "scripts/check-frontend-image.py",
+            "scripts/check-frontend-observability.py",
             "scripts/check-monitoring-config.py",
             "scripts/check-monitoring.py",
             "scripts/check-api-observability.py",
@@ -281,7 +282,11 @@ def gate(name, env):
             )
             run(python, "-m", "alembic", "check", cwd=BACKEND, env=isolated)
     elif name == "frontend-tests":
-        for script in ("test:client:coverage", "test:component:coverage"):
+        for script in (
+            "test:client:coverage",
+            "test:component:coverage",
+            "test:server",
+        ):
             run(npm, "run", script, cwd=FRONTEND)
     elif name == "frontend-build":
         import runpy

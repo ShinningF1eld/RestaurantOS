@@ -4,6 +4,31 @@ All commands run from the root with the supported Python 3.12 test environment.
 They use local Docker only and never select the application database or developer
 monitoring project. No credentialed browser traces are collected.
 
+## Next.js SSR acceptance (#60)
+
+After the `image` gate builds both production images:
+
+```powershell
+backend/.venv/Scripts/python.exe scripts/check-frontend-observability.py --mode host
+backend/.venv/Scripts/python.exe scripts/check-frontend-observability.py --mode container
+```
+
+These reuse the existing test service/database/monitoring owners, seed two private
+synthetic tenants and query actual Tempo traces for server/client/API ancestry.
+Host mode builds and starts real production Next.js; container mode runs the
+actual standalone image and API image using internal DNS and exact trusted peer
+configuration. Both check rendered synthetic private data, absent telemetry
+canaries, malformed/missing context, SSR renewal redirects, foreign access and
+Collector-absent cold startup/requests/shutdown. The developer database is never
+selected. Full Chromium renewal/permission journeys remain in `browser`; run it
+with `MONITORING_ENABLED=true` and an unavailable local Collector to verify the
+same flows under monitoring failure. Authentication browser traces remain off.
+
+`frontend-tests` also runs the Node server suite, including actual OTLP serialization
+to a local synthetic receiver, propagation trust and SSR cookie/401 contracts.
+The image checker rejects telemetry markers in browser bundles. The focused
+checks supplement the shared gates and do not establish full M9 acceptance.
+
 ## API HTTP acceptance (#59)
 
 ```powershell

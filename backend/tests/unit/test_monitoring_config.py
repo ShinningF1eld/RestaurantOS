@@ -31,7 +31,8 @@ def test_collector_limits_apply_before_buffering_and_export():
     assert batch["metadata_keys"] == []
     for name, pipeline in collector["service"]["pipelines"].items():
         assert pipeline["processors"][0] == "memory_limiter"
-        policy = "api" if name.endswith("/api") else "synthetic"
+        policy = name.split("/", 1)[1] if "/" in name else "synthetic"
+        assert policy in {"api", "frontend", "synthetic"}
         assert pipeline["processors"].index("transform/" + policy) < pipeline[
             "processors"
         ].index("batch")
@@ -51,6 +52,40 @@ def test_collector_limits_apply_before_buffering_and_export():
         "otlp_http/loki",
         "otlp_http/tempo",
     }
+
+
+def test_frontend_policy_is_trace_only_with_independent_privacy_filtering():
+    collector = config("otel-collector.yaml")
+    pipelines = collector["service"]["pipelines"]
+    assert set(pipelines) == {
+        "metrics",
+        "logs",
+        "traces",
+        "metrics/api",
+        "logs/api",
+        "traces/api",
+        "traces/frontend",
+    }
+    assert pipelines["traces/frontend"]["processors"] == [
+        "memory_limiter",
+        "filter/frontend",
+        "transform/frontend",
+        "batch",
+    ]
+    conditions = collector["processors"]["filter/frontend"]["trace_conditions"]
+    assert conditions[0]["conditions"] == [
+        'resource.attributes["service.name"] != "restaurantos-frontend"'
+    ]
+    assert conditions[-1] == {"context": "spanevent", "conditions": ["true"]}
+    statements = collector["processors"]["transform/frontend"]["trace_statements"]
+    assert 'keep_keys(span.attributes, ["http.route"])' in statements
+    assert 'set(span.status.message, "")' in statements
+    assert 'set(span.trace_state, "")' in statements
+    assert 'keep_keys(resource.attributes, ["service.name"])' in statements
+    assert any(
+        '"<unmatched>"' in statement and "IsMatch" in statement
+        for statement in statements
+    )
 
 
 def test_workload_metrics_expire_and_self_metrics_have_a_separate_scrape():
