@@ -314,3 +314,62 @@ def test_relay_stops_between_successful_batches(unit_settings, monkeypatch):
         wait.assert_not_awaited()
 
     asyncio.run(scenario())
+
+
+def test_metric_collection_failure_keeps_freshness_until_success(
+    unit_settings, monkeypatch
+):
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import InMemoryMetricReader
+    from app.modules.events import telemetry
+    from app.modules.events.repo.worker_queries import BacklogSample
+    import app.modules.events.worker.runtime as runtime_module
+
+    reader = InMemoryMetricReader()
+    provider = MeterProvider(metric_readers=[reader], shutdown_on_exit=False)
+    metrics = telemetry.WorkerMetrics(provider, 0)
+    ticks = iter((1000, 2000))
+    monkeypatch.setattr(telemetry, "time", lambda: next(ticks))
+    metrics.snapshot([BacklogSample("analytics", "queued", 12, 100)])
+    monkeypatch.setattr(
+        runtime_module, "runtime", lambda: SimpleNamespace(worker_metrics=metrics)
+    )
+    worker = EventWorker(unit_settings, object())
+    calls = 0
+
+    async def backlog():
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise SQLAlchemyError("private")
+        return []
+
+    worker.event_service = SimpleNamespace(
+        backlog=backlog, progress=AsyncMock(return_value=[])
+    )
+    collected = []
+
+    async def wait(stop, delay):
+        assert delay == 15000
+        data = {
+            m.name: m
+            for r in reader.get_metrics_data().resource_metrics
+            for s in r.scope_metrics
+            for m in s.metrics
+        }
+        collected.append(
+            data["restaurantos.worker.collected"].data.data_points[0].value
+        )
+        assert (
+            data["restaurantos.worker.collection.failures"].data.data_points[0].value
+            == 1
+        )
+        if calls == 2:
+            stop.set()
+
+    monkeypatch.setattr(worker, "_wait", wait)
+    try:
+        asyncio.run(worker._metrics_loop(asyncio.Event()))
+        assert collected == [1000, 2000]
+    finally:
+        provider.shutdown()

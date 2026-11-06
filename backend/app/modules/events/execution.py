@@ -22,6 +22,8 @@ from app.modules.analytics.service import apply_order_event
 from app.modules.alerts.service import apply_alert_event
 from app.modules.notifications.service import apply_notification_event
 
+from app.modules.events.telemetry import Operation, operation, routing
+
 from app.modules.events.domain.contracts import (
     ConsumerName,
     EventEnvelope,
@@ -112,6 +114,7 @@ class AttemptClaim:
     attempt_number: int
     retry_cycle: int
     replay_id: UUID | None
+    traceparent: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,8 +191,26 @@ class ConsumerExecutionService:
         await self.settle_failures()
         started = await self._start(event_id, consumer, reference, worker_id)
         if isinstance(started, ExecutionResult):
+            routing(consumer, started.outcome)
             return started
         claim = started
+        with operation(
+            "consumer",
+            claim.traceparent,
+            event_id=str(claim.event.event_id),
+            event_type=claim.event.event_type,
+            consumer=claim.consumer,
+            correlation_id=claim.event.correlation_id,
+            attempt_id=str(claim.attempt_id),
+            attempt_number=claim.attempt_number,
+            retry_cycle=claim.retry_cycle,
+            replay_id=str(claim.replay_id) if claim.replay_id else None,
+        ) as observation:
+            return await self._execute_claim(claim, observation)
+
+    async def _execute_claim(
+        self, claim: AttemptClaim, observation: "Operation"
+    ) -> ExecutionResult:
         self._log(claim, "started")
         if self.hooks.after_start:
             await self.hooks.after_start(claim)
@@ -201,12 +222,15 @@ class ConsumerExecutionService:
             # If PostgreSQL itself is unavailable, the running claim survives and
             # recovery will fence it. No uncommitted effect can become visible.
             self._unsettled[claim.attempt_id] = (claim, failure)
+            observation.finish("observation_failure", failure.category)
             result = await self._finish_failure(claim, failure)
             self._unsettled.pop(claim.attempt_id, None)
+            observation.finish(result.outcome, failure.category)
             self._log(claim, result.outcome, failure.category)
             if failure.infrastructure:
                 raise DependencyUnavailable() from None
             return result
+        observation.finish(result.outcome)
         self._log(claim, result.outcome)
         if result.acknowledge and self.hooks.after_commit:
             await self.hooks.after_commit(claim)
@@ -361,6 +385,7 @@ class ConsumerExecutionService:
                 attempt.attempt_number,
                 delivery.retry_cycle,
                 await queries.replay_identity(session, delivery),
+                event.traceparent,
             )
 
     async def _effect(self, claim: AttemptClaim) -> ExecutionResult:

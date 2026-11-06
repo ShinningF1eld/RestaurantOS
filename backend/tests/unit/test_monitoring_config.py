@@ -32,7 +32,7 @@ def test_collector_limits_apply_before_buffering_and_export():
     for name, pipeline in collector["service"]["pipelines"].items():
         assert pipeline["processors"][0] == "memory_limiter"
         policy = name.split("/", 1)[1] if "/" in name else "synthetic"
-        assert policy in {"api", "frontend", "synthetic", "diagnostics"}
+        assert policy in {"api", "frontend", "synthetic", "diagnostics", "worker"}
         assert pipeline["processors"].index("transform/" + policy) < pipeline[
             "processors"
         ].index("batch")
@@ -66,6 +66,8 @@ def test_frontend_policy_is_trace_only_with_independent_privacy_filtering():
         "logs/api",
         "traces/api",
         "traces/frontend",
+        "traces/worker",
+        "metrics/worker",
     }
     assert pipelines["traces/frontend"]["processors"] == [
         "memory_limiter",

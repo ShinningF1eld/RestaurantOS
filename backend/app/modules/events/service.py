@@ -9,6 +9,7 @@ from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.trace_context import capture_traceparent
 from app.core.request_id import get_request_id, new_request_id
 
 from app.modules.events.domain.contracts import (
@@ -61,6 +62,7 @@ async def append_event(session: AsyncSession, envelope: EventEnvelope) -> Outbox
         occurred_at=envelope.occurred_at,
         correlation_id=envelope.correlation_id,
         payload=serialized["payload"],
+        traceparent=capture_traceparent(),
     )
     deliveries = [
         EventDelivery(event_id=envelope.event_id, consumer_name=consumer)

@@ -17,6 +17,7 @@ from app.core.config import Settings
 from app.modules.events.domain.contracts import ConsumerName
 from app.modules.events.domain.retries import RetryPolicy
 from app.modules.events.domain.diagnostics import safe_identifier
+from app.modules.events.telemetry import Operation, operation, runtime
 from app.modules.events.execution import ConsumerExecutionService, DependencyUnavailable
 from app.modules.events.repo.worker_queries import DeliveryClaim
 from app.modules.events.worker.redis import (
@@ -86,6 +87,7 @@ class EventWorker:
         )
         tasks = [
             asyncio.create_task(self._relay_loop(stop), name="event-relay"),
+            asyncio.create_task(self._metrics_loop(stop), name="event-metrics"),
             asyncio.create_task(self._recovery_loop(stop), name="event-recovery"),
         ]
         tasks.extend(
@@ -305,58 +307,76 @@ class EventWorker:
         self, claim: DeliveryClaim, semaphore: asyncio.Semaphore
     ) -> bool:
         async with semaphore:
+            with operation(
+                "publish",
+                claim.traceparent,
+                event_id=str(claim.event_id),
+                event_type=claim.event_type,
+                delivery_id=str(claim.delivery_id),
+                consumer=claim.consumer_name,
+                claim_id=str(claim.claim_token),
+                correlation_id=claim.correlation_id,
+            ) as observation:
+                return await self._publish_observed(claim, observation)
+
+    async def _publish_observed(
+        self, claim: DeliveryClaim, observation: "Operation"
+    ) -> bool:
+        try:
+            if self.hooks.after_claim is not None:
+                await self.hooks.after_claim(claim)
+            message_id = await self.streams.publish(claim)
+            if self.hooks.after_publish is not None:
+                await self.hooks.after_publish(claim, message_id)
+            owned = await self.event_service.observe_publication(claim)
+            observation.finish("published" if owned else "claim_lost")
+            logger.info(
+                "event_worker_publication_observed",
+                extra={
+                    "event": "worker_publication",
+                    "event_id": str(claim.event_id),
+                    "consumer_name": claim.consumer_name,
+                    "worker_id": self.worker_id,
+                    "claim_id": str(claim.claim_token),
+                    "correlation_id": safe_identifier(claim.correlation_id),
+                    "transport_message_id": message_id,
+                    "outcome": "published" if owned else "claim_lost",
+                },
+            )
+            return False
+        except asyncio.CancelledError:
+            raise
+        except WorkerRedisFailure as error:
+            observation.finish("transport_failure", error.kind.value)
+            delay = max(
+                self._initial_backoff(),
+                self.settings.event_worker_redis_operation_budget_ms * 2,
+            )
+            delay = min(delay, self.settings.event_worker_infra_backoff_max_ms)
             try:
-                if self.hooks.after_claim is not None:
-                    await self.hooks.after_claim(claim)
-                message_id = await self.streams.publish(claim)
-                if self.hooks.after_publish is not None:
-                    await self.hooks.after_publish(claim, message_id)
-                owned = await self.event_service.observe_publication(claim)
-                logger.info(
-                    "event_worker_publication_observed",
-                    extra={
-                        "event": "worker_publication",
-                        "event_id": str(claim.event_id),
-                        "consumer_name": claim.consumer_name,
-                        "worker_id": self.worker_id,
-                        "claim_id": str(claim.claim_token),
-                        "correlation_id": safe_identifier(claim.correlation_id),
-                        "transport_message_id": message_id,
-                        "outcome": "published" if owned else "claim_lost",
-                    },
+                await self.event_service.defer_claim_after_transport_failure(
+                    claim,
+                    retry_after_ms=delay,
+                    failure_category=f"redis_{error.kind.value}",
                 )
-                return False
-            except asyncio.CancelledError:
-                raise
-            except WorkerRedisFailure as error:
-                delay = max(
-                    self._initial_backoff(),
-                    self.settings.event_worker_redis_operation_budget_ms * 2,
-                )
-                delay = min(delay, self.settings.event_worker_infra_backoff_max_ms)
-                try:
-                    await self.event_service.defer_claim_after_transport_failure(
-                        claim,
-                        retry_after_ms=delay,
-                        failure_category=f"redis_{error.kind.value}",
-                    )
-                except SQLAlchemyError:
-                    self._log_database_failure(
-                        outcome="claim_cooldown_unrecorded", claim=claim
-                    )
-                self._log_redis_failure(
-                    error,
-                    outcome="publication_deferred",
-                    consumer_name=claim.consumer_name,
-                    event_id=claim.event_id,
-                    claim=claim,
-                )
-                return True
             except SQLAlchemyError:
                 self._log_database_failure(
-                    outcome="publication_observation_unrecorded", claim=claim
+                    outcome="claim_cooldown_unrecorded", claim=claim
                 )
-                return True
+            self._log_redis_failure(
+                error,
+                outcome="publication_deferred",
+                consumer_name=claim.consumer_name,
+                event_id=claim.event_id,
+                claim=claim,
+            )
+            return True
+        except SQLAlchemyError:
+            observation.finish("observation_failure", "postgres_unavailable")
+            self._log_database_failure(
+                outcome="publication_observation_unrecorded", claim=claim
+            )
+            return True
 
     async def _recovery_loop(self, stop: asyncio.Event) -> None:
         backoff = self._initial_backoff()
@@ -680,3 +700,23 @@ class EventWorker:
                 "outcome": "left_pending",
             },
         )
+
+    async def _metrics_loop(self, stop: asyncio.Event) -> None:
+        while not stop.is_set():
+            active = runtime()
+            if active is not None:
+                try:
+                    async with asyncio.timeout(3):
+                        rows = await self.event_service.backlog()
+                        progress = await self.event_service.progress()
+                    active.worker_metrics.snapshot(rows)
+                    active.worker_metrics.progress_snapshot(progress)
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    logger.warning("worker metric collection failed")
+                    try:
+                        active.worker_metrics.collection_failed()
+                    except Exception:
+                        pass
+            await self._wait(stop, 15000)

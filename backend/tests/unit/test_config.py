@@ -57,3 +57,9 @@ def test_settings_rejects_non_async_postgresql_database_url(
             auth_jwt_secret=unit_settings_kwargs["auth_jwt_secret"],
             auth_rate_limit_secret=unit_settings_kwargs["auth_rate_limit_secret"],
         )
+
+
+@pytest.mark.parametrize("slot", [-1, 32, "private"])
+def test_worker_metric_slot_rejects_unbounded_values(unit_settings_kwargs, slot):
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **unit_settings_kwargs, monitoring_worker_slot=slot)

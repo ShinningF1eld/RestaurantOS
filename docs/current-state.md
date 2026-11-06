@@ -1,5 +1,60 @@
 # RestaurantOS current state
 
+## Current M9 observability issue #62 — durable worker diagnostics
+
+Follow-up on 2026-11-06 resolves the reproduced multi-worker counter collision
+using explicit bounded `MONITORING_WORKER_SLOT` assignments (0–31), preserved by
+source instrumentation and Collector admission. Concurrent workers require
+separate slots; an unassigned worker retains traces and durable gauges but omits
+process-local event/SQL/Redis/pool metrics with a safe warning. API behavior and
+business/event schemas are unchanged. See the [current issue #62 verification](milestone9-observability/verification-milestone9-issue62.md)
+for the current six-criterion mapping and historical finding.
+
+Fresh follow-up checks pass **527 unit tests**, Ruff/format/mypy, **373 integration
+tests with one existing opt-in stored-API monitoring skip**, clean/seeded migrations
+and drift detection, baseline, image and all four native monitoring parsers.
+The focused telemetry module/native-export regression passes **16 tests**,
+including independent counter/histogram streams and restart, non-NULL rollback,
+all-consumer HTTP-to-restarted-worker exact ID links, publication outcomes,
+pre-column legacy processing, SQL timeout/recovery, unavailable/rejecting/slow
+Collector behavior, bounded queue drops, resumed export and Redis ACK recovery.
+The pinned encoder's wire-link flag limitation and explicit slot assignment/reset
+contract are documented. Full M9 incident/dashboard/capacity acceptance remains
+separate. The earlier implementation evidence below predates this follow-up.
+
+Outbox metadata now retains optional validated trace context without changing v1
+payloads. Relay publications and durable consumer claims use independent linked
+spans, shared worker lifecycle/exporters, operational attempt/routing metrics, and
+bounded PostgreSQL backlog/recent-receipt snapshots. See the [event contract](api/events.md#restart-safe-worker-telemetry-m9-issue-62)
+for definitions, privacy, migration compatibility and retention/loss limits, and
+[verification commands](testing/monitoring.md#issue-62-worker-verification).
+New additive migration `d4e9f2a63b85` has not been applied to the developer database.
+Full M9 dashboard/alert and final operational acceptance remain separate.
+
+Local verification on 2026-11-06 used
+`backend/.venv/bin/python scripts/validate.py --gate <gate> --no-install` for
+`backend-unit` (518 passed), `backend-integration` (363 passed, one existing
+opt-in stored-API monitoring test skipped), `backend-static`, `migrations`,
+`baseline` and `image`; all six final gates passed. The final integration gate
+also passed `alembic check`. Clean and seeded migration paths retained one head,
+legacy NULL context, business rows and event/delivery/attempt/receipt/replay
+history through the metadata/index downgrade and re-upgrade. Offline SQL was
+inspected: no event/business row deletion or payload update is introduced.
+
+Six focused PostgreSQL/Redis tests also passed with actual decoded OTLP exports:
+transactional persistence/rollback, linked failed/retried/terminal/replayed
+attempts, duplicate receipt handling, all backlog states/age, real worker death
+and restart after a claim, multiple consumers and NULL-context events, and
+rejecting Collector responses. Real process repair/duplicate ACK preserves one
+diagnostic effect; completed-order processing preserves one 12.50 sales
+contribution and two consumer receipts even during Collector rejection. Span
+links, attempt/replay IDs, metric names/bounded labels and synthetic canary
+exclusion were inspected before Collector filtering. The pinned Collector,
+Prometheus, Loki and Tempo parser checks passed. Test processes and disposable
+Compose/database resources were cleaned up. Initial harness assertion/cleanup
+failures were corrected before these final passes. No developer application
+migration, dependency upgrade, commit, push or publication was performed.
+
 ## Current M9 observability issue #61 — PostgreSQL and Redis diagnostics
 
 Optional API/worker engine hooks now observe safe SQL operation duration, slow/

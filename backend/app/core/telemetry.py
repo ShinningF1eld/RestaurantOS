@@ -144,9 +144,9 @@ class Telemetry:
                 sampler=ALWAYS_ON,
                 shutdown_on_exit=False,
                 span_limits=SpanLimits(
-                    max_attributes=8,
+                    max_attributes=16 if role == "worker" else 8,
                     max_events=0,
-                    max_links=0,
+                    max_links=1 if role == "worker" else 0,
                     max_attribute_length=128,
                 ),
             )
@@ -223,7 +223,17 @@ class Telemetry:
             )
             self.providers.append(self.metrics)
             self.pending.remove(reader)
-            self.diagnostics = Diagnostics(self.metrics, role)
+            self.diagnostics = Diagnostics(
+                self.metrics, role, settings.monitoring_worker_slot
+            )
+            if role == "worker":
+                from app.modules.events.telemetry import WorkerMetrics
+
+                self.worker_metrics = WorkerMetrics(
+                    self.metrics, settings.monitoring_worker_slot
+                )
+                if settings.monitoring_worker_slot is None:
+                    logger.warning("worker process metrics require slot")
             meter = self.metrics.get_meter(SCOPE, "1")
             self.requests = meter.create_counter("restaurantos.http.requests", unit="1")
             self.duration = meter.create_histogram(

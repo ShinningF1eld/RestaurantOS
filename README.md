@@ -102,7 +102,10 @@ Grafana credentials, isolated acceptance and measured resource limits. It does
 not start with the application or migrate its database. Optional [Next.js server tracing](docs/api/frontend-observability.md)
 connects authenticated SSR requests to API traces. Optional [PostgreSQL/Redis diagnostics](monitoring/database-redis.md)
 add SQL/pool/API-worker Redis and catalog cache signals with restricted collection.
-Worker tracing, operational dashboards and final alert objectives follow in later M9 issues.
+Restart-safe [worker trace links and durable backlog metrics](docs/api/events.md#restart-safe-worker-telemetry-m9-issue-62)
+are available; process-local worker metrics require a distinct bounded
+`MONITORING_WORKER_SLOT` per concurrent worker. Operational dashboards and final
+alert objectives remain later M9 work.
 
 ## Prerequisites
 

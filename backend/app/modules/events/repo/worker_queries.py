@@ -29,6 +29,7 @@ class DeliveryClaim:
     correlation_id: str
     claim_token: UUID
     claim_owner: str
+    traceparent: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +39,7 @@ class StoredDelivery:
     next_attempt_at: datetime | None
     is_due: bool
     receipt_outcome: str | None
+    traceparent: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,6 +127,7 @@ async def claim_due_deliveries(
                 correlation_id=event.correlation_id,
                 claim_token=token,
                 claim_owner=owner,
+                traceparent=event.traceparent,
             )
         )
     await session.flush()
@@ -280,6 +283,7 @@ async def load_stored_delivery(
         next_attempt_at=(delivery.next_attempt_at if delivery is not None else None),
         is_due=bool(is_due) if delivery is not None else False,
         receipt_outcome=receipt_outcome,
+        traceparent=event.traceparent,
     )
 
 
@@ -311,3 +315,69 @@ async def retained_work_counts(
         attempts=attempts,
         unfinished=unfinished,
     )
+
+
+@dataclass(frozen=True, slots=True)
+class BacklogSample:
+    consumer: str
+    state: str
+    depth: int
+    oldest_seconds: float
+
+
+async def backlog_samples(session: AsyncSession) -> list[BacklogSample]:
+    """Only unfinished/terminal rows, using due/lease indexes; bounded statement time.
+
+    Completed history is excluded. Expired processing claims require recovery,
+    whereas an active relay claim is already in flight even while still pending.
+    """
+    from sqlalchemy import case, text
+
+    await session.execute(text("SET LOCAL statement_timeout = '1000ms'"))
+    state = case(
+        (EventDelivery.status == "failed", "terminal"),
+        (EventDelivery.claim_expires_at > func.now(), "in_flight"),
+        (EventDelivery.status == "processing", "recovery_due"),
+        (EventDelivery.next_attempt_at > func.now(), "retry_delayed"),
+        else_="queued",
+    )
+    rows = (
+        await session.execute(
+            select(
+                EventDelivery.consumer_name,
+                state,
+                func.count(),
+                func.greatest(
+                    0,
+                    func.extract(
+                        "epoch", func.now() - func.min(EventDelivery.created_at)
+                    ),
+                ),
+            )
+            .where(EventDelivery.status.in_(("pending", "processing", "failed")))
+            .group_by(EventDelivery.consumer_name, state)
+        )
+    ).all()
+    return [
+        BacklogSample(consumer, state, depth, float(age))
+        for consumer, state, depth, age in rows
+    ]
+
+
+async def progress_samples(session: AsyncSession) -> list[tuple[str, int, float]]:
+    """Indexed receipt window, not a scan of complete business history."""
+    from sqlalchemy import text
+
+    await session.execute(text("SET LOCAL statement_timeout = '1000ms'"))
+    rows = (
+        await session.execute(
+            select(
+                EventReceipt.consumer_name,
+                func.count(),
+                func.extract("epoch", func.max(EventReceipt.processed_at)),
+            )
+            .where(EventReceipt.processed_at >= func.now() - timedelta(minutes=5))
+            .group_by(EventReceipt.consumer_name)
+        )
+    ).all()
+    return [(consumer, count, float(latest)) for consumer, count, latest in rows]

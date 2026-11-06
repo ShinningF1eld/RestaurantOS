@@ -48,7 +48,11 @@ async def probe(role):
     reader = InMemoryMetricReader()
     provider = MeterProvider(metric_readers=[reader], shutdown_on_exit=False)
     owner = telemetry.worker_lifecycle if role == "worker" else telemetry.lifecycle
-    owner.runtime = SimpleNamespace(diagnostics=diagnostics.Diagnostics(provider, role))
+    owner.runtime = SimpleNamespace(
+        diagnostics=diagnostics.Diagnostics(
+            provider, role, 0 if role == "worker" else None
+        )
+    )
     settings = Settings(_env_file=None)
     if role == "worker":
         from app.db.worker import create_worker_engine

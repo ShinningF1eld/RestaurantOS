@@ -58,6 +58,7 @@ def worker_settings(**updates):
     return get_settings().model_copy(
         update={
             "redis_test_namespace": "event-worker-" + uuid4().hex,
+            "monitoring_worker_slot": 0,
             "event_worker_redis_operation_budget_ms": 500,
             "event_worker_redis_block_ms": 100,
             "event_worker_claim_batch_size": 1,
@@ -79,6 +80,7 @@ def process_environment(
     settings, *, pause_at=None, redis_url=None, test_analytics=False
 ):
     values = {
+        "monitoring_worker_slot": "MONITORING_WORKER_SLOT",
         "event_worker_redis_operation_budget_ms": "EVENT_WORKER_REDIS_OPERATION_BUDGET_MS",
         "event_worker_redis_block_ms": "EVENT_WORKER_REDIS_BLOCK_MS",
         "event_worker_redis_max_connections": "EVENT_WORKER_REDIS_MAX_CONNECTIONS",

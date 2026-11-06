@@ -451,6 +451,10 @@ def verify_event_history_downgrade_guard(
             (event_id,),
         ).fetchall()
 
+    verify_trace_metadata_migration(database, env, head)
+    with psycopg.connect(database.sync_url) as connection:
+        before_schema = schema_snapshot(connection)
+
     result = subprocess.run(
         [
             sys.executable,
@@ -635,6 +639,59 @@ def verify_alert_sink_downgrade_guard(
     run_alembic("check", env=env)
     print(
         "PASS: alert/sink downgrade guards and empty downgrade/re-upgrade preserve schema and history",
+        flush=True,
+    )
+
+
+def verify_trace_metadata_migration(
+    database: TestDatabase, env: Mapping[str, str], head: str
+) -> None:
+    """Seeded historical event/delivery/attempt/receipt/replay preservation."""
+    tables = (
+        "outbox_events",
+        "event_deliveries",
+        "event_delivery_attempts",
+        "event_receipts",
+        "event_delivery_replays",
+    )
+
+    def snapshot(connection):
+        return {
+            table: connection.execute(
+                "SELECT to_jsonb(t) - 'traceparent' FROM "
+                + table
+                + " t ORDER BY to_jsonb(t)::text"
+            ).fetchall()
+            for table in tables
+        }
+
+    with psycopg.connect(database.sync_url) as connection:
+        before = snapshot(connection)
+        business = legacy_data_snapshot(connection)
+        assert (
+            connection.execute(
+                "SELECT count(*) FROM outbox_events WHERE traceparent IS NOT NULL"
+            ).fetchone()[0]
+            == 0
+        )
+    # Compatible old code only: no ORM from the current app is run during downgrade.
+    run_alembic("downgrade", "c3d8e1f52a74", env=env)  # pragma: allowlist secret - public revision
+    with psycopg.connect(database.sync_url) as connection:
+        assert snapshot(connection) == before
+        assert legacy_data_snapshot(connection) == business
+    run_alembic("upgrade", head, env=env)
+    with psycopg.connect(database.sync_url) as connection:
+        assert snapshot(connection) == before
+        assert legacy_data_snapshot(connection) == business
+        assert (
+            connection.execute(
+                "SELECT count(*) FROM outbox_events WHERE traceparent IS NOT NULL"
+            ).fetchone()[0]
+            == 0
+        )
+    run_alembic("check", env=env)
+    print(
+        "PASS: seeded trace metadata downgrade/legacy upgrade preserve all history",
         flush=True,
     )
 
