@@ -14,6 +14,7 @@ Set these in the API environment, independently of optional monitoring startup:
 | Setting | Default | Bound/meaning |
 |---|---|---|
 | `MONITORING_ENABLED` | `false` | No providers/export threads when disabled |
+| `MONITORING_WORKER_SLOT` | unset | Worker-only process metric producer slot, 0–31; distinct across concurrent workers. Without it, worker traces/durable gauges remain enabled but process metrics are suppressed. See [slot rules](events.md#worker-metric-producer-slots). |
 | `MONITORING_ENDPOINT` | `http://localhost:4318` | HTTP(S) origin; no credentials, query or path; host guide below |
 | `MONITORING_TRUSTED_UPSTREAM_IPS` | `[]` | JSON list of at most 16 exact peer IPs; incoming traceparent ignored otherwise |
 | `MONITORING_EXPORT_TIMEOUT_SECONDS` | `1` | 0.1–2 seconds, SDK HTTP export/retry budget |

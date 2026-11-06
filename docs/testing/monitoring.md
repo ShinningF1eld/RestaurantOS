@@ -185,3 +185,47 @@ metrics/units/mappings, source pins, grants, cadence, unavailable measurements a
 the pinned Redis receiver's unenforced scraper-context timeout limitation.
 The existing API acceptance and #58 runtime matrix remain the HTTP/synthetic/
 log/trace/Collector interruption regressions; this check does not replace them.
+
+### Issue #62 worker verification
+
+Run the required worker gates from the repository root:
+
+```sh
+backend/.venv/bin/python scripts/validate.py --gate backend-unit --no-install
+backend/.venv/bin/python scripts/validate.py --gate backend-static --no-install
+backend/.venv/bin/python scripts/validate.py --gate backend-integration --no-install
+backend/.venv/bin/python scripts/validate.py --gate migrations --no-install
+backend/.venv/bin/python scripts/validate.py --gate baseline --no-install
+backend/.venv/bin/python scripts/validate.py --gate image --no-install
+```
+
+`test_event_telemetry.py` adds real SDK/privacy unit coverage and service-backed
+transactional context, linked retry/terminal/replay/duplicate observations, durable
+backlog and recent-receipt snapshots, including every operational state and
+expired-lease recovery. Integration tests capture decoded protobuf
+from a local isolated HTTP collector, including real `app.worker` processes after
+restart, real failed/retried/terminal attempts, authorized repair, duplicate ACKs
+and rejecting collector responses. Sales/receipt reconciliation checks the actual
+projection during collector rejection. Source-export canaries are checked
+before collector filtering. Existing event execution/projection suites retain
+receipt atomicity, crash/ACK windows, replay authorization and business totals
+coverage. The disposable migrations verifier exercises metadata-only downgrade
+and re-upgrade with retained event/delivery/attempt/receipt/replay and business
+facts. These gates do not establish full M9 dashboard/failure-exercise acceptance.
+
+
+Issue #62 follow-up adds a native Collector regression in
+`backend/tests/integration/test_event_metric_export.py`, selected by
+`backend-integration`. It starts only an owned, pinned Collector with worker and
+infrastructure metric pipelines on random loopback ports; it checks independent
+5/9 counter and histogram streams, quiet re-export, one-slot restart, no-slot
+suppression and unslotted durable gauge deduplication. The fixed producer label
+range is tested at settings/source creation and validated at Collector admission.
+`test_event_telemetry.py` additionally checks authenticated HTTP creation through
+worker restart for all three consumers, non-NULL rollback, trace/span IDs and
+remote bits, publication failure outcomes, pre-column insert/upgrade/processing,
+real SQL collection timeout/recovery, closed/rejecting/slow Collector modes,
+queue-full local diagnostics and post-outage export/ACK recovery. A pure metrics
+loop test confirms failed collection does not advance freshness, then success does.
+The test-only pressure barrier emits synthetic SDK spans outside transactions;
+it does not add production fault endpoints or business-effect attempts.

@@ -203,6 +203,7 @@ def main():
                     **isolated,
                     "PYTHONPATH": str(ROOT / "backend"),
                     "MONITORING_ENABLED": "true",
+                    "MONITORING_WORKER_SLOT": "0",
                     "MONITORING_ENDPOINT": endpoint,
                     "INFRASTRUCTURE_QUICK": "1" if quick else "0",
                     "INFRASTRUCTURE_COLLECTOR_ABSENT": "1" if collector_absent else "0",

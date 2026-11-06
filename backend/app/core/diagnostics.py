@@ -46,7 +46,11 @@ def pool_samples(role: str, field: str) -> Iterable[Observation]:
 
 
 class Diagnostics:
-    def __init__(self, provider: MeterProvider, role: str) -> None:
+    def __init__(
+        self, provider: MeterProvider, role: str, worker_slot: int | None = None
+    ) -> None:
+        self.role = role
+        self.worker_slot = worker_slot
         meter = provider.get_meter("restaurantos.infrastructure", "1")
         self.instruments: dict[str, Any] = {}
         for name in ("sql.duration", "pool.acquire.duration", "redis.duration"):
@@ -67,7 +71,22 @@ class Diagnostics:
 
         def callback(field: str) -> Any:
             def observe(options: Any) -> Iterable[Observation]:
-                return pool_samples(role, field)
+                if role == "worker" and worker_slot is None:
+                    return []
+                return [
+                    Observation(
+                        sample.value,
+                        {
+                            **(sample.attributes or {}),
+                            **(
+                                {"worker_slot": str(worker_slot)}
+                                if role == "worker"
+                                else {}
+                            ),
+                        },
+                    )
+                    for sample in pool_samples(role, field)
+                ]
 
             return observe
 
@@ -82,6 +101,10 @@ class Diagnostics:
         )
 
     def record(self, name: str, value: float, attributes: dict[str, str]) -> None:
+        if self.role == "worker":
+            if self.worker_slot is None:
+                return
+            attributes = {**attributes, "worker_slot": str(self.worker_slot)}
         instrument = self.instruments[name]
         if name.endswith("duration"):
             instrument.record(value, attributes)

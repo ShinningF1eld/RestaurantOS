@@ -65,6 +65,7 @@ class OutboxEvent(Base):
         DateTime(timezone=True), nullable=False
     )
     correlation_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    traceparent: Mapped[str | None] = mapped_column(String(55))
     payload: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     recorded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -97,6 +98,14 @@ class EventDelivery(Base):
         ),
         UniqueConstraint(
             "consumer_name", "event_id", name="uq_event_delivery_consumer_event"
+        ),
+        Index(
+            "ix_event_deliveries_observability",
+            "consumer_name",
+            "status",
+            "created_at",
+            postgresql_include=["next_attempt_at", "claim_expires_at"],
+            postgresql_where=text("status IN ('pending', 'processing', 'failed')"),
         ),
         Index("ix_event_deliveries_due", "consumer_name", "status", "next_attempt_at"),
         Index(

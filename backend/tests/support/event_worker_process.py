@@ -4,9 +4,12 @@ import asyncio
 import json
 import os
 import signal
+import sys
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
+from app.core.telemetry import worker_lifecycle
+from app.modules.events.domain.retries import RetryPolicy
 from app.core.config import get_settings
 from app.core.logging import configure_json_logging
 from app.db.worker import create_worker_engine
@@ -87,6 +90,7 @@ async def main() -> None:
             registry={**CONSUMERS, "notification_sink": poison_sink},
             lease_seconds=settings.event_worker_claim_lease_seconds,
             jitter=lambda: 0,
+            policy=RetryPolicy(settings.event_worker_max_attempts),
         )
     elif os.environ.get("EVENT_WORKER_TEST_EFFECTS") == "1":
         execution = ConsumerExecutionService(
@@ -139,12 +143,24 @@ async def main() -> None:
             ),
         )
     configure_json_logging(level=settings.log_level)
+    telemetry = worker_lifecycle.acquire(settings)
     try:
+        if (
+            telemetry is not None
+            and os.environ.get("EVENT_WORKER_TEST_TELEMETRY_PRESSURE") == "1"
+        ):
+            telemetry.tracer.start_span("pressure test").end()
+            print(json.dumps({"phase": "pressure_ready"}), flush=True)
+            await asyncio.to_thread(sys.stdin.readline)
+            for _ in range(4096):
+                telemetry.tracer.start_span("pressure test").end()
         await EventWorker(settings, sessions, hooks=hooks, execution=execution).run(
             stop
         )
     finally:
         await engine.dispose()
+        retired = worker_lifecycle.release(telemetry)
+        await asyncio.to_thread(retired.wait, settings.monitoring_shutdown_seconds)
 
 
 if __name__ == "__main__":

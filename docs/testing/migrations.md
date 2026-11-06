@@ -113,3 +113,10 @@ preservation assertions together. Prefer a baseline immediately before the
 migrations whose compatibility matters; do not advance it just because the
 repository head changed. If the order inventory guard is removed or replaced,
 update the downgrade scenario to cover the policy that supersedes it.
+
+Issue #62 adds nullable outbox `traceparent` at `d4e9f2a63b85`, without fabricated
+legacy context or payload changes. The seeded event-history scenario downgrades
+only that metadata to `c3d8e1f52a74`, compares retained event/delivery/attempt/
+receipt/replay and business facts, upgrades again, asserts NULL legacy context,
+and checks model drift. This downgrade requires compatible application code;
+it is not permission to downgrade the developer database.

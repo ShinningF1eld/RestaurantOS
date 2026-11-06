@@ -182,3 +182,133 @@ rewriting business data or generating historical events. Downgrade rejects
 retained provenance. Initialization, projection seeding, suppressed baseline
 facts and the marker commit atomically; an initialization rerun returns the
 existing marker without regenerating episodes or resetting deliveries/receipts.
+
+## Restart-safe worker telemetry (M9 issue #62)
+
+`outbox_events.traceparent` is nullable `varchar(55)` metadata, independent of
+schema-version-1 envelopes and `correlation_id`. Append captures the active
+recording OpenTelemetry span, validates exact lowercase W3C version `00`, nonzero
+128-bit trace/64-bit span identifiers and one byte of flags, and flushes it in
+the existing business transaction. Missing, nonrecording, malformed or unavailable
+context becomes NULL. No headers, baggage, tracestate or payload content is
+stored in this field. Existing immutable-row protection also protects it.
+
+PostgreSQL claims and attempt startup load this metadata; Redis references remain
+unchanged and cannot supply authoritative context. `outbox publish` (PRODUCER)
+and `consumer attempt` (CONSUMER) are independent root spans with at most one Link
+to that context. Local ALWAYS_ON sampling deliberately ignores the incoming
+sampling decision, including for unsampled links, as in the existing acceptance
+configuration. No HTTP span waits for a worker. Safe attributes are event ID/type,
+consumer, correlation ID, publication delivery/claim IDs, execution attempt ID/
+number, retry cycle and replay ID. Outcomes and allowlisted failure categories
+are added after the actual operation. Exception text and events are excluded.
+
+Publication distinguishes `published`, `claim_lost`, `transport_failure`,
+`observation_failure` and interruption. Success requires both the actual Redis
+publication and its fenced database observation. Each durable execution claim
+gets a separate span, ending after effect/receipt commit or failure settlement:
+`consumer_committed`, `consumer_retry_scheduled`, `consumer_failed`,
+`claim_superseded`, `claim_expired` or interruption. Attempts share event identity;
+retry/replay identities distinguish them. Duplicate receipts and busy routing
+checks are separate routing metrics/local structured logs, not effect attempts.
+
+Worker startup reuses `MONITORING_*`, the process-owned lifecycle, bounded batch
+queues, HTTP timeouts and daemon shutdown retirement. Telemetry does not export
+synchronously from append, claim, effect or settlement transactions. Shutdown
+waits at most `MONITORING_SHUTDOWN_SECONDS`; collector failures never gate commits,
+receipts or ACKs. SDK export/queue diagnostics and local JSON worker logs remain;
+loss diagnostics are best effort and may themselves disappear on process death.
+
+Persisted identifiers survive independently of Tempo's three-day retention.
+Tempo may have expired the original request. Identifiers cannot reconstruct lost
+span data; authorized event/correlation/attempt diagnostics remain useful.
+
+Migration `d4e9f2a63b85` adds this nullable column and a covering partial delivery
+index for unfinished/terminal aggregate reads, with no backfill, event
+payload change or historical trace fabrication. Its downgrade drops only trace
+metadata and the new observability index. Deploy compatible application code before downgrading to
+`c3d8e1f52a74`; current ORM code requires the column. Application migrations remain
+an explicit backup/runbook operation; validation uses disposable databases only.
+The transactional index build can block concurrent delivery writes during an
+explicit migration; schedule it appropriately. The covering index adds write
+maintenance for changing claims/due times in exchange for excluding completed
+history from collection.
+
+### Worker metric producer slots
+
+`MONITORING_WORKER_SLOT` is optional and bounded to integers **0–31**. Assign a
+**different slot to each concurrent worker** sending to the same Collector. This
+is an operator assignment, not an event, tenant or randomly generated process ID.
+Do not run concurrent processes with the same slot. Stop the previous owner
+before reusing a slot; counters then reset normally within that slot. No database
+lease or automatic distributed slot allocator is introduced.
+
+When a slot is assigned, event process counters/histograms and worker SQL/Redis/
+pool diagnostics include the bounded `worker_slot` dimension. Collector admission
+validates the range and preserves it for these process streams. Compute service
+rates per slot first, then sum rates; do not sum cumulative values across restarts.
+For example `sum(rate(restaurantos_worker_operations_total{operation="consumer",outcome="consumer_committed"}[5m]))`.
+Native tests retain independent 5/9-operation streams through quiet re-export and
+reset only slot 0 to 1 on restart while slot 1 stays at 9.
+
+Without a slot, traces, local JSON diagnostics and durable backlog/recent-receipt
+snapshot gauges remain available, but worker **process-local metrics are not
+recorded**. Startup emits the safe warning `worker process metrics require slot`.
+This avoids silently merging unspecified producers into a fictitious counter.
+Durable gauges never acquire a slot label: replicas describe the same PostgreSQL
+facts and must not multiply those facts. API instrumentation is unchanged.
+
+The pinned Python OTLP encoder serializes link trace/span IDs and remote-context
+bits but omits the low W3C trace flags from wire links. Full validated flags remain
+in outbox metadata and the constructed SDK `Link.context`; local ALWAYS_ON worker
+sampling is independent. Tests verify both layers. No expired Tempo span can be
+reconstructed from either representation.
+
+### Worker metrics
+
+SDK names below use dots. Collector Prometheus translation replaces dots with
+underscores and adds unit/type suffixes (for example
+`restaurantos_worker_operations_total`, `restaurantos_worker_duration_seconds`).
+Process-local rows below also have `worker_slot` (0–31); durable gauge rows do not.
+All metrics carry the bounded worker service resource. No business/trace/attempt
+identity, raw exception, tenant, SQL parameter or payload is a metric label.
+
+| SDK name | Type / unit | Dimensions | Meaning and source |
+|---|---|---|---|
+| `restaurantos.worker.operations` | Counter / 1 | operation (`publish`, `consumer`), consumer, event_type, outcome | Process observations of completed publication/claimed execution lifecycles; retries and replay are attempts, never new business events. |
+| `restaurantos.worker.duration` | Histogram / s | same | Monotonic elapsed operation time including fencing/commit/settlement; excludes waiting for publication concurrency and initial execution claim acquisition. |
+| `restaurantos.worker.routes` | Counter / 1 | consumer, outcome (`duplicate`, `busy`, `terminal`, `delayed`, `other`) | Routing checks with no new execution claim. Duplicate ACKs are not successful effects. |
+| `restaurantos.worker.deliveries` | Gauge / 1 | consumer, state | Durable PostgreSQL delivery depth by operational state below. Sum queued/in_flight/retry_delayed/recovery_due for unfinished depth; terminal is separate. |
+| `restaurantos.worker.oldest` | Gauge / s | consumer, state | Database-clock age since oldest delivery creation; zero for empty states. Maximum over unfinished states gives oldest unfinished age, not Redis message age. |
+| `restaurantos.worker.receipts.window` | Gauge / 1 | consumer | Durable receipts whose recorded processing time falls in the previous five minutes; divide by 300 for approximate receipt throughput/second. Includes processed/skipped receipts; dedup/replay cannot add duplicate receipts. |
+| `restaurantos.worker.receipts.latest` | Gauge / s | consumer | Newest recorded receipt Unix timestamp within that five-minute window; zero if absent, not a freshness guarantee. |
+| `restaurantos.worker.collected` | Gauge / s | none | Process Unix time when the last backlog collection succeeded. |
+| `restaurantos.worker.collection.failures` | Counter / 1 | worker_slot | Failed/timed-out aggregate collection attempts, separate from worker business failures. |
+
+State precedence: failed is `terminal`; any active relay or consumer lease is
+`in_flight`; processing with an expired/missing lease is `recovery_due`; pending
+with future due time is `retry_delayed`; remaining pending is `queued`. Expired
+relay claims become queued/delayed by due time. Succeeded deliveries are excluded.
+Unfinished age includes active and delayed work, so a healthy scrape does not
+mean work has drained. Terminal age is never silently included in eligible work.
+
+Aggregate collection runs every 15 seconds in an independent worker task, with a
+three-second overall budget and one-second SQL statement timeout. Queries exclude
+completed delivery history and use a covering partial delivery index and the existing receipt-time index;
+receipt progress scans only the recent window. State depth/age aggregation cost
+still grows with unfinished/terminal backlog; timeouts retain the previous
+snapshot and increment collection failures. PostgreSQL is authoritative, not
+Redis stream length or process counters. Gauges are sampled snapshots and may
+be stale; compare `collected` with wall time and missing-source signals. Backlog
+and receipt queries are separate short read transactions, not an atomic
+cross-table freshness proof. All replicas observe the same durable backlog:
+never sum durable gauges across workers. Collection timestamps do not establish
+projection progress or financial accuracy. Use existing projections/reconciliation
+for retained sales, whose creation-date UTC semantics remain unchanged.
+
+Process counters/histograms reset on restart and may lose observations on crashes,
+queue overflow or exporter outage; they are not durable accounting. Durable
+snapshot gauges recover from PostgreSQL after restart, but exports can be missing
+or expire after the Collector's 30-second inactivity expiry. Empty groups are
+explicitly emitted as zero. Receipt timestamps are recorded before transaction
+commit and are not exact commit-time measurements. Telemetry has no backup.

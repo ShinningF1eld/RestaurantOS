@@ -8,6 +8,8 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.modules.events.repo.worker_queries import (
+    BacklogSample,
+    backlog_samples,
     DeliveryClaim,
     RetainedWork,
     StoredDelivery,
@@ -84,3 +86,13 @@ class EventWorkerService:
     async def retained_work_counts(self) -> RetainedWork:
         async with self._sessions() as session:
             return await read_retained_work_counts(session)
+
+    async def backlog(self) -> list[BacklogSample]:
+        async with self._sessions() as session, session.begin():
+            return await backlog_samples(session)
+
+    async def progress(self) -> list[tuple[str, int, float]]:
+        from app.modules.events.repo.worker_queries import progress_samples
+
+        async with self._sessions() as session, session.begin():
+            return await progress_samples(session)

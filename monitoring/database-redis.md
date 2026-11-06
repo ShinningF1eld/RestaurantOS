@@ -8,6 +8,16 @@ but own independent providers, with `restaurantos-api` / `restaurantos-worker`
 resources and bounded `role=api|worker` metric attributes. No synchronous network
 export runs in business request/transaction paths. Recording failures are ignored.
 
+Issue #62 adds `MONITORING_WORKER_SLOT` (**0–31**) for worker process metrics.
+Assign distinct slots to concurrent workers targeting the same Collector, and
+stop a slot's prior process before reusing it. All worker SQL/Redis/pool metrics
+carry bounded `worker_slot`; API dimensions are unchanged. Without an assigned
+slot, worker process metrics are suppressed with a safe startup warning, while
+worker traces and durable event gauges remain available. This prevents healthy
+worker counters from overwriting one another. See the [slot contract](../docs/api/events.md#worker-metric-producer-slots)
+for reset/rate and durable-gauge rules. Slot assignments are operator configuration;
+duplicate assignments are invalid and are not automatically detected.
+
 ## Versions and source review
 
 The installed/locked Python versions are SQLAlchemy **2.0.52**, OTel SDK/API and

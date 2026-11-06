@@ -59,6 +59,22 @@ by default); a Redis pending message becomes reclaimable after its idle threshol
 (60 seconds by default). Restarting a worker with the same settings resumes
 recovery without manual database edits.
 
+## Optional observability
+
+Enable `MONITORING_ENABLED=true` and the existing OTLP endpoint settings for traces
+and durable backlog/progress gauges. To collect process-local throughput,
+retry/failure/duration and SQL/Redis/pool metrics, assign each concurrent worker a
+distinct `MONITORING_WORKER_SLOT` in **0–31**. From `backend/`, for one worker:
+
+```bash
+MONITORING_ENABLED=true MONITORING_WORKER_SLOT=0 .venv/bin/python -m app.worker
+```
+
+Use slot 1 for a second worker. Never overlap owners of one slot; stop its old
+process before reuse. Unassigned workers emit a safe warning and omit process
+metrics, while traces/durable gauges and business behavior remain available.
+See the [metric definitions and slot rules](../api/events.md#worker-metric-producer-slots).
+
 ## Runtime budgets
 
 All settings are typed `EVENT_WORKER_*` environment variables. Values below are
