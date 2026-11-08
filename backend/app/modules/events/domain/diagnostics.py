@@ -2,6 +2,7 @@
 
 import re
 
+BACKLOG_STATES = ("queued", "in_flight", "retry_delayed", "terminal", "recovery_due")
 
 ERROR_CATEGORIES = frozenset(
     {

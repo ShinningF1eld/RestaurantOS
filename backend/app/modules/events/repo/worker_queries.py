@@ -325,7 +325,9 @@ class BacklogSample:
     oldest_seconds: float
 
 
-async def backlog_samples(session: AsyncSession) -> list[BacklogSample]:
+async def backlog_samples(
+    session: AsyncSession, *, consumer: str | None = None
+) -> list[BacklogSample]:
     """Only unfinished/terminal rows, using due/lease indexes; bounded statement time.
 
     Completed history is excluded. Expired processing claims require recovery,
@@ -341,23 +343,22 @@ async def backlog_samples(session: AsyncSession) -> list[BacklogSample]:
         (EventDelivery.next_attempt_at > func.now(), "retry_delayed"),
         else_="queued",
     )
-    rows = (
-        await session.execute(
-            select(
-                EventDelivery.consumer_name,
-                state,
-                func.count(),
-                func.greatest(
-                    0,
-                    func.extract(
-                        "epoch", func.now() - func.min(EventDelivery.created_at)
-                    ),
-                ),
-            )
-            .where(EventDelivery.status.in_(("pending", "processing", "failed")))
-            .group_by(EventDelivery.consumer_name, state)
+    query = (
+        select(
+            EventDelivery.consumer_name,
+            state,
+            func.count(),
+            func.greatest(
+                0,
+                func.extract("epoch", func.now() - func.min(EventDelivery.created_at)),
+            ),
         )
-    ).all()
+        .where(EventDelivery.status.in_(("pending", "processing", "failed")))
+        .group_by(EventDelivery.consumer_name, state)
+    )
+    if consumer is not None:
+        query = query.where(EventDelivery.consumer_name == consumer)
+    rows = (await session.execute(query)).all()
     return [
         BacklogSample(consumer, state, depth, float(age))
         for consumer, state, depth, age in rows

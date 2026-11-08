@@ -21,6 +21,12 @@ from app.modules.events.domain.contracts import (
 from app.modules.events.domain.subscriptions import consumers_for
 from app.modules.events.repo.models import EventDelivery, OutboxEvent
 from app.modules.events.repo.queries import EventRepository
+from app.modules.events.repo.worker_queries import BacklogSample, backlog_samples
+
+
+async def operator_analytics_backlog(session: AsyncSession) -> list[BacklogSample]:
+    """Analytics-only delivery diagnostics in the caller's snapshot."""
+    return await backlog_samples(session, consumer="analytics")
 
 
 class EventTransactionRequired(RuntimeError):

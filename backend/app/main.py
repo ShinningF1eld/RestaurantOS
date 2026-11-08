@@ -54,6 +54,8 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     adapter = RedisAdapter(settings)
     await adapter.open()
     telemetry = telemetry_lifecycle.acquire(settings)
+    collector = telemetry.business_collector if telemetry is not None else None
+    collection_task = asyncio.create_task(collector.run()) if collector else None
     # Test clients may nest/overlap lifespans and shut down out of order. Track
     # active owners rather than restore a possibly already closed predecessor.
     with application.state.redis_lifecycle_lock:
@@ -63,6 +65,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         try:
+            if collection_task is not None:
+                collection_task.cancel()
+                await asyncio.gather(collection_task, return_exceptions=True)
             await adapter.close()
         except RedisFailure as error:
             logging.getLogger(__name__).warning(

@@ -9,7 +9,7 @@ import logging
 from contextvars import ContextVar
 from threading import Event, Lock, Thread
 from time import monotonic
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
 from starlette.types import Scope
@@ -34,6 +34,9 @@ from opentelemetry.sdk.trace.sampling import ALWAYS_ON
 
 from app.core.config import Settings
 from app.core.diagnostics import Diagnostics
+
+if TYPE_CHECKING:
+    from app.core.business_collection import BusinessCollector
 
 SCOPE = "restaurantos.api.http"
 BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30)
@@ -133,10 +136,13 @@ def exporter_options(settings: Settings, signal: str) -> dict:
 
 
 class Telemetry:
+    business_collector: "BusinessCollector | None"
+
     def __init__(self, settings: Settings, role: str = "api") -> None:
         self.settings = settings
         self.providers: list = []
         self.pending: list = []
+        self.business_collector = None
         try:
             resource = Resource({"service.name": "restaurantos-" + role})
             self.traces = TracerProvider(
@@ -226,6 +232,16 @@ class Telemetry:
             self.diagnostics = Diagnostics(
                 self.metrics, role, settings.monitoring_worker_slot
             )
+            if role == "api":
+                from app.core.business_metrics import BusinessMetrics
+
+                self.business_metrics = BusinessMetrics(self.metrics)
+                if settings.monitoring_business_aggregates_enabled:
+                    from app.core.business_collection import BusinessCollector
+
+                    self.business_collector = BusinessCollector(
+                        self.business_metrics.meter, settings
+                    )
             if role == "worker":
                 from app.modules.events.telemetry import WorkerMetrics
 
