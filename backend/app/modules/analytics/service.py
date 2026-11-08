@@ -36,7 +36,10 @@ from app.modules.analytics.domain.projection import (
     creation_date,
     should_apply,
 )
-from app.modules.analytics.repo.projection import ProjectionRepository
+from app.modules.analytics.repo.projection import (
+    ProjectionRepository,
+    operator_sales_window,
+)
 from app.modules.events.domain.contracts import (
     EventEnvelope,
     OrderCompletedEvent,
@@ -71,6 +74,18 @@ class AnalyticsRepositoryPort(Protocol):
         *,
         limit: int = 5,
     ) -> list[TopSellingItemRow]: ...
+
+
+async def operator_completed_sales(
+    session: AsyncSession, utc_day: date, *, include_thb: bool
+) -> tuple[int, Decimal | None]:
+    """Operator snapshot for today's UTC date and the previous six UTC dates."""
+    return await operator_sales_window(
+        session,
+        utc_day - timedelta(days=6),
+        utc_day + timedelta(days=1),
+        include_thb=include_thb,
+    )
 
 
 class AnalyticsService:

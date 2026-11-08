@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.events.service import CommandEvents
 from app.modules.events.domain.contracts import EventType
 from app.core.errors import ConflictError, NotFoundError, ValidationError
+from app.core.business_metrics import order_transition, stock_rejection
 from app.modules.audit.service import record
 from app.modules.auth.domain.principal import AuthenticatedPrincipal
 from app.modules.catalog.repo.models import MenuItem
@@ -287,7 +288,8 @@ class OrderService:
                     "total": str(order.total),
                 },
             )
-            if order.status != previous_status:
+            transition = order.status if order.status != previous_status else None
+            if transition is not None:
                 event_types: dict[str, EventType] = {
                     "SUBMITTED": "order.submitted.v1",
                     "ACCEPTED": "order.accepted.v1",
@@ -311,7 +313,9 @@ class OrderService:
                         aggregate_revision=order.revision,
                         payload=payload,
                     )
-            return result
+        if transition is not None:
+            order_transition(transition)
+        return result
 
     async def delete(self, order_id: int) -> None:
         """Delete an order unless immutable stock or replay history refers to it."""
@@ -433,6 +437,7 @@ class OrderService:
             if not menu_by_id[item_id].is_available
         )
         if unavailable_ids:
+            stock_rejection("order_item_unavailable")
             raise ConflictError(f"Menu items are unavailable: {unavailable_ids}")
 
         tracked_item_ids = sorted(
@@ -455,16 +460,19 @@ class OrderService:
             for component, ingredient in components:
                 component_quantity = Decimal(str(component.quantity))
                 if component_quantity <= 0:
+                    stock_rejection("order_recipe_invalid")
                     raise ConflictError(
                         f"Tracked menu item {menu_item_id} has an invalid recipe"
                     )
                 if ingredient.restaurant_id != restaurant_id:
+                    stock_rejection("order_recipe_invalid")
                     raise ConflictError(
                         f"Tracked menu item {menu_item_id} has an invalid recipe ingredient"
                     )
                 requirements[ingredient.id] += component_quantity * portions
                 ingredients[ingredient.id] = ingredient
         if missing_recipe_items:
+            stock_rejection("order_recipe_invalid")
             raise ConflictError(
                 "Tracked menu items require recipe ingredients: "
                 + ", ".join(str(item_id) for item_id in missing_recipe_items)
@@ -503,6 +511,7 @@ class OrderService:
                     f"has {available} ({state})"
                 )
         if shortages:
+            stock_rejection("order_stock_insufficient")
             raise ConflictError("Insufficient tracked stock: " + "; ".join(shortages))
 
         return [

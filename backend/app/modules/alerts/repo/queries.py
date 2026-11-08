@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import select, func
+from sqlalchemy import and_, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.alerts.repo.models import (
@@ -19,6 +19,31 @@ from app.modules.inventory.repo.models import (
 class AlertProjectionRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def operator_active_count(self) -> int:
+        producer = InventoryLowStockEpisode
+        count = await self.session.scalar(
+            select(func.count())
+            .select_from(producer)
+            .join(
+                AlertEpisode,
+                and_(
+                    AlertEpisode.episode_id == producer.episode_id,
+                    AlertEpisode.organization_id == producer.organization_id,
+                    AlertEpisode.restaurant_id == producer.restaurant_id,
+                    AlertEpisode.ingredient_id == producer.ingredient_id,
+                ),
+            )
+            .join(Ingredient, Ingredient.id == producer.ingredient_id)
+            .join(InventoryBalance, InventoryBalance.ingredient_id == Ingredient.id)
+            .where(
+                producer.resolved_at.is_(None),
+                Ingredient.restaurant_id == producer.restaurant_id,
+                Ingredient.is_active.is_(True),
+                InventoryBalance.quantity <= Ingredient.reorder_threshold,
+            )
+        )
+        return int(count or 0)
 
     async def active_page(
         self, organization_id: UUID, restaurant_id: int, limit: int, offset: int

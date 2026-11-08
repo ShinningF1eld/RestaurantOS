@@ -326,6 +326,9 @@ Feature-owned orders/inventory/alerts/analytics aggregate interfaces and bounded
 
 Run backend-unit/backend-integration/backend-static and baseline. Use real transactions, rollback, idempotent retry, receipt replay, out-of-order completion/deletion and stale/failed collection; reconcile exported durable aggregates to PostgreSQL and verify safe bounded label sets.
 
+See the [issue #63 implementation verification](verification-milestone9-issue63.md)
+for the measured query cost, focused checks and integration gate status.
+
 <!-- github-plan: docs/milestone9-observability/milestone-9-observability-design.md | T6 -->
 
 ### T7: Provision four linked Grafana operator dashboards

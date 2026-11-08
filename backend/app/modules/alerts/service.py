@@ -29,6 +29,11 @@ from app.modules.auth.domain.principal import AuthenticatedPrincipal
 from app.modules.tenancy.access import AccessService
 
 
+async def operator_active_low_stock_alerts(session: AsyncSession) -> int:
+    """Count projected alert openings still matching live low-stock episodes."""
+    return await AlertProjectionRepository(session).operator_active_count()
+
+
 class AlertReadService:
     """Resolve live user scope before any projection read or count."""
 

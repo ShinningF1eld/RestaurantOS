@@ -16,7 +16,11 @@ from opentelemetry.trace import SpanKind, StatusCode
 
 from app.core.trace_context import span_links
 from app.modules.events.domain.contracts import SUPPORTED_EVENT_TYPES
-from app.modules.events.domain.diagnostics import safe_category, safe_identifier
+from app.modules.events.domain.diagnostics import (
+    BACKLOG_STATES,
+    safe_category,
+    safe_identifier,
+)
 
 logger = logging.getLogger("restaurantos.event_telemetry")
 CONSUMERS = ("analytics", "alerts", "notification_sink")
@@ -123,13 +127,7 @@ class WorkerMetrics:
         # Emit zeros for disappearing groups instead of leaving a stale positive gauge.
         grouped = {(row.consumer, row.state): row for row in rows}
         for consumer in CONSUMERS:
-            for state in (
-                "queued",
-                "in_flight",
-                "retry_delayed",
-                "terminal",
-                "recovery_due",
-            ):
+            for state in BACKLOG_STATES:
                 row = grouped.get((consumer, state))
                 labels = {"consumer": consumer, "state": state}
                 self.depth.set(row.depth if row else 0, labels)

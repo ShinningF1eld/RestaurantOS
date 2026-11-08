@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     )
     log_level: LogLevel = Field(default="INFO", validation_alias="LOG_LEVEL")
     monitoring_enabled: bool = False
+    monitoring_business_aggregates_enabled: bool = False
+    monitoring_business_collection_seconds: int = Field(default=30, ge=15, le=300)
+    monitoring_business_sales_thb: bool = False
     monitoring_worker_slot: int | None = Field(default=None, ge=0, le=31)
     monitoring_endpoint: str = Field(default="http://localhost:4318", max_length=256)
     monitoring_trusted_upstream_ips: list[str] = Field(default_factory=list)

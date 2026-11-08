@@ -5,8 +5,9 @@ from decimal import Decimal
 from uuid import UUID
 from typing import Literal, cast
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import ColumnElement
 
 from app.modules.analytics.domain.projection import Contribution, creation_date
 
@@ -16,6 +17,36 @@ from app.db.models import Order, Restaurant
 from app.modules.analytics.repo.models import DailySales, OrderContribution
 from app.modules.events.repo.models import OutboxEvent
 from app.modules.events.domain.contracts import OrderDeletedPayload
+
+
+async def operator_sales_window(
+    session: AsyncSession, start: date, end: date, *, include_thb: bool
+) -> tuple[int, Decimal | None]:
+    # The correlated aggregate uses the (restaurant_id, creation_date) PK.
+    columns: list[ColumnElement[int] | ColumnElement[Decimal]] = [
+        func.sum(DailySales.order_count).label("orders")
+    ]
+    if include_thb:
+        columns.append(func.sum(DailySales.sales).label("sales"))
+    branch = (
+        select(*columns)
+        .where(
+            DailySales.restaurant_id == Restaurant.id,
+            DailySales.creation_date >= start,
+            DailySales.creation_date < end,
+        )
+        .correlate(Restaurant)
+        .lateral()
+    )
+    totals = [func.coalesce(func.sum(branch.c.orders), 0)]
+    if include_thb:
+        totals.append(func.coalesce(func.sum(branch.c.sales), Decimal("0.00")))
+    row = (
+        await session.execute(
+            select(*totals).select_from(Restaurant).join(branch, true())
+        )
+    ).one()
+    return int(row[0]), row[1] if include_thb else None
 
 
 class ProjectionRepository:

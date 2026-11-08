@@ -1,6 +1,7 @@
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import NotFoundError
 from app.modules.inventory.repo.models import (
@@ -13,6 +14,50 @@ from app.modules.restaurants.repo.models import Restaurant
 from app.modules.auth.repo.models import User
 from app.modules.tenancy.access import restaurant_scope
 from app.modules.tenancy.domain.policies import AccessContext
+
+
+async def operator_low_stock(
+    session: AsyncSession, start: datetime, end: datetime
+) -> tuple[int, int, int]:
+    episode = InventoryLowStockEpisode
+    # Use the existing scope/opened_at index. Only extant restaurant scopes
+    # participate; history retained from deleted scopes is outside this view.
+    branch = (
+        select(
+            func.count().filter(~episode.notification_suppressed).label("operational"),
+            func.count().filter(episode.notification_suppressed).label("baseline"),
+        )
+        .where(
+            episode.organization_id == Restaurant.organization_id,
+            episode.restaurant_id == Restaurant.id,
+            episode.opened_at >= start,
+            episode.opened_at < end,
+        )
+        .correlate(Restaurant)
+        .lateral()
+    )
+    active = (
+        select(func.count())
+        .select_from(Ingredient)
+        .join(InventoryBalance, InventoryBalance.ingredient_id == Ingredient.id)
+        .where(
+            Ingredient.is_active.is_(True),
+            InventoryBalance.quantity <= Ingredient.reorder_threshold,
+        )
+        .scalar_subquery()
+    )
+    row = (
+        await session.execute(
+            select(
+                func.coalesce(func.sum(branch.c.operational), 0),
+                func.coalesce(func.sum(branch.c.baseline), 0),
+                active,
+            )
+            .select_from(Restaurant)
+            .join(branch, true())
+        )
+    ).one()
+    return int(row[0]), int(row[1]), row[2]
 
 
 class InventoryTransitionRepository:

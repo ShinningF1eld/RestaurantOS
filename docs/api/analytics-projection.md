@@ -41,6 +41,12 @@ scope pair under the restaurant lock; it does not repair data. Database credenti
 provide operator authority; these commands are not exposed to browser users.
 Customer names, notes and raw payloads are not returned.
 
+Optional [operator business metrics](business-observability.md) read a
+seven-UTC-date window of `analytics_daily_sales` in a bounded read-only snapshot,
+alongside durable analytics delivery diagnostics. This is a stack-wide
+monitoring view. The scoped inspection and reconciliation commands above retain
+their full-history semantics.
+
 `AnalyticsProjectionService.rebuild(organization_id, restaurant_id)` in analytics'
 public `service.py` is the maintenance seeding/rebuild interface for T8. It owns
 one transaction and the shared restaurant lock. Stop workers and quiesce business

@@ -32,7 +32,14 @@ def test_collector_limits_apply_before_buffering_and_export():
     for name, pipeline in collector["service"]["pipelines"].items():
         assert pipeline["processors"][0] == "memory_limiter"
         policy = name.split("/", 1)[1] if "/" in name else "synthetic"
-        assert policy in {"api", "frontend", "synthetic", "diagnostics", "worker"}
+        assert policy in {
+            "api",
+            "frontend",
+            "synthetic",
+            "diagnostics",
+            "worker",
+            "business",
+        }
         assert pipeline["processors"].index("transform/" + policy) < pipeline[
             "processors"
         ].index("batch")
@@ -63,6 +70,7 @@ def test_frontend_policy_is_trace_only_with_independent_privacy_filtering():
         "traces",
         "metrics/api",
         "metrics/diagnostics",
+        "metrics/business",
         "logs/api",
         "traces/api",
         "traces/frontend",
@@ -89,6 +97,41 @@ def test_frontend_policy_is_trace_only_with_independent_privacy_filtering():
         '"<unmatched>"' in statement and "IsMatch" in statement
         for statement in statements
     )
+
+
+def test_business_metrics_use_the_existing_private_prometheus_exporter():
+    collector = config("otel-collector.yaml")
+    pipeline = collector["service"]["pipelines"]["metrics/business"]
+    assert pipeline == {
+        "receivers": ["otlp"],
+        "processors": [
+            "memory_limiter",
+            "filter/business",
+            "transform/business",
+            "batch",
+        ],
+        "exporters": ["prometheus"],
+    }
+    conditions = collector["processors"]["filter/business"]["metric_conditions"]
+    assert conditions[0]["conditions"] == [
+        'resource.attributes["service.name"] != "restaurantos-api"'
+    ]
+    assert "Len(datapoint.exemplars) > 0" in conditions[-1]["conditions"]
+    statements = collector["processors"]["transform/business"]["metric_statements"]
+    assert 'keep_keys(resource.attributes, ["service.name"])' in statements
+    assert 'set(metric.description, "")' in statements
+    labels = [
+        statement
+        for statement in statements
+        if statement.startswith("keep_keys(datapoint.attributes,")
+    ]
+    assert {statement.split(" where ")[0] for statement in labels} == {
+        'keep_keys(datapoint.attributes, ["transition"])',
+        'keep_keys(datapoint.attributes, ["category"])',
+        'keep_keys(datapoint.attributes, ["kind"])',
+        'keep_keys(datapoint.attributes, ["state"])',
+        "keep_keys(datapoint.attributes, [])",
+    }
 
 
 def test_workload_metrics_expire_and_self_metrics_have_a_separate_scrape():

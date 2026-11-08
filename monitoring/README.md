@@ -27,7 +27,9 @@ five permanent services. Optional [API HTTP telemetry](../docs/api/observability
 and [Next.js SSR traces](../docs/api/frontend-observability.md) now use independent
 Collector policies. Optional [PostgreSQL/Redis diagnostics](database-redis.md) add
 restricted server receivers and API/worker pool/SQL/Redis/cache observations.
-Worker tracing, operational dashboards and alert objectives remain #62–#67 work.
+[Worker diagnostics](../docs/api/events.md#restart-safe-worker-telemetry-m9-issue-62)
+and [operator business metrics](../docs/api/business-observability.md) use the
+same stack. Operational dashboards and alert objectives remain #64–#67 work.
 
 ## Operate the stack
 

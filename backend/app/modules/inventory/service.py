@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.events.service import CommandEvents
 from app.core.errors import ConflictError, ValidationError
+from app.core.business_metrics import stock_rejection
 from app.modules.auth.domain.principal import AuthenticatedPrincipal
 from app.modules.audit.service import record
 from app.modules.inventory.domain.policies import quantity
@@ -22,6 +23,7 @@ from app.modules.inventory.repo.models import (
 from app.modules.inventory.repo.queries import (
     InventoryRepository,
     InventoryTransitionRepository,
+    operator_low_stock,
 )
 from app.modules.inventory.domain.transitions import (
     InventoryEpisodeFacts,
@@ -41,6 +43,13 @@ from app.modules.inventory.domain.commands import (
 )
 from app.modules.tenancy.access import AccessService
 from app.modules.tenancy.domain.policies import AccessContext
+
+
+async def operator_low_stock_summary(
+    session: AsyncSession, start: datetime, end: datetime
+) -> tuple[int, int, int]:
+    """Return operational openings, baseline openings and live low ingredients."""
+    return await operator_low_stock(session, start, end)
 
 
 def inventory_state_snapshot(
@@ -590,9 +599,11 @@ class InventoryService:
                     )
                 return replay
             if not item.is_active:
+                stock_rejection("inventory_inactive")
                 raise ConflictError("Restore this ingredient before changing stock")
             if data.kind == "count":
                 if data.expected_version != balance.version:
+                    stock_rejection("inventory_count_stale")
                     raise ConflictError(
                         "Stock changed since this count began. Refresh and count again"
                     )
@@ -601,8 +612,13 @@ class InventoryService:
                 delta = amount if data.kind == "receipt" else -amount
             after = balance.quantity + delta
             if after < 0:
+                stock_rejection("inventory_stock_insufficient")
                 raise ConflictError("Insufficient stock")
-            quantity(after)
+            try:
+                quantity(after)
+            except ValidationError:
+                stock_rejection("inventory_balance_limit")
+                raise
             before = inventory_state_snapshot(context.organization_id, item, balance)
             balance.quantity = after
             balance.version += 1

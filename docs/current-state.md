@@ -1,5 +1,16 @@
 # RestaurantOS current state
 
+## Current M9 observability issue #63 — business activity and projection freshness
+
+The optional API telemetry runtime observes committed order transitions and
+stock rejection attempts. The opt-in operator sampler reads low-stock
+activity and state, a seven-UTC-date retained-sales window, and the analytics
+delivery backlog in one read-only snapshot. Collection time and delivery
+status remain independent. THB amounts require explicit currency attestation.
+See the [metric contract](api/business-observability.md) and
+[issue verification](milestone9-observability/verification-milestone9-issue63.md)
+for the collection bounds, seeded query costs and verification limits.
+
 ## Current M9 observability issue #62 — durable worker diagnostics
 
 Follow-up on 2026-11-06 resolves the reproduced multi-worker counter collision
