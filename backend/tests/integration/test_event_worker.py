@@ -497,15 +497,15 @@ def test_consumer_groups_route_independently_reclaim_own_pel_and_rebuild_stream(
             await redis.open()
             streams = EventStreams(redis)
             try:
-                counts = {group: await streams.pending_count(group) for group in GROUPS}
                 owners = {
                     group: await streams.pending_page(group, cursor="-", count=10)
                     for group in GROUPS
                 }
-                groups = await redis.execute("XINFO", "GROUPS", streams.stream)
                 latest = await redis.execute(
                     "XREVRANGE", streams.stream, "+", "-", "COUNT", 1
                 )
+                groups = await redis.execute("XINFO", "GROUPS", streams.stream)
+                counts = {row["name"]: row["pending"] for row in groups}
                 progress = {row["name"]: row["last-delivered-id"] for row in groups}
                 latest_id = latest[0][0] if latest else None
                 return counts, owners, progress, latest_id
@@ -552,21 +552,23 @@ def test_consumer_groups_route_independently_reclaim_own_pel_and_rebuild_stream(
         second = start_process(tmp_path, settings, test_analytics=True)
         try:
 
-            def changed_owner():
-                latest_counts, latest_owners, _, _ = asyncio.run(group_state())
+            def reclaimed_and_drained():
+                # Reclaiming the sink's pending entries does not synchronize
+                # with the independent analytics and alerts consumer loops.
+                state = all_groups_read()
+                if state is None:
+                    return None
+                latest_counts, latest_owners, _, _ = state
                 pending = latest_owners["notification_sink"]
                 return (
-                    (
-                        latest_counts,
-                        latest_owners,
-                    )
+                    state
                     if pending
                     and latest_counts["notification_sink"] == published_count
                     and all(entry.owner != old_owner for entry in pending)
                     else None
                 )
 
-            counts, owners = wait_for(changed_owner)
+            counts, owners, _, _ = wait_for(reclaimed_and_drained)
             assert counts["analytics"] == 0
             assert counts["notification_sink"] == published_count
             assert owners["notification_sink"][0].owner != old_owner
