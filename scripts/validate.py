@@ -225,6 +225,8 @@ def gate(name, env):
             "scripts/check-frontend-observability.py",
             "scripts/check-monitoring-config.py",
             "scripts/check-monitoring.py",
+            "scripts/check-operator-dashboards.py",
+            "scripts/test_support/dashboard_fixtures.py",
             "scripts/check-api-observability.py",
             "scripts/check-infrastructure-observability.py",
             "scripts/infrastructure-workload.py",

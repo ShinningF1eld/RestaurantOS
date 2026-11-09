@@ -51,6 +51,7 @@ or payload dimensions.
 | `analytics.oldest` | `analytics_oldest_seconds` | Gauge, seconds | Age of the oldest delivery by `state` at the snapshot, measured from its durable delivery creation time. Zero for an empty state. |
 | `collection.last_success` | `collection_last_success_seconds` | Gauge, Unix seconds | Source transaction timestamp of the last successful snapshot. Absent before the first success. |
 | `collection.success` | `collection_success` | Gauge, 0 or 1 | One after successful collection, zero before the first successful snapshot or after a failed attempt. |
+| `collection.freshness_budget` | `collection_freshness_budget_seconds` | Gauge, seconds | Maximum accepted source age. Twice the configured collection interval plus the SDK export interval and ten seconds for Collector batching and Prometheus scraping. Emitted when aggregate collection is enabled. |
 
 Stock rejection categories are `order_item_unavailable`, `order_recipe_invalid`,
 `order_stock_insufficient`, `inventory_inactive`, `inventory_count_stale`,
@@ -89,16 +90,19 @@ accounting, revenue-recognition or audited-reporting guarantees.
 
 ## Freshness and query bounds
 
-Gate aggregate panels on the presence of both collection signals,
-`collection_success == 1` and a recent source timestamp, for example
-`0 <= time() - collection_last_success_seconds < 75` at the default cadence
-and export settings. Use two collection intervals plus export and scrape
-allowance when changing settings. Treat missing, future, expired or failed
-collection as unknown. A failed read leaves the previous snapshot timestamp
-intact. The Collector and Prometheus can continue to serve prior gauge values
-while the sampler or export is stopped. A successful scrape or SDK export
-cannot advance the source timestamp. The existing Prometheus
-`up{job="collector-telemetry"}` series separately indicates scrape availability.
+Gate aggregate panels on a successful scrape, `collection_success == 1`, and
+a nonnegative source age below `collection_freshness_budget_seconds`. The budget
+is 75 seconds at the default 30-second collection and five-second export
+intervals. Grafana reads the reported budget for each sample. Treat missing,
+future, expired or failed collection as unknown. Historical samples and older
+API/Collector versions without the budget remain unavailable in aggregate
+panels. The source age remains visible when present.
+
+A failed read leaves the previous snapshot timestamp intact. The Collector
+and Prometheus can continue to serve prior gauge values while the sampler or
+export is stopped. A successful scrape or SDK export cannot advance the source
+timestamp. The existing Prometheus `up{job="collector-telemetry"}` series
+separately indicates scrape availability.
 
 Separately show the analytics delivery states `queued`, `retry_delayed`,
 `in_flight`, `recovery_due` and `terminal`. Any positive count shows durable

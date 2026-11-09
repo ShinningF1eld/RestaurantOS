@@ -29,7 +29,8 @@ Collector policies. Optional [PostgreSQL/Redis diagnostics](database-redis.md) a
 restricted server receivers and API/worker pool/SQL/Redis/cache observations.
 [Worker diagnostics](../docs/api/events.md#restart-safe-worker-telemetry-m9-issue-62)
 and [operator business metrics](../docs/api/business-observability.md) use the
-same stack. Operational dashboards and alert objectives remain #64–#67 work.
+same stack. The four [operator dashboards](../docs/runbooks/monitoring.md#operator-dashboards)
+are provisioned automatically. Alert objectives remain #65–#67 work.
 
 ## Operate the stack
 
@@ -51,6 +52,8 @@ Initialization refuses existing state and creates independent credentials in the
 ignored, private `.local-monitoring/` directory. Read the credential files locally
 when signing in; never copy them into diagnostics. Normal shutdown retains data.
 Keep the ownership manifest; the helper provides no developer-volume deletion.
+The read-only Grafana provisioning mount supplies the **RestaurantOS** folder and
+its dashboards on clean startup and after normal restart.
 
 `compose.yaml` has a project-scoped internal bridge and no published ports.
 `compose.host.yaml` additionally publishes Grafana/Collector on loopback and adds

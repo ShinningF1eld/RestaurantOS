@@ -274,7 +274,9 @@ plus rotated Collector stderr. The pinned Redis scraper can report zero errored
 *points* on a complete failed INFO read: that counter alone is not a health check.
 Require presence/freshness of expected Redis series; no fresh zero means healthy.
 A healthy Collector health endpoint proves process liveness, not DB/Redis health.
-No dashboards or alert thresholds are selected here (#64–#66).
+Use the Database & Redis view in the
+[operator dashboards](../docs/runbooks/monitoring.md#operator-dashboards) to
+compare these signals. Alert thresholds are separate M9 work.
 
 The five-service **2 GB** memory allocation, exporter queues, request-body bounds,
 retry budgets, retention and nonroot/security settings are unchanged. Resource

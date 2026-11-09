@@ -285,7 +285,13 @@ def test_rejected_attempts_are_separate_from_openings_and_current_state(
 def aggregate_metrics():
     reader = InMemoryMetricReader()
     provider = MeterProvider(metric_readers=[reader], shutdown_on_exit=False)
-    settings = get_settings().model_copy(update={"monitoring_business_sales_thb": True})
+    settings = get_settings().model_copy(
+        update={
+            "monitoring_business_sales_thb": True,
+            "monitoring_business_collection_seconds": 300,
+            "monitoring_export_interval_ms": 30_000,
+        }
+    )
     metrics = BusinessCollector(BusinessMetrics(provider).meter, settings)
 
     def points():
@@ -384,7 +390,10 @@ def test_collection_failure_and_postgresql_statement_timeout_recover(
     aggregate_metrics, monkeypatch, caplog
 ):
     metrics, points = aggregate_metrics
-    assert points() == {("collection.success", ()): 0}
+    assert points() == {
+        ("collection.success", ()): 0,
+        ("collection.freshness_budget", ()): 640,
+    }
     asyncio.run(metrics.collect(AsyncSessionLocal))
     valid = points()
     assert valid["sales.retained_orders_7d", ()] == 0
@@ -407,6 +416,7 @@ def test_collection_failure_and_postgresql_statement_timeout_recover(
         failed_points = points()
         assert failed_points["collection.success", ()] == 0
         assert failed_points["collection.last_success", ()] == last
+        assert failed_points["collection.freshness_budget", ()] == 640
         assert CANARY not in caplog.text
     with pytest.raises(DBAPIError) as timeout:
         snapshot()
@@ -517,6 +527,12 @@ def test_repeated_exports_cannot_refresh_a_stopped_sampler(monkeypatch, auth_use
             assert len({point["timeUnixNano"] for point in stale}) >= 2
             assert len({point["asDouble"] for point in stale}) == 1
             assert int(stale[-1]["timeUnixNano"]) / 1e9 - stale[-1]["asDouble"] > 60
+            budgets = wire_points(received, "collection.freshness_budget")
+            assert budgets
+            assert all(
+                point["asDouble"] == 11.2 and not point.get("attributes")
+                for point in budgets
+            )
             assert wire_points(received, "sales.retained_orders_7d")
             assert not wire_points(received, "sales.retained_amount_7d")
             recover.set()

@@ -1,0 +1,675 @@
+{
+  "uid": "restaurantos-business",
+  "title": "Business Activity",
+  "description": "Observed order and stock activity with durable inventory and sales projection snapshots.",
+  "tags": [
+    "restaurantos",
+    "operator"
+  ],
+  "editable": false,
+  "schemaVersion": 41,
+  "timezone": "utc",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "links": [
+    {
+      "title": "RestaurantOS dashboards",
+      "type": "dashboards",
+      "tags": [
+        "restaurantos",
+        "operator"
+      ],
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": true
+    }
+  ],
+  "panels": [
+    {
+      "title": "Reading this dashboard",
+      "type": "text",
+      "options": {
+        "mode": "markdown",
+        "content": "**Order and stock attempt rates** are best-effort process observations that reset on restart. **Inventory and retained sales** are sourced from PostgreSQL snapshots. **Projection progress** is tracked separately from collection success. Recent collection can still report outstanding work."
+      },
+      "gridPos": {
+        "w": 24,
+        "h": 4,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1
+    },
+    {
+      "title": "Observed command activity",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "w": 24,
+        "h": 1,
+        "x": 0,
+        "y": 4
+      },
+      "id": 2
+    },
+    {
+      "type": "timeseries",
+      "title": "Committed order transitions",
+      "description": "Committed submissions, completions and cancellations. No-ops, rollback and idempotent replay are excluded. One-minute rate per original counter series before aggregation. Process restarts reset counters. A series first appears after an observation, and a gap means no usable samples.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: transitions/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (transition) ((rate(restaurantos_business_orders_transitions_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}[1m]) and restaurantos_business_orders_transitions_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{transition}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 3
+    },
+    {
+      "type": "timeseries",
+      "title": "Stock command rejection attempts",
+      "description": "Repeated rejections count as repeated attempts. Episode openings and active stock state are separate. One-minute rate per original counter series before aggregation. Process restarts reset counters. A series first appears after an observation, and a gap means no usable samples.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: attempts/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (category) ((rate(restaurantos_business_stock_rejections_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}[1m]) and restaurantos_business_stock_rejections_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{category}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 4
+    },
+    {
+      "title": "Durable inventory and sales",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "w": 24,
+        "h": 1,
+        "x": 0,
+        "y": 13
+      },
+      "id": 5
+    },
+    {
+      "type": "timeseries",
+      "title": "Active low-stock ingredients and alerts",
+      "description": "Live active low-stock ingredient count and matching active projected alert count. The alert projection may be behind producer state.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max (restaurantos_business_stock_active_ingredients{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () (((time() - max (restaurantos_business_collection_last_success_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < (max (restaurantos_business_collection_freshness_budget_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) > 0)) and on () (max (restaurantos_business_collection_success{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) == 1))",
+          "legendFormat": "Ingredients",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max (restaurantos_business_stock_active_alerts{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () (((time() - max (restaurantos_business_collection_last_success_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < (max (restaurantos_business_collection_freshness_budget_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) > 0)) and on () (max (restaurantos_business_collection_success{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) == 1))",
+          "legendFormat": "Projected alerts",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 6
+    },
+    {
+      "type": "timeseries",
+      "title": "Low-stock episode openings in the preceding 24 hours",
+      "description": "Rolling 24-hour source window. Each durable opening counts once. Initialization baselines are separate from operational openings. Resolved episodes remain in the opening window.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 14
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: episodes",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (kind) (restaurantos_business_stock_episode_openings_24h{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () (((time() - max (restaurantos_business_collection_last_success_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < (max (restaurantos_business_collection_freshness_budget_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) > 0)) and on () (max (restaurantos_business_collection_success{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) == 1))",
+          "legendFormat": "{{kind}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 7
+    },
+    {
+      "type": "timeseries",
+      "title": "Retained completed orders \u00b7 seven UTC creation dates",
+      "description": "The seven UTC order creation dates run from 00:00 UTC six dates before the snapshot date to 00:00 UTC the following date. The current UTC date is partial. Permitted deletions can lower retained totals. This gauge tracks the operational projection.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 22
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: orders",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max (restaurantos_business_sales_retained_orders_7d{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () (((time() - max (restaurantos_business_collection_last_success_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < (max (restaurantos_business_collection_freshness_budget_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) > 0)) and on () (max (restaurantos_business_collection_success{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) == 1))",
+          "legendFormat": "Retained completed orders",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 8
+    },
+    {
+      "type": "timeseries",
+      "title": "Retained completed sales \u00b7 seven UTC creation dates",
+      "description": "The seven UTC order creation dates run from 00:00 UTC six dates before the snapshot date to 00:00 UTC the following date. The current UTC date is partial. Permitted deletions can lower retained totals. Enable only for a verified THB-only database. An absent amount remains unavailable. PostgreSQL NUMERIC and Python Decimal are authoritative. The plotted float is an operational projection for monitoring.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 22
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: THB",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max (restaurantos_business_sales_retained_amount_7d_THB{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () (((time() - max (restaurantos_business_collection_last_success_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < (max (restaurantos_business_collection_freshness_budget_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) > 0)) and on () (max (restaurantos_business_collection_success{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) == 1))",
+          "legendFormat": "Retained sales (THB)",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 9
+    },
+    {
+      "title": "Collection and analytics delivery progress",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "w": 24,
+        "h": 1,
+        "x": 0,
+        "y": 30
+      },
+      "id": 10
+    },
+    {
+      "type": "stat",
+      "title": "Business snapshot collection",
+      "description": "Unavailable if disabled or missing. The API reports the freshness budget. A successful read can still report outstanding analytics deliveries.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 5,
+        "x": 0,
+        "y": 31
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "Unavailable",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Failed / no success yet",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "Fresh",
+                  "color": "green"
+                },
+                "2": {
+                  "text": "Stale / invalid clock",
+                  "color": "orange"
+                },
+                "3": {
+                  "text": "Freshness budget unavailable",
+                  "color": "orange"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(0 * (((time() - max (restaurantos_business_collection_last_success_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < (max (restaurantos_business_collection_freshness_budget_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) > 0)) and on () (max (restaurantos_business_collection_success{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) == 1)) + 1) or (2 * (max (restaurantos_business_collection_success{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) == 1) and on () (max (restaurantos_business_collection_freshness_budget_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) > 0)) or (3 * (max (restaurantos_business_collection_success{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) == 1) unless on () (max (restaurantos_business_collection_freshness_budget_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) > 0)) or (max (restaurantos_business_collection_success{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) == 0)",
+          "legendFormat": "Latest source status",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "id": 11
+    },
+    {
+      "type": "timeseries",
+      "title": "Last successful business source collection age",
+      "description": "Measured from the source transaction timestamp. A successful collection remains usable while its age is nonnegative and below the API-reported freshness budget.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 31
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(time() - max (restaurantos_business_collection_last_success_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0",
+          "legendFormat": "Source age",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(max (restaurantos_business_collection_freshness_budget_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) > 0)",
+          "legendFormat": "Freshness budget",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 12
+    },
+    {
+      "type": "timeseries",
+      "title": "Outstanding analytics deliveries by state",
+      "description": "Positive queued, in-flight, retry-delayed and recovery-due states show unfinished analytics work. Terminal deliveries require review. Zero at collection is compatible with future work or legacy/projection discrepancies.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 39
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: deliveries",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (state) (restaurantos_business_analytics_deliveries{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () (((time() - max (restaurantos_business_collection_last_success_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < (max (restaurantos_business_collection_freshness_budget_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) > 0)) and on () (max (restaurantos_business_collection_success{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) == 1))",
+          "legendFormat": "{{state}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 13
+    },
+    {
+      "type": "timeseries",
+      "title": "Oldest unfinished analytics delivery",
+      "description": "Database-clock age since creation. Increases across fresh snapshots when the worker is stopped and work waits. Empty unfinished states report zero. Terminal deliveries are shown separately.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 39
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max (max by (state) (restaurantos_business_analytics_oldest_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\",state=~\"queued|in_flight|retry_delayed|recovery_due\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () (((time() - max (restaurantos_business_collection_last_success_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < (max (restaurantos_business_collection_freshness_budget_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) > 0)) and on () (max (restaurantos_business_collection_success{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) == 1)))",
+          "legendFormat": "Oldest unfinished",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 14
+    },
+    {
+      "type": "timeseries",
+      "title": "Oldest terminal analytics delivery",
+      "description": "Age since creation, separate from unfinished projection work.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 47
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max (restaurantos_business_analytics_oldest_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\",state=\"terminal\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () (((time() - max (restaurantos_business_collection_last_success_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < (max (restaurantos_business_collection_freshness_budget_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) > 0)) and on () (max (restaurantos_business_collection_success{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) == 1))",
+          "legendFormat": "Oldest terminal",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 15
+    }
+  ]
+}

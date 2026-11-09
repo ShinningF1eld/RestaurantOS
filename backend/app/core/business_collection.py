@@ -125,6 +125,18 @@ class BusinessCollector:
             "Whether the last PostgreSQL collection attempt succeeded",
             "",
         )
+        freshness_budget = gauge(
+            "collection.freshness_budget",
+            "Maximum acceptable age of a successful PostgreSQL snapshot",
+            "s",
+        )
+        # Allow two collection intervals, one export interval, and ten seconds
+        # for the Collector batch and Prometheus scrape.
+        freshness_budget.set(
+            2 * settings.monitoring_business_collection_seconds
+            + settings.monitoring_export_interval_ms / 1000
+            + 10
+        )
         self.success.set(0)
 
     async def collect(self, sessions: async_sessionmaker[AsyncSession]) -> None:

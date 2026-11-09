@@ -1,0 +1,1433 @@
+{
+  "uid": "restaurantos-database-redis",
+  "title": "Database & Redis",
+  "description": "Application SQL, pools and Redis plus optional restricted server diagnostics.",
+  "tags": [
+    "restaurantos",
+    "operator"
+  ],
+  "editable": false,
+  "schemaVersion": 41,
+  "timezone": "utc",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "links": [
+    {
+      "title": "RestaurantOS dashboards",
+      "type": "dashboards",
+      "tags": [
+        "restaurantos",
+        "operator"
+      ],
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": true
+    }
+  ],
+  "panels": [
+    {
+      "title": "Reading this dashboard",
+      "type": "text",
+      "options": {
+        "mode": "markdown",
+        "content": "Application instrumentation is independent of the restricted PostgreSQL and Redis receivers. Worker process signals require distinct slots. Missing series can mean disabled instrumentation, no observed operations, an unsupported pool, receiver failure or Collector expiry. Correlate API SQL and Redis timing metrics with the Service Overview and request traces."
+      },
+      "gridPos": {
+        "w": 24,
+        "h": 4,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1
+    },
+    {
+      "title": "Application SQL and SQLAlchemy pools",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "w": 24,
+        "h": 1,
+        "x": 0,
+        "y": 4
+      },
+      "id": 2
+    },
+    {
+      "type": "timeseries",
+      "title": "SQL cursor execution duration",
+      "description": "Bucket estimates for cursor execution. Pool acquisition, result decoding and end-to-end HTTP latency are separate.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.5, sum by (le, role, worker_slot) ((rate(restaurantos_sql_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}[1m]) and restaurantos_sql_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P50 {{role}} {{worker_slot}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le, role, worker_slot) ((rate(restaurantos_sql_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}[1m]) and restaurantos_sql_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P95 {{role}} {{worker_slot}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (le, role, worker_slot) ((rate(restaurantos_sql_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}[1m]) and restaurantos_sql_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P99 {{role}} {{worker_slot}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 3
+    },
+    {
+      "type": "timeseries",
+      "title": "SQL executions by operation and outcome",
+      "description": "One-minute rate per original counter series before aggregation. Process restarts reset counters. A series first appears after an observation, and a gap means no usable samples.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: ops/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (role, worker_slot, operation, outcome) ((rate(restaurantos_sql_duration_seconds_count{job=\"collector-telemetry\",role=~\"api|worker\"}[1m]) and restaurantos_sql_duration_seconds_count{job=\"collector-telemetry\",role=~\"api|worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{role}} {{worker_slot}} {{operation}} {{outcome}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 4
+    },
+    {
+      "type": "timeseries",
+      "title": "Slow SQL and failed SQL executions",
+      "description": "Slow uses the API or worker's configured cursor duration threshold. One-minute rate per original counter series before aggregation. Process restarts reset counters. A series first appears after an observation, and a gap means no usable samples.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 13
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: ops/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (role, worker_slot, operation, outcome) ((rate(restaurantos_sql_slow_total{job=\"collector-telemetry\",role=~\"api|worker\"}[1m]) and restaurantos_sql_slow_total{job=\"collector-telemetry\",role=~\"api|worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Slow {{role}} {{worker_slot}} {{operation}} {{outcome}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (role, worker_slot, operation, outcome) ((rate(restaurantos_sql_failures_total{job=\"collector-telemetry\",role=~\"api|worker\"}[1m]) and restaurantos_sql_failures_total{job=\"collector-telemetry\",role=~\"api|worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Failed {{role}} {{worker_slot}} {{operation}} {{outcome}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 5
+    },
+    {
+      "type": "timeseries",
+      "title": "Database transaction failures",
+      "description": "First DB execution or commit error in a transaction. Ordinary rollback during read teardown is excluded. One-minute rate per original counter series before aggregation. Process restarts reset counters. A series first appears after an observation, and a gap means no usable samples.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 13
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: failures/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (role, worker_slot, outcome) ((rate(restaurantos_transaction_failures_total{job=\"collector-telemetry\",role=~\"api|worker\"}[1m]) and restaurantos_transaction_failures_total{job=\"collector-telemetry\",role=~\"api|worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{role}} {{worker_slot}} {{outcome}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 6
+    },
+    {
+      "type": "timeseries",
+      "title": "SQLAlchemy pool size and use",
+      "description": "Base capacity includes unopened slots. Open idle is checked-in open connections. NullPool does not publish capacity gauges.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 21
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: connections",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (role, worker_slot) (restaurantos_pool_capacity{job=\"collector-telemetry\",role=~\"api|worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Base capacity {{role}} {{worker_slot}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (role, worker_slot) (restaurantos_pool_limit{job=\"collector-telemetry\",role=~\"api|worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Connection limit {{role}} {{worker_slot}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (role, worker_slot) (restaurantos_pool_used{job=\"collector-telemetry\",role=~\"api|worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Checked out {{role}} {{worker_slot}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (role, worker_slot) (restaurantos_pool_idle{job=\"collector-telemetry\",role=~\"api|worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Open idle {{role}} {{worker_slot}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "E",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (role, worker_slot) (restaurantos_pool_overflow{job=\"collector-telemetry\",role=~\"api|worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Open overflow {{role}} {{worker_slot}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 7
+    },
+    {
+      "type": "timeseries",
+      "title": "Pool acquisitions in progress",
+      "description": "Current Pool.connect calls in progress, including connect and pre-ping. The exact queue waiter count is unavailable.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 21
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: acquisitions",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (role, worker_slot) (restaurantos_pool_acquiring{job=\"collector-telemetry\",role=~\"api|worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{role}} {{worker_slot}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 8
+    },
+    {
+      "type": "timeseries",
+      "title": "Pool acquisition duration",
+      "description": "Bucket estimates include queue wait, connect and worker pre-ping. Cursor execution is measured separately.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 29
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.5, sum by (le, role, worker_slot) ((rate(restaurantos_pool_acquire_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}[1m]) and restaurantos_pool_acquire_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P50 {{role}} {{worker_slot}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le, role, worker_slot) ((rate(restaurantos_pool_acquire_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}[1m]) and restaurantos_pool_acquire_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P95 {{role}} {{worker_slot}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (le, role, worker_slot) ((rate(restaurantos_pool_acquire_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}[1m]) and restaurantos_pool_acquire_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P99 {{role}} {{worker_slot}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 9
+    },
+    {
+      "type": "timeseries",
+      "title": "Pool acquisition failures and timeouts",
+      "description": "Timeout, connection and cancellation outcomes shown separately. One-minute rate per original counter series before aggregation. Process restarts reset counters. A series first appears after an observation, and a gap means no usable samples.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 29
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: failures/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (role, worker_slot, outcome) ((rate(restaurantos_pool_acquire_failures_total{job=\"collector-telemetry\",role=~\"api|worker\"}[1m]) and restaurantos_pool_acquire_failures_total{job=\"collector-telemetry\",role=~\"api|worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{role}} {{worker_slot}} {{outcome}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 10
+    },
+    {
+      "title": "Catalog cache and application Redis",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "w": 24,
+        "h": 1,
+        "x": 0,
+        "y": 37
+      },
+      "id": 11
+    },
+    {
+      "type": "timeseries",
+      "title": "Catalog cache outcomes",
+      "description": "Authorized logical lookup decisions. A bypass skipped the lookup. One-minute rate per original counter series before aggregation. Process restarts reset counters. A series first appears after an observation, and a gap means no usable samples.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: lookups/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (cache, outcome) ((rate(restaurantos_catalog_cache_lookups_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}[1m]) and restaurantos_catalog_cache_lookups_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{cache}} {{outcome}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 12
+    },
+    {
+      "type": "timeseries",
+      "title": "Catalog cache hit share",
+      "description": "Hits divided by hits plus misses, per catalog cache. Excludes bypasses. Undefined with no attempted lookups. A missing hit series contributes zero only with observed attempts.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum by (cache) ((rate(restaurantos_catalog_cache_lookups_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\",outcome=\"hit\"}[1m]) and restaurantos_catalog_cache_lookups_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\",outcome=\"hit\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) or (0 * sum by (cache) ((rate(restaurantos_catalog_cache_lookups_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\",outcome=~\"hit|miss\"}[1m]) and restaurantos_catalog_cache_lookups_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\",outcome=~\"hit|miss\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))) / (sum by (cache) ((rate(restaurantos_catalog_cache_lookups_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\",outcome=~\"hit|miss\"}[1m]) and restaurantos_catalog_cache_lookups_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\",outcome=~\"hit|miss\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) > 0)",
+          "legendFormat": "{{cache}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 13
+    },
+    {
+      "type": "timeseries",
+      "title": "Redis command duration",
+      "description": "Bucket estimates include connection/acquisition and reply within the existing command budget.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 46
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.5, sum by (le, role, worker_slot) ((rate(restaurantos_redis_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}[1m]) and restaurantos_redis_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P50 {{role}} {{worker_slot}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le, role, worker_slot) ((rate(restaurantos_redis_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}[1m]) and restaurantos_redis_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P95 {{role}} {{worker_slot}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (le, role, worker_slot) ((rate(restaurantos_redis_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}[1m]) and restaurantos_redis_duration_seconds_bucket{job=\"collector-telemetry\",role=~\"api|worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P99 {{role}} {{worker_slot}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 14
+    },
+    {
+      "type": "timeseries",
+      "title": "Redis command attempts by outcome",
+      "description": "API counts combine cache and auth commands. Worker counts cover stream commands. Errors and cancellations remain separate from successes. One-minute rate per original counter series before aggregation. Process restarts reset counters. A series first appears after an observation, and a gap means no usable samples.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 46
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: ops/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (role, worker_slot, operation, outcome) ((rate(restaurantos_redis_operations_total{job=\"collector-telemetry\",role=~\"api|worker\"}[1m]) and restaurantos_redis_operations_total{job=\"collector-telemetry\",role=~\"api|worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{role}} {{worker_slot}} {{operation}} {{outcome}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 15
+    },
+    {
+      "title": "Restricted PostgreSQL and Redis receivers",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "w": 24,
+        "h": 1,
+        "x": 0,
+        "y": 54
+      },
+      "id": 16
+    },
+    {
+      "type": "stat",
+      "title": "Server diagnostic series",
+      "description": "Requires opt-in restricted diagnostics. A failed receiver stops refreshing series, which expire after the Collector's 30-second export window and next scrape. Presence inside this window cannot establish a fresh successful INFO or SQL read.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 5,
+        "x": 0,
+        "y": 55
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "Unavailable",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Missing",
+                  "color": "orange"
+                },
+                "1": {
+                  "text": "Present",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(1 - max(absent(postgresql_backends{job=\"collector-telemetry\",service_name=\"restaurantos-postgresql\"}))) or (count(postgresql_backends{job=\"collector-telemetry\",service_name=\"restaurantos-postgresql\"}) > bool 0)",
+          "legendFormat": "PostgreSQL",
+          "instant": true,
+          "range": false
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(1 - max(absent(redis_uptime_seconds_total{job=\"collector-telemetry\",service_name=\"restaurantos-redis\"}))) or (count(redis_uptime_seconds_total{job=\"collector-telemetry\",service_name=\"restaurantos-redis\"}) > bool 0)",
+          "legendFormat": "Redis",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "id": 17
+    },
+    {
+      "type": "timeseries",
+      "title": "Collector scraper activity",
+      "description": "Receiver-reported metric points. The Redis receiver can report zero errored points when the entire INFO call fails. Check presence and Collector logs.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 55
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: points/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (receiver, scraper) ((rate(otelcol_scraper_scraped_metric_points{job=\"collector-self\"}[1m]) and otelcol_scraper_scraped_metric_points{job=\"collector-self\"}) and on (job, instance) (up{job=\"collector-self\"} == 1))",
+          "legendFormat": "Scraped {{receiver}} {{scraper}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (receiver, scraper) ((rate(otelcol_scraper_errored_metric_points{job=\"collector-self\"}[1m]) and otelcol_scraper_errored_metric_points{job=\"collector-self\"}) and on (job, instance) (up{job=\"collector-self\"} == 1))",
+          "legendFormat": "Errored {{receiver}} {{scraper}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 18
+    },
+    {
+      "type": "timeseries",
+      "title": "PostgreSQL connections",
+      "description": "Backends for the monitored database and server-wide configured limit. A monitored database can be only part of server usage.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 63
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: connections",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max (postgresql_backends{job=\"collector-telemetry\",service_name=\"restaurantos-postgresql\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Monitored database backends",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max (postgresql_connection_max{job=\"collector-telemetry\",service_name=\"restaurantos-postgresql\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Server connection limit",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 19
+    },
+    {
+      "type": "timeseries",
+      "title": "PostgreSQL locks by scope and mode",
+      "description": "Includes held and requested locks, including the collector's own. No granted/waiting dimension is available.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 63
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: locks",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (collection_scope, mode, lock_type) (postgresql_database_locks{job=\"collector-telemetry\",service_name=\"restaurantos-postgresql\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{collection_scope}} {{mode}} {{lock_type}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 20
+    },
+    {
+      "type": "timeseries",
+      "title": "PostgreSQL transactions and deadlocks",
+      "description": "Server-observed transactions for the monitored database. A server rollback can be normal and has a different meaning from application DB transaction failure.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 71
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: events/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum ((rate(postgresql_commits_total{job=\"collector-telemetry\",service_name=\"restaurantos-postgresql\"}[1m]) and postgresql_commits_total{job=\"collector-telemetry\",service_name=\"restaurantos-postgresql\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Commits",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum ((rate(postgresql_rollbacks_total{job=\"collector-telemetry\",service_name=\"restaurantos-postgresql\"}[1m]) and postgresql_rollbacks_total{job=\"collector-telemetry\",service_name=\"restaurantos-postgresql\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Rollbacks",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum ((rate(postgresql_deadlocks_total{job=\"collector-telemetry\",service_name=\"restaurantos-postgresql\"}[1m]) and postgresql_deadlocks_total{job=\"collector-telemetry\",service_name=\"restaurantos-postgresql\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Deadlocks",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 21
+    },
+    {
+      "type": "timeseries",
+      "title": "PostgreSQL temporary I/O",
+      "description": "Temporary I/O rate in the monitored database.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 71
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: B/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum ((rate(postgresql_temp_io_bytes_total{job=\"collector-telemetry\",service_name=\"restaurantos-postgresql\"}[1m]) and postgresql_temp_io_bytes_total{job=\"collector-telemetry\",service_name=\"restaurantos-postgresql\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Temporary bytes",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 22
+    },
+    {
+      "type": "timeseries",
+      "title": "Redis server memory",
+      "description": "Redis INFO observations. Zero maxmemory means unlimited.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 79
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max (redis_memory_used_bytes{job=\"collector-telemetry\",service_name=\"restaurantos-redis\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Used",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max (redis_memory_rss_bytes{job=\"collector-telemetry\",service_name=\"restaurantos-redis\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Resident",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max (redis_maxmemory_bytes{job=\"collector-telemetry\",service_name=\"restaurantos-redis\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Configured limit",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 23
+    },
+    {
+      "type": "timeseries",
+      "title": "Redis evictions and rejected connections",
+      "description": "Server counters. Connection rejections are distinct from application command errors.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 79
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: events/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum ((rate(redis_keys_evicted_total{job=\"collector-telemetry\",service_name=\"restaurantos-redis\"}[1m]) and redis_keys_evicted_total{job=\"collector-telemetry\",service_name=\"restaurantos-redis\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Evictions",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum ((rate(redis_connections_rejected_total{job=\"collector-telemetry\",service_name=\"restaurantos-redis\"}[1m]) and redis_connections_rejected_total{job=\"collector-telemetry\",service_name=\"restaurantos-redis\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Rejected connections",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 24
+    },
+    {
+      "type": "timeseries",
+      "title": "Redis clients",
+      "description": "Connected and blocked clients from Redis INFO. Blocking stream reads can be normal.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 87
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: clients",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max (redis_clients_connected{job=\"collector-telemetry\",service_name=\"restaurantos-redis\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Connected",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max (redis_clients_blocked{job=\"collector-telemetry\",service_name=\"restaurantos-redis\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Blocked",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 25
+    },
+    {
+      "type": "timeseries",
+      "title": "Redis commands per second",
+      "description": "Instantaneous server-side INFO rate. Command latency is measured separately by application adapters.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 87
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: ops/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max (redis_commands_per_second{job=\"collector-telemetry\",service_name=\"restaurantos-redis\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Commands",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 26
+    }
+  ]
+}
