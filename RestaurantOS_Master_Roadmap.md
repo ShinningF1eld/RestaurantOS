@@ -1032,6 +1032,12 @@ and [resource experiment](docs/milestone9-observability/performance-milestone9-i
 for current measured status. T2–T10 and both application/incident exit criteria
 remain open; local foundation evidence is separate from milestone acceptance.
 
+The T7/#64 [operator dashboards](docs/runbooks/monitoring.md#operator-dashboards)
+are provisioned from the repository. The
+[isolated dashboard checks](docs/testing/monitoring.md#operator-dashboard-verification-64)
+cover query semantics, provisioning and investigation links. Milestone exit
+criteria and alert objectives are tracked separately.
+
 ### Objective
 
 Make failures and performance understandable without attaching a debugger.

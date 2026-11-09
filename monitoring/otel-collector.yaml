@@ -229,7 +229,7 @@ processors:
         conditions: ['resource.attributes["service.name"] != "restaurantos-api"']
       - context: metric
         conditions:
-          - 'not IsMatch(metric.name, "^restaurantos[.]business[.](orders[.]transitions|stock[.](rejections|episode_openings_24h|active_ingredients|active_alerts)|sales[.](retained_orders_7d|retained_amount_7d)|analytics[.](deliveries|oldest)|collection[.](last_success|success))$")'
+          - 'not IsMatch(metric.name, "^restaurantos[.]business[.](orders[.]transitions|stock[.](rejections|episode_openings_24h|active_ingredients|active_alerts)|sales[.](retained_orders_7d|retained_amount_7d)|analytics[.](deliveries|oldest)|collection[.](last_success|success|freshness_budget))$")'
       - context: datapoint
         conditions:
           - 'Len(datapoint.exemplars) > 0'
@@ -256,7 +256,7 @@ processors:
       - set(metric.unit, "{alert}") where metric.name == "restaurantos.business.stock.active_alerts"
       - set(metric.unit, "{order}") where metric.name == "restaurantos.business.sales.retained_orders_7d"
       - set(metric.unit, "{delivery}") where metric.name == "restaurantos.business.analytics.deliveries"
-      - set(metric.unit, "s") where metric.name == "restaurantos.business.analytics.oldest" or metric.name == "restaurantos.business.collection.last_success"
+      - set(metric.unit, "s") where metric.name == "restaurantos.business.analytics.oldest" or metric.name == "restaurantos.business.collection.last_success" or metric.name == "restaurantos.business.collection.freshness_budget"
       - set(metric.unit, "THB") where metric.name == "restaurantos.business.sales.retained_amount_7d"
       - keep_keys(datapoint.attributes, ["transition"]) where metric.name == "restaurantos.business.orders.transitions"
       - keep_keys(datapoint.attributes, ["category"]) where metric.name == "restaurantos.business.stock.rejections"

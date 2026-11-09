@@ -1,9 +1,8 @@
 # Optional local monitoring
 
-This runbook covers issue #58's monitoring foundation and issue #59's optional
-API HTTP telemetry. Frontend/infrastructure/worker tracing, operational dashboards
-and final alert objectives belong to later M9 issues. No application migration
-is involved.
+This runbook covers the optional local monitoring stack, its telemetry sources
+and its provisioned Grafana dashboards. Final alert objectives belong to later
+M9 issues. Starting monitoring does not migrate the application database.
 
 API HTTP signals are optional through `MONITORING_ENABLED=true` and
 `MONITORING_ENDPOINT=http://localhost:4318` (or the chosen loopback port).
@@ -60,13 +59,94 @@ private temporary secrets and owned cleanup on success/failure.
 backend/.venv/bin/python scripts/generate-monitoring-telemetry.py --endpoint http://localhost:4318 --duration 10
 ```
 
-Synthetic signals must use the declared service/metric/span names. API signals
-have a separate admission policy and require the explicit opt-in above; database
-receivers and workers remain uninstrumented. In Grafana Explore,
+Synthetic signals must use the declared service, metric and span names.
+Application signals have separate admission policies and explicit opt-ins.
+In Grafana Explore,
 select RestaurantOS Metrics, Logs or Traces. Workload metrics include
 `restaurantos_synthetic_operations_total` and the seconds histogram. Loki uses
 `{service_name="restaurantos-monitoring-synthetic"}`. Trace/log IDs are metadata,
 not metric/index labels. Provisioning includes stable IDs and correlation links.
+
+## Operator dashboards
+
+Sign in to local Grafana and open the **RestaurantOS** folder. The four
+dashboards are managed from the repository and link to one another with the
+current time range. Service Overview is the starting point for incidents.
+
+- **Service Overview** separates expected HTTP outcomes, such as authentication,
+  forbidden, validation, conflict and rate limit, from unexpected server errors.
+  Error share requires positive measured traffic. Latency percentiles estimate
+  the distribution from histogram buckets. Last completed request age grows
+  during inactivity. Check the API observation-series status and Collector scrape
+  targets before interpreting gaps. A fresh stack with no recorded request has
+  no API counter. A sampled counter that stays flat can show measured zero
+  activity. Send a known request if you need to distinguish a quiet startup from
+  an unavailable API exporter.
+- **Database & Redis** separates SQL cursor time, pool acquisition time and Redis
+  command time. Acquisition includes connecting and pre-ping. A missing pool
+  gauge can mean an unsupported pool such as NullPool. The PostgreSQL lock count
+  includes held and requested locks. Redis command duration comes from the
+  application adapter. The cache ratio uses catalog hits divided by hits plus
+  misses per cache, with bypasses shown separately. Check receiver series
+  presence and scraper diagnostics when server statistics go missing. The
+  Collector may re-serve a previous observation until its 30-second expiry.
+- **Background Processing** shows PostgreSQL delivery depth and age. An event
+  may have multiple deliveries. Each delivery can have several attempts across
+  retries and replay. Queued, in-flight, retry-delayed and recovery-due work
+  count as unfinished. Terminal failures are separate. Receipt-window gauges
+  measure durable progress, including skipped receipts. Retries and duplicate
+  ACKs do not count as additional business events. Assign distinct worker slots
+  to see process-local attempt and diagnostic rates. If all workers stop, the
+  worker snapshot becomes stale or disappears. While the API business sampler
+  runs, Business Activity continues to show increasing age for waiting analytics
+  deliveries.
+- **Business Activity** shows observed post-commit order transition rates and
+  stock rejection attempts separately from durable low-stock state and episode
+  openings. Sales cover seven UTC dates grouped by **order creation date**. The
+  period starts at 00:00 UTC six calendar dates before the snapshot date and ends
+  at 00:00 UTC the following date. The current UTC date is partial. Permitted
+  deletion can lower retained totals. THB amounts require the existing opt-in
+  and verified THB-only retained prices. PostgreSQL NUMERIC and Python Decimal
+  remain authoritative for the operational projection. A fresh source collection
+  can report unfinished or terminal analytics work, so check the delivery panels
+  and use scoped reconciliation for discrepancies.
+
+Process counter rates use a one-minute window and handle resets before
+aggregation. Gaps mean unavailable or insufficient samples. For aggregate
+panels, the worker freshness budget is 45 seconds. Business Activity reads the
+API-reported budget, which is 75 seconds at the default collection and export
+intervals. Restart the API and Collector when rolling out this dashboard change
+so the API publishes the budget and the Collector admits it. A successful
+collection without the budget shows **Freshness budget unavailable** and
+suppresses the aggregate values. A failed collection suppresses previous
+business values immediately once the failure signal is exported. A successful
+scrape only proves the scrape succeeded. Collector send failures, enqueue
+failures and refusals show reported pipeline failures with different
+denominators. The counts can overlap and upstream SDK losses may be invisible.
+
+### Follow an investigation
+
+1. Narrow the dashboard time range around the incident. Click a data point on
+   **Requests by route**, **Request outcomes**, **Server errors by route** or
+   **P95 duration by route** and choose **Open matching API request logs**.
+   Explore uses the selected dashboard range and the matching route or outcome
+   where the panel carries it. Route and outcome are Loki structured metadata.
+2. Pick a matching sanitized request log and use its **TraceID** link to open
+   the exact Tempo trace. The aggregate point can cover several requests. In
+   Tempo, inspect the API span and related Next.js server, render and API-client
+   spans when the request came from SSR. SQL and Redis timing in the current
+   contract is metric-based. Use Database & Redis for those signals.
+3. For retries or worker failures, use the Background Processing attempt
+   panel link to search Tempo for the selected operation, consumer and outcome.
+   Compare with the worker's structured JSON diagnostics on local stdout/stderr.
+   Each attempt has its own trace root and can link to the original request
+   context. For older work, use
+   the [authorized event status and inspect commands](event-worker.md).
+
+Tempo and Loki retain about three days. The original HTTP trace can expire
+before a delayed attempt or replay. Search the recent attempt window directly
+to find an available worker trace. Retained event and correlation metadata
+cannot reconstruct an expired trace.
 
 ## Diagnose missing signals
 

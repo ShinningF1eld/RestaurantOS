@@ -82,6 +82,38 @@ Pure tests protect budget/isolation, strict mounts, source links, payload sizing
 counter/histogram semantics, lifecycle ownership and failure cleanup. Parser
 success alone is not runtime acceptance. `--no-install` is partial evidence.
 
+## Operator dashboard verification (#64)
+
+```sh
+backend/.venv/bin/python scripts/check-operator-dashboards.py --runtime --report test-results/monitoring/operator-dashboards.json
+backend/.venv/bin/python scripts/check-frontend-observability.py --mode host --dashboard-links
+backend/.venv/bin/python scripts/check-monitoring-retention.py --dashboard-links --report test-results/monitoring/operator-dashboard-retention.json
+```
+
+Use the equivalent `backend/.venv/Scripts/python.exe` on Windows. The first
+command checks each dashboard target against exact Prometheus values and label
+sets on the pinned promtool binary. It checks the declared unit and covers
+missing, idle, stale and failed sources, counter resets, cache denominators,
+shared backlog snapshots, delayed analytics work and disabled optional THB
+amounts. Freshness fixtures include the five-minute business collection
+cadence, expiry at the reported budget, and historical samples without a budget.
+`--runtime` adds authenticated Grafana provisioning, simulates an
+unavailable Collector and stores in an owned project, and checks normal restart
+and cleanup. It sends a synthetic five-minute-cadence snapshot over OTLP and
+checks that Grafana shows its reported budget and retained order count. It also
+imports a historical synthetic block into the disposable Prometheus volume and
+verifies every query target through the authenticated Grafana data-source proxy.
+The report contains only synthetic sample values and approved metric dimensions.
+
+The second command uses the real seeded SSR/API and worker on disposable
+services. It resolves the provisioned link templates, checks the filtered Loki
+results and derived trace field, verifies real SSR ancestry and finds the linked
+worker attempt through its provisioned Tempo search. The retention command
+physically removes the original trace from owned storage, then uses the
+provisioned retry search to find a new synthetic attempt carrying its old
+link. Existing worker integration checks exercise durable replay. Evidence
+omits credentials and request, trace and event identifiers.
+
 ## Runtime matrix
 
 ```sh

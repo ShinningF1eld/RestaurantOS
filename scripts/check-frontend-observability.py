@@ -81,6 +81,105 @@ def request(session, method, url, **kwargs):
     return response
 
 
+def verify_dashboard_links(stack, env, log, start, ssr_id, origin_id):
+    """Resolve the provisioned Explore links with real SSR and worker signals."""
+    dashboard = runpy.run_path(str(ROOT / "scripts/check-operator-dashboards.py"))
+    linked_query, query = dashboard["linked_query"], dashboard["query"]
+
+    def panel(uid, title):
+        model = stack.grafana("/api/dashboards/uid/restaurantos-" + uid)["dashboard"]
+        return next(row for row in model["panels"] if row["title"] == title)
+
+    route = "/restaurants/{restaurant_id}/menus"
+    route_panel = panel("service", "Requests by route")
+    (derived,) = stack.grafana("/api/datasources/uid/restaurantos-loki")["jsonData"][
+        "derivedFields"
+    ]
+    assert derived["matcherType"] == "label" and derived["matcherRegex"] == "trace_id"
+    assert derived["datasourceUid"] == "restaurantos-tempo"
+    assert derived["url"] == "$" + "{__value.raw}"
+
+    def matching_logs():
+        end = int(time.time() * 1000)
+        link = linked_query(route_panel, start, end, http_route=route)
+        rows = query(
+            stack,
+            "loki",
+            "/loki/api/v1/query_range",
+            query=link["expr"],
+            start=start * 10**6,
+            end=end * 10**6,
+        )["data"]["result"]
+        ids = set()
+        for row in rows:
+            stream = row["stream"]
+            assert stream["service_name"] == "restaurantos-api"
+            assert stream["http_route"] == route
+            assert all(line[1] == "HTTP request completed" for line in row["values"])
+            ids.add(stream[derived["matcherRegex"]])
+        return {ssr_id, origin_id} <= ids
+
+    wait_until(matching_logs, timeout=45)
+    assert correlation(stack, ssr_id)
+    origin = stack.query("tempo", "/api/traces/" + origin_id)
+    origin_spans = {
+        identifier(span["spanId"])
+        for _, span in spans_in(origin)
+        if span["name"] == "HTTP request"
+    }
+    assert origin_spans
+
+    worker_panel = panel("background", "Consumer attempts by outcome")
+    worker = subprocess.Popen(
+        [sys.executable, "-m", "app.worker"],
+        cwd=stack.directory,
+        env={**env, "MONITORING_WORKER_SLOT": "0"},
+        stdout=log,
+        stderr=log,
+    )
+    try:
+
+        def linked_attempt():
+            assert worker.poll() is None, "Isolated worker exited before trace export"
+            end = int(time.time() * 1000)
+            link = linked_query(
+                worker_panel,
+                start,
+                end,
+                consumer="notification_sink",
+                outcome="consumer_committed",
+            )
+            rows = query(
+                stack,
+                "tempo",
+                "/api/search",
+                q=link["expr"],
+                start=start // 1000,
+                end=(end + 999) // 1000,
+                limit=20,
+            ).get("traces", [])
+            for row in rows:
+                trace = stack.query("tempo", "/api/traces/" + row["traceID"])
+                for _, span in spans_in(trace):
+                    if span["name"] != "consumer attempt":
+                        continue
+                    assert not span.get("parentSpanId")
+                    for span_link in span.get("links", []):
+                        if identifier(span_link["traceId"]) == origin_id:
+                            assert identifier(span_link["spanId"]) in origin_spans
+                            assert identifier(span["traceId"]) != origin_id
+                            return True
+            return False
+
+        wait_until(linked_attempt, timeout=75)
+    finally:
+        stop_processes(worker)
+    print(
+        "PASS: provisioned API route log link, Loki trace field, real SSR ancestry and committed worker attempt search/link",
+        flush=True,
+    )
+
+
 @contextmanager
 def capture_exports(endpoint):
     """Inspect source OTLP in memory before Collector defense-in-depth filtering."""
@@ -149,6 +248,7 @@ def capture_exports(endpoint):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("host", "container"), default="host")
+    parser.add_argument("--dashboard-links", action="store_true")
     args = parser.parse_args()
     browser = runpy.run_path(str(ROOT / "scripts/run-browser-tests.py"))
     with ExitStack() as owners:
@@ -442,12 +542,17 @@ def main():
             )
             assert response.status_code == 201
             restaurant = response.json()["id"]
+            investigation_start = int(time.time() * 1000)
+            menu_trace = uuid4().hex
+            menu_headers = {**csrf}
+            if args.dashboard_links:
+                menu_headers["traceparent"] = f"00-{menu_trace}-1234567890abcdef-01"
             response = request(
                 clients[0],
                 "POST",
                 api + f"/restaurants/{restaurant}/menus",
                 json={"name": canary},
-                headers=csrf,
+                headers=menu_headers,
             )
             assert response.status_code in {200, 201}
             path = f"/restaurants/{restaurant}/menu"
@@ -467,6 +572,10 @@ def main():
             assert "no-store" in response.headers["Cache-Control"]
             assert "Set-Cookie" not in response.headers
             stored = wait_until(lambda: correlation(stack, trace_id))
+            if args.dashboard_links:
+                verify_dashboard_links(
+                    stack, env, log, investigation_start, trace_id, menu_trace
+                )
             assert canary not in json.dumps(stored)
             if args.mode == "host":
                 assert trace_id in "".join(source_exports)

@@ -106,8 +106,9 @@ Restart-safe [worker trace links and durable backlog metrics](docs/api/events.md
 are available; process-local worker metrics require a distinct bounded
 `MONITORING_WORKER_SLOT` per concurrent worker. Optional [business metrics](docs/api/business-observability.md)
 expose committed order activity, low stock, retained completed sales and separate
-collection and analytics-delivery signals. Operational dashboards and final alert
-objectives remain later M9 work.
+collection and analytics-delivery signals. The monitoring stack provisions four
+[operator dashboards](docs/runbooks/monitoring.md#operator-dashboards).
+Final alert objectives remain later M9 work.
 
 ## Prerequisites
 

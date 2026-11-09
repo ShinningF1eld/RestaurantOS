@@ -1,5 +1,15 @@
 # RestaurantOS current state
 
+## Current M9 observability issue #64 — operator dashboards
+
+The optional Grafana stack provisions Service Overview, Database & Redis,
+Background Processing, and Business Activity in the RestaurantOS folder.
+These read the existing Prometheus series and link investigations to Loki
+request logs and Tempo worker traces. See the
+[operator runbook](runbooks/monitoring.md#operator-dashboards) and
+[isolated checks](testing/monitoring.md#operator-dashboard-verification-64).
+Alert objectives and full M9 acceptance are separate.
+
 ## Current M9 observability issue #63 — business activity and projection freshness
 
 The optional API telemetry runtime observes committed order transitions and

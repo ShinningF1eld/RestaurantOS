@@ -6,6 +6,7 @@ import argparse
 import datetime
 import importlib.util
 import json
+import runpy
 import subprocess
 import time
 from pathlib import Path
@@ -91,8 +92,14 @@ print(json.dumps({'files':files,'metadata':metadata}))
         )
 
 
-def post(stack, signal, records):
-    body = json.dumps(checker.producer.payload(signal, records)).encode()
+def post(stack, signal, records, *, service=None):
+    payload = checker.producer.payload(signal, records)
+    if service is not None:
+        assert signal == "traces"
+        payload["resourceSpans"][0]["resource"]["attributes"][0]["value"] = {
+            "stringValue": service
+        }
+    body = json.dumps(payload).encode()
     request = Request(
         f"http://127.0.0.1:{stack.port('collector', 4318)}/v1/" + signal,
         data=body,
@@ -102,7 +109,63 @@ def post(stack, signal, records):
         assert not json.load(response).get("partialSuccess")
 
 
-def run(stack, report):
+def verify_recent_worker_link(stack, old_trace_id, old_span_id):
+    """A current retry remains discoverable after its origin is physically removed."""
+    dashboards = runpy.run_path(str(ROOT / "scripts/check-operator-dashboards.py"))
+    model = stack.grafana("/api/dashboards/uid/restaurantos-background")["dashboard"]
+    panel = next(
+        panel
+        for panel in model["panels"]
+        if panel["title"] == "Scheduled retries and failed attempts"
+    )
+    now = time.time_ns()
+    span, _ = checker.producer.operation("retention-worker-retry", 1, now)
+    attempt = span[0]
+    attempt.update(
+        name="consumer attempt",
+        kind=5,
+        links=[{"traceId": old_trace_id, "spanId": old_span_id}],
+        attributes=[
+            {"key": key, "value": {"stringValue": value}}
+            for key, value in (
+                ("consumer", "analytics"),
+                ("outcome", "consumer_retry_scheduled"),
+            )
+        ],
+    )
+    post(stack, "traces", [attempt], service="restaurantos-worker")
+    start = (now // 10**9) - 5
+
+    def visible_attempt():
+        end = int(time.time()) + 1
+        search = dashboards["linked_query"](
+            panel,
+            start * 1000,
+            end * 1000,
+            consumer="analytics",
+            outcome="consumer_retry_scheduled",
+        )
+        matches = dashboards["query"](
+            stack,
+            "tempo",
+            "/api/search",
+            q=search["expr"],
+            start=start,
+            end=end,
+        ).get("traces", [])
+        return any(row["traceID"] == attempt["traceId"] for row in matches)
+
+    wait_until(visible_attempt, 60)
+    (stored,) = checker.trace_spans(
+        stack.query("tempo", "/api/traces/" + attempt["traceId"])
+    )
+    (link,) = stored["links"]
+    assert checker.hex_id(link["traceId"]) == old_trace_id
+    assert checker.hex_id(link["spanId"]) == old_span_id
+    assert not stored.get("parentSpanId")
+
+
+def run(stack, report, *, dashboard_links=False):
     if not stack.state["ephemeral"] or not stack.project.startswith(
         "restaurantos-monitoring-test-"
     ):
@@ -143,7 +206,8 @@ def run(stack, report):
     fixture.write_text(
         "# TYPE monitoring_retention_control gauge\n"
         + f'monitoring_retention_control{{age="old"}} 1 {now - 8 * 86400}\n'
-        + f'monitoring_retention_control{{age="recent"}} 2 {now - 3600}\n# EOF\n'
+        + f'monitoring_retention_control{{age="recent"}} 2 {now - 3600}\n# EOF\n',
+        newline="\n",
     )
     stack.compose(
         "run",
@@ -192,7 +256,7 @@ def run(stack, report):
     old_spans, old_log = checker.producer.operation("retention-old", 1, old_ns)
     post(stack, "traces", old_spans)
     post(stack, "logs", [old_log])
-    tid, _, _ = checker.producer.identities("retention-old", 1)
+    tid, old_span_id, _ = checker.producer.identities("retention-old", 1)
     wait_until(lambda: stack.query("tempo", "/api/traces/" + tid))
     query = '{service_name="restaurantos-monitoring-synthetic"}'
 
@@ -300,6 +364,11 @@ def run(stack, report):
     wait_until(trace_absent, 180)
     assert stack.query("tempo", "/api/traces/" + fresh_tid)
     report["tempo_old_block_files_deleted_old_trace_absent_recent_trace_present"] = True
+    if dashboard_links:
+        verify_recent_worker_link(stack, tid, old_span_id)
+        report["dashboard_retry_search_resolves_worker_attempt_with_expired_origin"] = (
+            True
+        )
 
     def loki_deleted():
         after = files(stack, "loki", image)
@@ -331,13 +400,14 @@ def main():
     parser.add_argument(
         "--report", type=Path, default=ROOT / "test-results/monitoring/retention.json"
     )
+    parser.add_argument("--dashboard-links", action="store_true")
     args = parser.parse_args()
     report = {"status": "failed", "cleanup_verified": False}
     project = None
     try:
         with disposable_monitoring("host") as stack:
             project = stack.project
-            run(stack, report)
+            run(stack, report, dashboard_links=args.dashboard_links)
         report["status"] = "passed"
     except Exception as error:
         report["error"] = type(error).__name__ + ": " + str(error)

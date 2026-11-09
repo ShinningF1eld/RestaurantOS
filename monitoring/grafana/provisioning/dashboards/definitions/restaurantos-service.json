@@ -1,0 +1,959 @@
+{
+  "uid": "restaurantos-service",
+  "title": "Service Overview",
+  "description": "API traffic, latency and monitoring pipeline health.",
+  "tags": [
+    "restaurantos",
+    "operator"
+  ],
+  "editable": false,
+  "schemaVersion": 41,
+  "timezone": "utc",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "links": [
+    {
+      "title": "RestaurantOS dashboards",
+      "type": "dashboards",
+      "tags": [
+        "restaurantos",
+        "operator"
+      ],
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": true
+    }
+  ],
+  "panels": [
+    {
+      "title": "Reading this dashboard",
+      "type": "text",
+      "options": {
+        "mode": "markdown",
+        "content": "Start with **Monitoring health**. An up Collector can serve an empty scrape, and older application series expire when exports stop. **Last request age** grows during quiet periods. Use source presence and target status separately. Click a data point to open sanitized logs for the selected time range."
+      },
+      "gridPos": {
+        "w": 24,
+        "h": 4,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1
+    },
+    {
+      "title": "HTTP traffic",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "w": 24,
+        "h": 1,
+        "x": 0,
+        "y": 4
+      },
+      "id": 2
+    },
+    {
+      "type": "timeseries",
+      "title": "API requests",
+      "description": "One-minute rate per original counter series before aggregation. Process restarts reset counters. A series first appears after an observation, and a gap means no usable samples.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: req/s",
+          "noValue": "Unavailable",
+          "links": [
+            {
+              "title": "Open matching API request logs",
+              "url": "/explore?schemaVersion=1&panes=%7B%22investigation%22%3A%7B%22datasource%22%3A%22restaurantos-loki%22%2C%22queries%22%3A%5B%7B%22datasource%22%3A%7B%22type%22%3A%22loki%22%2C%22uid%22%3A%22restaurantos-loki%22%7D%2C%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7Bservice_name%3D%5C%22restaurantos-api%5C%22%7D%22%2C%22queryType%22%3A%22range%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ],
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum ((rate(restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}[1m]) and restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "All requests",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 3
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests by route",
+      "description": "Registered API route templates. One-minute rate per original counter series before aggregation. Process restarts reset counters. A series first appears after an observation, and a gap means no usable samples.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: req/s",
+          "noValue": "Unavailable",
+          "links": [
+            {
+              "title": "Open matching API request logs",
+              "url": "/explore?schemaVersion=1&panes=%7B%22investigation%22%3A%7B%22datasource%22%3A%22restaurantos-loki%22%2C%22queries%22%3A%5B%7B%22datasource%22%3A%7B%22type%22%3A%22loki%22%2C%22uid%22%3A%22restaurantos-loki%22%7D%2C%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7Bservice_name%3D%5C%22restaurantos-api%5C%22%7D%20%7C%20http_route%3D%5C%22${__field.labels.http_route:percentencode}%5C%22%22%2C%22queryType%22%3A%22range%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ],
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (http_route) ((rate(restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}[1m]) and restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{http_route}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 4
+    },
+    {
+      "type": "timeseries",
+      "title": "Request outcomes",
+      "description": "Authentication, forbidden, validation, conflict, rate limit and other expected outcomes appear as distinct series when observed. One-minute rate per original counter series before aggregation. Process restarts reset counters. A series first appears after an observation, and a gap means no usable samples.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 13
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: req/s",
+          "noValue": "Unavailable",
+          "links": [
+            {
+              "title": "Open matching API request logs",
+              "url": "/explore?schemaVersion=1&panes=%7B%22investigation%22%3A%7B%22datasource%22%3A%22restaurantos-loki%22%2C%22queries%22%3A%5B%7B%22datasource%22%3A%7B%22type%22%3A%22loki%22%2C%22uid%22%3A%22restaurantos-loki%22%7D%2C%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7Bservice_name%3D%5C%22restaurantos-api%5C%22%7D%20%7C%20outcome%3D%5C%22${__field.labels.outcome:percentencode}%5C%22%22%2C%22queryType%22%3A%22range%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ],
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (outcome) ((rate(restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}[1m]) and restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{outcome}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 5
+    },
+    {
+      "type": "timeseries",
+      "title": "Unexpected server errors",
+      "description": "Only server_error outcomes, including dependency failures. Zero observed errors requires a sampled request counter.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 13
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: req/s",
+          "noValue": "Unavailable",
+          "links": [
+            {
+              "title": "Open matching API request logs",
+              "url": "/explore?schemaVersion=1&panes=%7B%22investigation%22%3A%7B%22datasource%22%3A%22restaurantos-loki%22%2C%22queries%22%3A%5B%7B%22datasource%22%3A%7B%22type%22%3A%22loki%22%2C%22uid%22%3A%22restaurantos-loki%22%7D%2C%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7Bservice_name%3D%5C%22restaurantos-api%5C%22%7D%20%7C%20outcome%3D%5C%22server_error%5C%22%22%2C%22queryType%22%3A%22range%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ],
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum ((rate(restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\",outcome=\"server_error\"}[1m]) and restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\",outcome=\"server_error\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) or (0 * sum ((rate(restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}[1m]) and restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))))",
+          "legendFormat": "Server errors",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 6
+    },
+    {
+      "type": "timeseries",
+      "title": "Unexpected server errors as a share of traffic",
+      "description": "Requires positive measured traffic. During measured idle periods the error rate can be zero while the share is undefined.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 21
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "Unavailable",
+          "links": [
+            {
+              "title": "Open matching API request logs",
+              "url": "/explore?schemaVersion=1&panes=%7B%22investigation%22%3A%7B%22datasource%22%3A%22restaurantos-loki%22%2C%22queries%22%3A%5B%7B%22datasource%22%3A%7B%22type%22%3A%22loki%22%2C%22uid%22%3A%22restaurantos-loki%22%7D%2C%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7Bservice_name%3D%5C%22restaurantos-api%5C%22%7D%20%7C%20outcome%3D%5C%22server_error%5C%22%22%2C%22queryType%22%3A%22range%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ],
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(sum ((rate(restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\",outcome=\"server_error\"}[1m]) and restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\",outcome=\"server_error\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) or (0 * sum ((rate(restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}[1m]) and restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))) / (sum ((rate(restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}[1m]) and restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) > 0)",
+          "legendFormat": "Server errors / all requests",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 7
+    },
+    {
+      "type": "timeseries",
+      "title": "Server errors by route",
+      "description": "Unexpected errors only. Unobserved route/error combinations are absent.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 21
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: req/s",
+          "noValue": "Unavailable",
+          "links": [
+            {
+              "title": "Open matching API request logs",
+              "url": "/explore?schemaVersion=1&panes=%7B%22investigation%22%3A%7B%22datasource%22%3A%22restaurantos-loki%22%2C%22queries%22%3A%5B%7B%22datasource%22%3A%7B%22type%22%3A%22loki%22%2C%22uid%22%3A%22restaurantos-loki%22%7D%2C%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7Bservice_name%3D%5C%22restaurantos-api%5C%22%7D%20%7C%20http_route%3D%5C%22${__field.labels.http_route:percentencode}%5C%22%20%7C%20outcome%3D%5C%22server_error%5C%22%22%2C%22queryType%22%3A%22range%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ],
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (http_route) ((rate(restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\",outcome=\"server_error\"}[1m]) and restaurantos_http_requests_total{job=\"collector-telemetry\",service_name=\"restaurantos-api\",outcome=\"server_error\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{http_route}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 8
+    },
+    {
+      "title": "Latency and active work",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "w": 24,
+        "h": 1,
+        "x": 0,
+        "y": 29
+      },
+      "id": 9
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP request duration",
+      "description": "Bucket-based estimates from request entry through response completion or application unwind. Undefined without observed completions in the rate window.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 30
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Unavailable",
+          "links": [
+            {
+              "title": "Open matching API request logs",
+              "url": "/explore?schemaVersion=1&panes=%7B%22investigation%22%3A%7B%22datasource%22%3A%22restaurantos-loki%22%2C%22queries%22%3A%5B%7B%22datasource%22%3A%7B%22type%22%3A%22loki%22%2C%22uid%22%3A%22restaurantos-loki%22%7D%2C%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7Bservice_name%3D%5C%22restaurantos-api%5C%22%7D%22%2C%22queryType%22%3A%22range%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ],
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.5, sum by (le) ((rate(restaurantos_http_duration_seconds_bucket{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}[1m]) and restaurantos_http_duration_seconds_bucket{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P50",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) ((rate(restaurantos_http_duration_seconds_bucket{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}[1m]) and restaurantos_http_duration_seconds_bucket{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P95",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (le) ((rate(restaurantos_http_duration_seconds_bucket{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}[1m]) and restaurantos_http_duration_seconds_bucket{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P99",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 10
+    },
+    {
+      "type": "timeseries",
+      "title": "P95 duration by route",
+      "description": "Bucket-based P95 estimates for normalized routes. The log link opens the selected range for the route and can contain several requests.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 30
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Unavailable",
+          "links": [
+            {
+              "title": "Open matching API request logs",
+              "url": "/explore?schemaVersion=1&panes=%7B%22investigation%22%3A%7B%22datasource%22%3A%22restaurantos-loki%22%2C%22queries%22%3A%5B%7B%22datasource%22%3A%7B%22type%22%3A%22loki%22%2C%22uid%22%3A%22restaurantos-loki%22%7D%2C%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7Bservice_name%3D%5C%22restaurantos-api%5C%22%7D%20%7C%20http_route%3D%5C%22${__field.labels.http_route:percentencode}%5C%22%22%2C%22queryType%22%3A%22range%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ],
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le, http_route) ((rate(restaurantos_http_duration_seconds_bucket{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}[1m]) and restaurantos_http_duration_seconds_bucket{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P95 {{http_route}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 11
+    },
+    {
+      "type": "timeseries",
+      "title": "In-flight API requests",
+      "description": "Sampled gauge summed across route and method within the API process.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: requests",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum (restaurantos_http_inflight{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Current requests",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 12
+    },
+    {
+      "type": "timeseries",
+      "title": "In-flight requests by route and method",
+      "description": "Current sampled work. A short request may begin and end between gauge observations.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: requests",
+          "noValue": "Unavailable",
+          "links": [
+            {
+              "title": "Open matching API request logs",
+              "url": "/explore?schemaVersion=1&panes=%7B%22investigation%22%3A%7B%22datasource%22%3A%22restaurantos-loki%22%2C%22queries%22%3A%5B%7B%22datasource%22%3A%7B%22type%22%3A%22loki%22%2C%22uid%22%3A%22restaurantos-loki%22%7D%2C%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7Bservice_name%3D%5C%22restaurantos-api%5C%22%7D%20%7C%20http_route%3D%5C%22${__field.labels.http_route:percentencode}%5C%22%22%2C%22queryType%22%3A%22range%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ],
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (http_route, http_request_method) (restaurantos_http_inflight{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{http_request_method}} {{http_route}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 13
+    },
+    {
+      "title": "Monitoring health",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "w": 24,
+        "h": 1,
+        "x": 0,
+        "y": 46
+      },
+      "id": 14
+    },
+    {
+      "type": "stat",
+      "title": "Prometheus scrape targets",
+      "description": "Collector self and telemetry scrapes indicate scrape availability. Loki and Tempo scrapes do not guarantee successful export. No data here can mean that the Prometheus data source itself is unavailable.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 5,
+        "x": 0,
+        "y": 47
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "Unavailable",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Down",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "Up",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "min by (job) (up{job=~\"collector-self|collector-telemetry|prometheus|loki|tempo\"})",
+          "legendFormat": "{{job}}",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "id": 15
+    },
+    {
+      "type": "stat",
+      "title": "API observation series",
+      "description": "Missing before the first completed request, when API export is disabled, or after Collector series expiry. Check Collector targets and send a known request to verify the path.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 5,
+        "x": 12,
+        "y": 47
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "Unavailable",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Missing",
+                  "color": "orange"
+                },
+                "1": {
+                  "text": "Present",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(1 - max(absent(restaurantos_http_last_observation_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}))) or (count(restaurantos_http_last_observation_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"}) > bool 0)",
+          "legendFormat": "API HTTP",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "id": 16
+    },
+    {
+      "type": "timeseries",
+      "title": "Last completed API request age",
+      "description": "Source timestamp of the latest completed API request. It can grow when the API is idle. It is not a producer heartbeat.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 52
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(time() - max (restaurantos_http_last_observation_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-api\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0",
+          "legendFormat": "Last completion",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 17
+    },
+    {
+      "type": "timeseries",
+      "title": "Telemetry failures reported by Collector",
+      "description": "Counts are grouped by signal and pipeline component. Send failures, enqueue failures and refused input can overlap. They cannot be summed into an exact loss count or account for upstream SDK drops.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 52
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: items/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (exporter) ((rate(otelcol_exporter_send_failed_spans{job=\"collector-self\"}[1m]) and otelcol_exporter_send_failed_spans{job=\"collector-self\"}) and on (job, instance) (up{job=\"collector-self\"} == 1))",
+          "legendFormat": "Send failed spans {{exporter}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (exporter) ((rate(otelcol_exporter_send_failed_log_records{job=\"collector-self\"}[1m]) and otelcol_exporter_send_failed_log_records{job=\"collector-self\"}) and on (job, instance) (up{job=\"collector-self\"} == 1))",
+          "legendFormat": "Send failed log records {{exporter}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (exporter) ((rate(otelcol_exporter_enqueue_failed_spans{job=\"collector-self\"}[1m]) and otelcol_exporter_enqueue_failed_spans{job=\"collector-self\"}) and on (job, instance) (up{job=\"collector-self\"} == 1))",
+          "legendFormat": "Enqueue failed spans {{exporter}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (exporter) ((rate(otelcol_exporter_enqueue_failed_log_records{job=\"collector-self\"}[1m]) and otelcol_exporter_enqueue_failed_log_records{job=\"collector-self\"}) and on (job, instance) (up{job=\"collector-self\"} == 1))",
+          "legendFormat": "Enqueue failed log records {{exporter}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "E",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (receiver) ((rate(otelcol_receiver_refused_spans{job=\"collector-self\"}[1m]) and otelcol_receiver_refused_spans{job=\"collector-self\"}) and on (job, instance) (up{job=\"collector-self\"} == 1))",
+          "legendFormat": "Receiver refused spans {{receiver}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "F",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (receiver) ((rate(otelcol_receiver_refused_log_records{job=\"collector-self\"}[1m]) and otelcol_receiver_refused_log_records{job=\"collector-self\"}) and on (job, instance) (up{job=\"collector-self\"} == 1))",
+          "legendFormat": "Receiver refused log records {{receiver}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "G",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (receiver) ((rate(otelcol_receiver_refused_metric_points{job=\"collector-self\"}[1m]) and otelcol_receiver_refused_metric_points{job=\"collector-self\"}) and on (job, instance) (up{job=\"collector-self\"} == 1))",
+          "legendFormat": "Receiver refused metric points {{receiver}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 18
+    }
+  ]
+}

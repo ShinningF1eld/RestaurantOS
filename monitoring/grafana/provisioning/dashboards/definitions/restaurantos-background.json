@@ -1,0 +1,937 @@
+{
+  "uid": "restaurantos-background",
+  "title": "Background Processing",
+  "description": "Durable outbox state and independent relay/consumer attempts.",
+  "tags": [
+    "restaurantos",
+    "operator"
+  ],
+  "editable": false,
+  "schemaVersion": 41,
+  "timezone": "utc",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "refresh": "30s",
+  "links": [
+    {
+      "title": "RestaurantOS dashboards",
+      "type": "dashboards",
+      "tags": [
+        "restaurantos",
+        "operator"
+      ],
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": true
+    }
+  ],
+  "panels": [
+    {
+      "title": "Reading this dashboard",
+      "type": "text",
+      "options": {
+        "mode": "markdown",
+        "content": "One event can create multiple deliveries. Each delivery can have multiple attempts across retries and replay. Receipt-window gauges describe durable progress. Attempt counters describe process observations. Worker traces are separate roots linked to original context. Tempo and Loki retain about three days. Worker logs stay local."
+      },
+      "gridPos": {
+        "w": 24,
+        "h": 4,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1
+    },
+    {
+      "title": "PostgreSQL deliveries and receipt progress",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "w": 24,
+        "h": 1,
+        "x": 0,
+        "y": 4
+      },
+      "id": 2
+    },
+    {
+      "type": "timeseries",
+      "title": "Unfinished delivery depth",
+      "description": "Sum of queued, in-flight, retry-delayed and recovery-due delivery states for each consumer. Shared snapshots are deduplicated before aggregation.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: deliveries",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (consumer) (max by (consumer, state) (restaurantos_worker_deliveries{job=\"collector-telemetry\",service_name=\"restaurantos-worker\",state=~\"queued|in_flight|retry_delayed|recovery_due\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () ((time() - max (restaurantos_worker_collected_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < 45))",
+          "legendFormat": "{{consumer}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 3
+    },
+    {
+      "type": "timeseries",
+      "title": "Unfinished deliveries by state",
+      "description": "Database-derived counts. In-flight includes active leases. Recovery due includes expired or missing processing leases. Redis stream length is independent.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 5
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: deliveries",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (consumer, state) (restaurantos_worker_deliveries{job=\"collector-telemetry\",service_name=\"restaurantos-worker\",state=~\"queued|in_flight|retry_delayed|recovery_due\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () ((time() - max (restaurantos_worker_collected_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < 45)",
+          "legendFormat": "{{consumer}} {{state}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 4
+    },
+    {
+      "type": "timeseries",
+      "title": "Oldest unfinished delivery",
+      "description": "Database-clock age since creation across unfinished states. Zero for empty states. If all workers stop, worker snapshot panels go unavailable. Business Activity still shows analytics-delivery age while its independent API sampler runs.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 13
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (consumer) (max by (consumer, state) (restaurantos_worker_oldest_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-worker\",state=~\"queued|in_flight|retry_delayed|recovery_due\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () ((time() - max (restaurantos_worker_collected_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < 45))",
+          "legendFormat": "{{consumer}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 5
+    },
+    {
+      "type": "timeseries",
+      "title": "Oldest delivery age by unfinished state",
+      "description": "Snapshot age in each unfinished state. Zero means the state was empty at collection.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 13
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (consumer, state) (restaurantos_worker_oldest_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-worker\",state=~\"queued|in_flight|retry_delayed|recovery_due\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () ((time() - max (restaurantos_worker_collected_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < 45)",
+          "legendFormat": "{{consumer}} {{state}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 6
+    },
+    {
+      "type": "timeseries",
+      "title": "Terminal delivery failures",
+      "description": "Durable terminal deliveries awaiting operator review. Excluded from unfinished depth.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 21
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: deliveries",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (consumer) (restaurantos_worker_deliveries{job=\"collector-telemetry\",service_name=\"restaurantos-worker\",state=\"terminal\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () ((time() - max (restaurantos_worker_collected_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < 45)",
+          "legendFormat": "{{consumer}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 7
+    },
+    {
+      "type": "timeseries",
+      "title": "Oldest terminal delivery age",
+      "description": "Age since creation of the oldest terminal delivery, not time since failure. Zero for empty terminal state.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 21
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (consumer) (restaurantos_worker_oldest_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-worker\",state=\"terminal\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () ((time() - max (restaurantos_worker_collected_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < 45)",
+          "legendFormat": "{{consumer}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 8
+    },
+    {
+      "type": "timeseries",
+      "title": "Recent durable receipts",
+      "description": "Receipts recorded in the preceding five minutes, including processed and skipped outcomes. Deduplicated delivery and replay cannot add another receipt for an already receipted effect.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 29
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: receipts",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (consumer) (restaurantos_worker_receipts_window{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () ((time() - max (restaurantos_worker_collected_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < 45)",
+          "legendFormat": "{{consumer}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 9
+    },
+    {
+      "type": "timeseries",
+      "title": "Recent receipt throughput",
+      "description": "Approximate durable receipt throughput using the five-minute snapshot count divided by 300. It is a gauge.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 29
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: receipts/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(max by (consumer) (restaurantos_worker_receipts_window{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1)) and on () ((time() - max (restaurantos_worker_collected_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < 45)) / 300",
+          "legendFormat": "{{consumer}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 10
+    },
+    {
+      "title": "Worker attempts and routing",
+      "type": "row",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "w": 24,
+        "h": 1,
+        "x": 0,
+        "y": 37
+      },
+      "id": 11
+    },
+    {
+      "type": "timeseries",
+      "title": "Publication attempts by outcome",
+      "description": "One-minute rate per original counter series before aggregation. Process restarts reset counters. A series first appears after an observation, and a gap means no usable samples. Published requires Redis publication and fenced database observation.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: attempts/s",
+          "noValue": "Unavailable",
+          "links": [
+            {
+              "title": "Find matching worker attempt traces",
+              "url": "/explore?schemaVersion=1&panes=%7B%22investigation%22%3A%7B%22datasource%22%3A%22restaurantos-tempo%22%2C%22queries%22%3A%5B%7B%22datasource%22%3A%7B%22type%22%3A%22tempo%22%2C%22uid%22%3A%22restaurantos-tempo%22%7D%2C%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7B%20resource.service.name%20%3D%20%5C%22restaurantos-worker%5C%22%20%26%26%20name%20%3D%20%5C%22outbox%20publish%5C%22%20%26%26%20span.consumer%20%3D%20%5C%22${__field.labels.consumer:percentencode}%5C%22%20%26%26%20span.outcome%20%3D%20%5C%22${__field.labels.outcome:percentencode}%5C%22%20%7D%22%2C%22queryType%22%3A%22traceql%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ],
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (consumer, outcome) ((rate(restaurantos_worker_operations_total{job=\"collector-telemetry\",service_name=\"restaurantos-worker\",operation=\"publish\"}[1m]) and restaurantos_worker_operations_total{job=\"collector-telemetry\",service_name=\"restaurantos-worker\",operation=\"publish\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{consumer}} {{outcome}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 12
+    },
+    {
+      "type": "timeseries",
+      "title": "Consumer attempts by outcome",
+      "description": "One-minute rate per original counter series before aggregation. Process restarts reset counters. A series first appears after an observation, and a gap means no usable samples. A committed attempt can process or skip a receipt. It does not count unique business events.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: attempts/s",
+          "noValue": "Unavailable",
+          "links": [
+            {
+              "title": "Find matching worker attempt traces",
+              "url": "/explore?schemaVersion=1&panes=%7B%22investigation%22%3A%7B%22datasource%22%3A%22restaurantos-tempo%22%2C%22queries%22%3A%5B%7B%22datasource%22%3A%7B%22type%22%3A%22tempo%22%2C%22uid%22%3A%22restaurantos-tempo%22%7D%2C%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7B%20resource.service.name%20%3D%20%5C%22restaurantos-worker%5C%22%20%26%26%20name%20%3D%20%5C%22consumer%20attempt%5C%22%20%26%26%20span.consumer%20%3D%20%5C%22${__field.labels.consumer:percentencode}%5C%22%20%26%26%20span.outcome%20%3D%20%5C%22${__field.labels.outcome:percentencode}%5C%22%20%7D%22%2C%22queryType%22%3A%22traceql%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ],
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (consumer, outcome) ((rate(restaurantos_worker_operations_total{job=\"collector-telemetry\",service_name=\"restaurantos-worker\",operation=\"consumer\"}[1m]) and restaurantos_worker_operations_total{job=\"collector-telemetry\",service_name=\"restaurantos-worker\",operation=\"consumer\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{consumer}} {{outcome}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 13
+    },
+    {
+      "type": "timeseries",
+      "title": "Scheduled retries and failed attempts",
+      "description": "Retry settlements and terminal-failure settlements are separate observed attempt outcomes. See terminal depth for the current durable count.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 46
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: attempts/s",
+          "noValue": "Unavailable",
+          "links": [
+            {
+              "title": "Find matching worker attempt traces",
+              "url": "/explore?schemaVersion=1&panes=%7B%22investigation%22%3A%7B%22datasource%22%3A%22restaurantos-tempo%22%2C%22queries%22%3A%5B%7B%22datasource%22%3A%7B%22type%22%3A%22tempo%22%2C%22uid%22%3A%22restaurantos-tempo%22%7D%2C%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7B%20resource.service.name%20%3D%20%5C%22restaurantos-worker%5C%22%20%26%26%20name%20%3D%20%5C%22consumer%20attempt%5C%22%20%26%26%20span.consumer%20%3D%20%5C%22${__field.labels.consumer:percentencode}%5C%22%20%26%26%20span.outcome%20%3D%20%5C%22${__field.labels.outcome:percentencode}%5C%22%20%7D%22%2C%22queryType%22%3A%22traceql%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ],
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (consumer, outcome) ((rate(restaurantos_worker_operations_total{job=\"collector-telemetry\",service_name=\"restaurantos-worker\",operation=\"consumer\",outcome=~\"consumer_retry_scheduled|consumer_failed\"}[1m]) and restaurantos_worker_operations_total{job=\"collector-telemetry\",service_name=\"restaurantos-worker\",operation=\"consumer\",outcome=~\"consumer_retry_scheduled|consumer_failed\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{consumer}} {{outcome}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 14
+    },
+    {
+      "type": "timeseries",
+      "title": "Worker attempt duration",
+      "description": "Bucket estimates include execution and settlement. They exclude time waiting in the durable backlog.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 46
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Unavailable",
+          "links": [
+            {
+              "title": "Find matching worker attempt traces",
+              "url": "/explore?schemaVersion=1&panes=%7B%22investigation%22%3A%7B%22datasource%22%3A%22restaurantos-tempo%22%2C%22queries%22%3A%5B%7B%22datasource%22%3A%7B%22type%22%3A%22tempo%22%2C%22uid%22%3A%22restaurantos-tempo%22%7D%2C%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7B%20resource.service.name%20%3D%20%5C%22restaurantos-worker%5C%22%20%26%26%20name%20%3D%20%5C%22consumer%20attempt%5C%22%20%7D%22%2C%22queryType%22%3A%22traceql%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            },
+            {
+              "title": "Find publication traces",
+              "url": "/explore?schemaVersion=1&panes=%7B%22investigation%22%3A%7B%22datasource%22%3A%22restaurantos-tempo%22%2C%22queries%22%3A%5B%7B%22datasource%22%3A%7B%22type%22%3A%22tempo%22%2C%22uid%22%3A%22restaurantos-tempo%22%7D%2C%22refId%22%3A%22A%22%2C%22expr%22%3A%22%7B%20resource.service.name%20%3D%20%5C%22restaurantos-worker%5C%22%20%26%26%20name%20%3D%20%5C%22outbox%20publish%5C%22%20%7D%22%2C%22queryType%22%3A%22traceql%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22${__from}%22%2C%22to%22%3A%22${__to}%22%7D%7D%7D",
+              "targetBlank": true
+            }
+          ],
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.5, sum by (le, operation) ((rate(restaurantos_worker_duration_seconds_bucket{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"}[1m]) and restaurantos_worker_duration_seconds_bucket{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P50 {{operation}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le, operation) ((rate(restaurantos_worker_duration_seconds_bucket{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"}[1m]) and restaurantos_worker_duration_seconds_bucket{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P95 {{operation}}",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (le, operation) ((rate(restaurantos_worker_duration_seconds_bucket{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"}[1m]) and restaurantos_worker_duration_seconds_bucket{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1)))",
+          "legendFormat": "P99 {{operation}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 15
+    },
+    {
+      "type": "timeseries",
+      "title": "Routing checks without a new claim",
+      "description": "Duplicate, busy, delayed and other routing outcomes do not represent new effects or necessarily have attempt traces. Use the worker's local JSON diagnostics.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 54
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: checks/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (consumer, outcome) ((rate(restaurantos_worker_routes_total{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"}[1m]) and restaurantos_worker_routes_total{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "{{consumer}} {{outcome}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 16
+    },
+    {
+      "type": "timeseries",
+      "title": "Worker snapshot collection failures",
+      "description": "Failed or timed-out collection. Does not advance the source timestamp. Process metrics require a configured worker slot.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 54
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix: failures/s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (worker_slot) ((rate(restaurantos_worker_collection_failures_total{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"}[1m]) and restaurantos_worker_collection_failures_total{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"}) and on (job, instance) (up{job=\"collector-telemetry\"} == 1))",
+          "legendFormat": "Slot {{worker_slot}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 17
+    },
+    {
+      "type": "timeseries",
+      "title": "Worker snapshot source age",
+      "description": "Worker durable panels require a nonfuture collection timestamp under 45 seconds old. Series can disappear earlier on Collector expiry. This check is an observation freshness budget.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 62
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "noValue": "Unavailable",
+          "custom": {
+            "spanNulls": false
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(time() - max (restaurantos_worker_collected_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0",
+          "legendFormat": "Last successful snapshot",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "id": 18
+    },
+    {
+      "type": "stat",
+      "title": "Worker snapshot status",
+      "description": "Unavailable after Collector expiry, before the first successful read or when there is no export.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "restaurantos-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 5,
+        "x": 12,
+        "y": 62
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "Unavailable",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Stale / invalid clock",
+                  "color": "orange"
+                },
+                "1": {
+                  "text": "Fresh",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "restaurantos-prometheus"
+          },
+          "editorMode": "code",
+          "expr": "(0 * ((time() - max (restaurantos_worker_collected_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))) >= 0 < 45) + 1) or (0 * (time() - max (restaurantos_worker_collected_seconds{job=\"collector-telemetry\",service_name=\"restaurantos-worker\"} and on (job, instance) (up{job=\"collector-telemetry\"} == 1))))",
+          "legendFormat": "Worker snapshot",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "id": 19
+    }
+  ]
+}
