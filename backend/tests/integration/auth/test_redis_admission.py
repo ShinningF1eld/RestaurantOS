@@ -125,6 +125,22 @@ def test_equal_failures_service_normalization_and_generic_throttle(
             email = (
                 auth_user["email"] if outcome != "unknown" else "absent@example.test"
             )
+            redis = subject._redis()
+            server_seconds, _ = await redis.execute("TIME")
+            # Count all five failures in one real Redis window, independent
+            # of crossing a minute boundary while passwords are verified.
+            # The separate expiry test covers fixed-window boundary behavior.
+            window_end = int(server_seconds) + 600
+            monkeypatch.setattr(
+                subject,
+                "settings",
+                subject.settings.model_copy(
+                    update={
+                        "auth_login_window_seconds": window_end,
+                        "auth_login_ip_window_seconds": window_end,
+                    }
+                ),
+            )
             for _ in range(5):
                 with pytest.raises(AuthenticationError):
                     await service.login(
@@ -138,6 +154,16 @@ def test_equal_failures_service_normalization_and_generic_throttle(
             assert all(
                 len(v) == 5 and all(m.startswith(b"f:") for m in v) for v in values
             )
+            for bucket in subject.login_buckets(email, "192.0.2.1"):
+                recorded = await redis.execute(
+                    "ZRANGE",
+                    redis.namespace("auth", 1) + bucket.key,
+                    0,
+                    -1,
+                    "WITHSCORES",
+                )
+                assert {int(score) for _, score in recorded} == {window_end * 1000}
+            assert int((await redis.execute("TIME"))[0]) < window_end
             with pytest.raises(RateLimitError) as limited:
                 await service.login(email, auth_user["password"], "192.0.2.1")
             assert limited.value.retry_after > 0
