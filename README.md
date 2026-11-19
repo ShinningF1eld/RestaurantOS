@@ -108,7 +108,8 @@ are available; process-local worker metrics require a distinct bounded
 expose committed order activity, low stock, retained completed sales and separate
 collection and analytics-delivery signals. The monitoring stack provisions four
 [operator dashboards](docs/runbooks/monitoring.md#operator-dashboards).
-Final alert objectives remain later M9 work.
+The [paired local baseline](docs/milestone9-observability/performance-milestone9-issue65.md)
+documents telemetry overhead and the approved local objectives for T9.
 
 ## Prerequisites
 

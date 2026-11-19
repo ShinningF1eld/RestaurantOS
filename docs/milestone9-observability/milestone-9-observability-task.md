@@ -368,6 +368,9 @@ Validate provisioning and dashboard queries against T1 and real seeded API/worke
 
 ### T8: Measure a local baseline and agree objectives and alert thresholds
 
+Current status: **verified and numerically approved on 2026-11-19**. See the
+[local baseline and explicit approval record](performance-milestone9-issue65.md).
+
 Published GitHub title: **[M9 Observability] Measure a local baseline and agree objectives and alert thresholds**
 
 #### Purpose and references
@@ -375,8 +378,7 @@ Published GitHub title: **[M9 Observability] Measure a local baseline and agree 
 Choose realistic service objectives and sustained-alert settings from measured behavior before treating them as acceptance criteria.
 
 Source: `docs/milestone9-observability/milestone-9-observability-design.md`, revision 1, 2026-10-31;
-requirements R2, R8, R10. This source belongs to current M9 observability, not M15
-deployment. Task-plan revision 1; acceptance remains unverified.
+requirements R2, R8, R10. This is the current M9 observability task plan, revision 1.
 
 #### Scope
 
@@ -388,12 +390,12 @@ Reproducible isolated workload, measurement report and documented proposed/accep
 
 #### Acceptance criteria
 
-- [ ] Declare dataset, read/write mix, concurrency/rate, warmup, measurement duration, repetitions and reset method before running; record exact source, images, settings and host/Docker capacity. Use synthetic data and an off-by-default acceptance environment.
-- [ ] Measure per-route reads/commands/SSR timing, unexpected errors, event commit-to-effect freshness, pool/queue behavior and telemetry volume. Report expected business conflicts separately and retain failed repetitions rather than averaging them away.
-- [ ] Compare instrumentation enabled and disabled under equivalent declared workloads to characterize overhead. Record memory/CPU/disk and available drop/export evidence; 100% acceptance tracing must not be silently sampled away.
-- [ ] Evaluate the combined five-service 2 GB budget and overall 7.49 GB Docker constraint with application/test overhead included; propose adjustments explicitly if the target is infeasible.
-- [ ] Produce specific proposed local latency/error/freshness objectives and alert evaluation/sustained/recovery windows, minimum traffic and no-data behavior with reasons tied to the measurements.
-- [ ] Record explicit acceptance of numeric objectives before T9 finalizes rules and before milestone acceptance. Until then mark this task pending decision; baseline results alone do not approve thresholds or establish hosted guarantees.
+- [x] Declare dataset, read/write mix, concurrency/rate, warmup, measurement duration, repetitions and reset method before running; record exact source, images, settings and host/Docker capacity. Use synthetic data and an off-by-default acceptance environment.
+- [x] Measure per-route reads/commands/SSR timing, unexpected errors, event commit-to-effect freshness, pool/queue behavior and telemetry volume. Report expected business conflicts separately and retain failed repetitions rather than averaging them away.
+- [x] Compare instrumentation enabled and disabled under equivalent declared workloads to characterize overhead. Record memory/CPU/disk and available drop/export evidence; 100% acceptance tracing must not be silently sampled away.
+- [x] Evaluate the combined five-service 2 GB budget and overall 7.49 GB Docker constraint with application/test overhead included; propose adjustments explicitly if the target is infeasible.
+- [x] Produce specific proposed local latency/error/freshness objectives and alert evaluation/sustained/recovery windows, minimum traffic and no-data behavior with reasons tied to the measurements.
+- [x] Record explicit acceptance of numeric objectives before T9 finalizes rules and before milestone acceptance. Until then mark this task pending decision; baseline results alone do not approve thresholds or establish hosted guarantees.
 
 #### Verification
 

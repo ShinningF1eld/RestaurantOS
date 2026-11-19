@@ -223,8 +223,9 @@ If the script reports completed orders but times out waiting for history,
 check the worker's delivery panels and confirm it uses the same database and
 Redis instance as the API. Reusing the run ID checks those orders again.
 Healthy traffic can leave error, retry and terminal-failure panels idle.
-This exercise verifies dashboard activity. Baseline measurements and
-objective-setting are tracked in [Issue #65](https://github.com/ShinningF1eld/RestaurantOS/issues/65).
+This exercise verifies dashboard activity. The separate [paired application baseline](../milestone9-observability/performance-milestone9-issue65.md)
+compares telemetry on and off with disposable data. Its local numeric alert
+settings were approved on 2026-11-19 for the T9 rule and incident exercises.
 
 ### Follow an investigation
 

@@ -37,7 +37,7 @@ def run(*command, cwd=ROOT, env=None):
 
 
 @contextmanager
-def services(external):
+def services(external, *, compose_override=None):
     if external:
         from test_support.disposable_postgres import read_test_url
 
@@ -50,9 +50,10 @@ def services(external):
         "compose",
         "-f",
         str(ROOT / "docker-compose.test.yml"),
-        "-p",
-        project,
     ]
+    if compose_override is not None:
+        command.extend(("-f", str(compose_override)))
+    command.extend(("-p", project))
     try:
         run(*command, "up", "-d", "--wait", "--wait-timeout", "120")
 
@@ -232,6 +233,7 @@ def gate(name, env):
             "scripts/infrastructure-workload.py",
             "scripts/check-monitoring-retention.py",
             "scripts/benchmark-monitoring.py",
+            "scripts/benchmark-local-observability.py",
             "scripts/generate-monitoring-telemetry.py",
             "scripts/local-monitoring.py",
             "scripts/test_support/monitoring_environment.py",
