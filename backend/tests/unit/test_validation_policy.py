@@ -48,6 +48,9 @@ def test_ci_requires_all_shared_gates_and_unchanged_aggregate(monkeypatch):
         == "python scripts/validate.py --gate ${{ matrix.gate }} --external-services --no-install"
     )
     assert "if" not in shared and "continue-on-error" not in shared
+    assert shared["env"]["TEST_POSTGRES_CONTAINER"] == (
+        "${{ matrix.gate == 'migrations' && job.services.postgres.id || '' }}"
+    )
     assert "continue-on-error" not in quality
     acceptance = workflow["jobs"]["acceptance"]
     assert "continue-on-error" not in acceptance

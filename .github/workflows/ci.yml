@@ -72,6 +72,9 @@ jobs:
         working-directory: frontend
         run: npx playwright install --with-deps chromium
       - name: Run shared gate
+        env:
+          # Match backup/restore clients to the PostgreSQL 16 test server.
+          TEST_POSTGRES_CONTAINER: ${{ matrix.gate == 'migrations' && job.services.postgres.id || '' }}
         run: python scripts/validate.py --gate ${{ matrix.gate }} --external-services --no-install
       - name: Retain coverage and safe failure diagnostics
         if: always()
