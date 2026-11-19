@@ -124,6 +124,108 @@ scrape only proves the scrape succeeded. Collector send failures, enqueue
 failures and refusals show reported pipeline failures with different
 denominators. The counts can overlap and upstream SDK losses may be invisible.
 
+### Exercise the dashboards with real local orders
+
+Use a dedicated **local development or test** API, PostgreSQL database, Redis
+instance and test account. The loopback API must point to those test services.
+Use one runner at a time and keep the fixture free of other writers during the
+exercise. The script requires explicit test-data confirmation and checks the
+restaurant and fixture before writing orders or stock.
+
+1. Use the development Python environment from the
+   [Windows quick start](../../README.md#windows-quick-start) and the
+   [authentication runbook](authentication.md#local-setup). Point
+   `DATABASE_URL` and `REDIS_URL` at dedicated local services before applying
+   migrations or provisioning the test account. Use a separate database from
+   the automated test suite, which truncates its target. A fresh account needs
+   a test organization and an Owner membership. See
+   [organization setup](../api/tenancy.md).
+2. With that test Owner, create a restaurant named exactly
+   **Dashboard Exercise (TEST)**. Record its numeric ID from its URL or from
+   `GET /api/restaurants`. In that restaurant create only these fixture records:
+
+   | Fixture | Setup |
+   | --- | --- |
+   | Ingredient **Dashboard Test Stock** | Active, unit `piece`, opening quantity `1`, reorder threshold `1` |
+   | Menu **Dashboard Test Menu** | One menu in the test restaurant |
+   | Menu item **Dashboard Test Order** | Available, positive price (for example `20.00`) |
+   | Item recipe | Enable inventory tracking and add exactly `1` piece of **Dashboard Test Stock** |
+
+   Use the restaurant, inventory and menu screens, including the item's recipe
+   editor. The same setup is available through the
+   [inventory](../api/inventory.md) and [recipe](../api/recipes.md) APIs.
+3. Start local monitoring and keep it running. Set `MONITORING_ENABLED=true`,
+   `MONITORING_ENDPOINT=http://localhost:4318` (or the configured loopback
+   OTLP port), and `DATABASE_ECHO=false` for the API and worker. Set
+   `MONITORING_BUSINESS_AGGREGATES_ENABLED=true` on one API process and start
+   or restart it to apply the settings. To see API pool gauges, run the
+   dedicated test data in development mode so the API uses its regular pool.
+4. Start the [standalone worker](event-worker.md#start-and-stop) with the
+   same test database and Redis settings. In a separate PowerShell window
+   from the repository root, with the same service settings available:
+
+   ```powershell
+   Set-Location backend
+   $env:MONITORING_WORKER_SLOT = "0"
+   .\.venv\Scripts\python.exe -m app.worker
+   ```
+
+   Use an unused worker slot if another worker is already exporting to that
+   Collector.
+
+From the repository root, substitute your fixture's ID for `123` and run in
+an interactive PowerShell window:
+
+```powershell
+.\backend\.venv\Scripts\python.exe .\scripts\exercise-dashboards.py --restaurant-id 123 --confirm-test-data
+```
+
+The script prompts for the test email and hides the password. The API defaults
+to `http://localhost:8000`; set `--base-url` for another direct loopback API.
+`--origin` defaults to `http://localhost:3000` and must match an entry in
+`AUTH_TRUSTED_ORIGINS`. The script uses the normal login cookie and CSRF
+headers throughout the run.
+
+The default is 20 serial workflows with a three-second pause between them,
+about a minute plus request and worker time. Each workflow reads the menu and
+items twice, drafts and submits one order, receives one piece of stock, and
+accepts the order to consume that piece. The order moves through Preparing and
+Ready to Completed, then the script reads the restaurant's analytics. Each
+receipt lifts stock above the threshold and each acceptance takes it back to
+one piece, opening a real low-stock episode. The script waits up to 60 seconds
+for the worker's projected episode history and reports how many orders it
+could match. Use `--count 1` for a smoke run or `--help` for the bounded options.
+
+Save the printed run ID. After an interruption, rerun with
+`--run-id <printed-id>` and the original restaurant, API and count. Do this
+before starting a new run. The script reuses receipt and order creation keys
+and reads each order's current status before advancing it. A new run ID adds
+new test records. Completed orders, ledger movements and projected history
+are retained in the test database. Projection verification checks the latest
+100 history rows, so inspect the dashboard's historical time range for older
+runs.
+
+#### Check the workload in Grafana
+
+Open the **RestaurantOS** folder at `http://localhost:3001` (or your Grafana
+port) and choose **Last 15 minutes**. Leave the API and worker running through
+at least one business collection interval (30 seconds by default), plus the
+export and scrape intervals.
+
+| Dashboard | What to check |
+| --- | --- |
+| **Service Overview** | Order, inventory and analytics routes in request rate and latency. In Explore, check `restaurantos_http_requests_total` and use the request panel links for logs and traces. |
+| **Database & Redis** | SQL query and Redis command observations, then cache outcomes in `restaurantos_catalog_cache_lookups_total`. Look for hits from paired reads and misses as entries expire. `restaurantos_pool_used` is an instantaneous gauge and can stay at zero between scrapes. PostgreSQL and Redis server panels require their [optional receivers](../../monitoring/database-redis.md). |
+| **Background Processing** | Look for consumer commits in `restaurantos_worker_operations_total{outcome="consumer_committed"}` and progress in `restaurantos_worker_receipts_window`. A drained queue can have zero depth after the worker catches up. |
+| **Business Activity** | Look for `restaurantos_business_orders_transitions_total{transition="COMPLETED"}`, `restaurantos_business_stock_episode_openings_24h` and, after analytics delivery and sampling, `restaurantos_business_sales_retained_orders_7d`. Retained orders are stack-wide across seven UTC creation dates. The THB amount panel requires the separate verified-currency opt-in. |
+
+If the script reports completed orders but times out waiting for history,
+check the worker's delivery panels and confirm it uses the same database and
+Redis instance as the API. Reusing the run ID checks those orders again.
+Healthy traffic can leave error, retry and terminal-failure panels idle.
+This exercise verifies dashboard activity. Baseline measurements and
+objective-setting are tracked in [Issue #65](https://github.com/ShinningF1eld/RestaurantOS/issues/65).
+
 ### Follow an investigation
 
 1. Narrow the dashboard time range around the incident. Click a data point on
