@@ -1,5 +1,14 @@
 # RestaurantOS current state
 
+## Current M9 observability issue #65 — local baseline
+
+The opt-in paired [application baseline](milestone9-observability/performance-milestone9-issue65.md)
+exercises HTTP reads, order and inventory commands, authenticated Next.js SSR,
+and asynchronous PostgreSQL/Redis worker effects in disposable containers. All
+six repetitions passed, with zero unexpected HTTP results and a peak combined
+monitoring working set of 0.766 GB. The user approved the local objectives and
+alert settings on 2026-11-19. T9 owns alert rule implementation and exercises.
+
 ## Current M9 observability issue #64 — operator dashboards
 
 The optional Grafana stack provisions Service Overview, Database & Redis,

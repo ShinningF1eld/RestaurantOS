@@ -1038,6 +1038,10 @@ are provisioned from the repository. The
 cover query semantics, provisioning and investigation links. Milestone exit
 criteria and alert objectives are tracked separately.
 
+The T8/#65 [paired local baseline](docs/milestone9-observability/performance-milestone9-issue65.md)
+records six verified repetitions and the 2026-11-19 approval of local numeric
+objectives and thresholds. T9 owns final alert rules and incident exercises.
+
 ### Objective
 
 Make failures and performance understandable without attaching a debugger.

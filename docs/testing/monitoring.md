@@ -261,3 +261,37 @@ queue-full local diagnostics and post-outage export/ACK recovery. A pure metrics
 loop test confirms failed collection does not advance freshness, then success does.
 The test-only pressure barrier emits synthetic SDK spans outside transactions;
 it does not add production fault endpoints or business-effect attempts.
+## Paired local application baseline (#65)
+
+Read the [experiment declaration](../milestone9-observability/experiment-milestone9-issue65.md)
+before starting. Run with the locked Python 3.12 development environment, a
+local Linux-container Docker engine and the committed monitoring image pins.
+Build both production images from the same checkout and stop other running
+containers so that the Docker resource measurements are attributable to the
+experiment. From the repository root in PowerShell:
+
+```powershell
+docker build --pull=false -t restaurantos-issue65-backend:local backend
+docker build --pull=false -t restaurantos-issue65-frontend:local frontend
+backend/.venv/Scripts/python.exe scripts/benchmark-local-observability.py --report test-results/monitoring/issue65-baseline.json.gz
+```
+
+On Linux/macOS use `backend/.venv/bin/python`. Choose a new report path on every
+invocation. `--smoke` starts one short telemetry-on run to check wiring. The
+default invocation runs the full paired matrix and writes a gzip-compressed
+JSON checkpoint after each arm, including failures. An arm owns all of its
+containers and uses fresh random ports and private test data. Its report
+contains no credentials, request bodies, raw application logs or trace IDs.
+
+For inspection without decompressing a file on disk:
+
+```powershell
+backend/.venv/Scripts/python.exe -c 'import gzip,json,sys; print(json.dumps(json.load(gzip.open(sys.argv[1])),indent=2))' test-results/monitoring/issue65-baseline.json.gz
+```
+
+`requests` contains normalized operation labels, scheduled and actual times,
+status and expected/unexpected outcomes. `effects` records commit-to-receipt
+latency and identifies receipts that skipped a stale or irrelevant event.
+`samples` contains Docker, PostgreSQL and Redis measurements. Enabled arms
+include the relevant Prometheus series and sanitized SDK warning counts.
+Only this benchmark's local test database enables commit timestamp tracking.
