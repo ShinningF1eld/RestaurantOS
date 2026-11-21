@@ -100,13 +100,13 @@ processors:
         conditions: ['resource.attributes["service.name"] != "restaurantos-api"']
       - context: metric
         conditions:
-          - 'metric.name != "restaurantos.http.requests" and metric.name != "restaurantos.http.duration" and metric.name != "restaurantos.http.inflight" and metric.name != "restaurantos.http.last_observation"'
+          - 'not IsMatch(metric.name, "^restaurantos[.]http[.](requests|eligible_requests|duration|inflight|last_observation)$")'
       - context: datapoint
         conditions:
           - 'Len(datapoint.exemplars) > 0'
-          - '(not IsMatch(datapoint.attributes["http.route"], "^(/auth/login|/auth/refresh|/auth/logout|/auth/me|/api/restaurants|/api/restaurants/\\{restaurant_id\\}|/restaurants/\\{restaurant_id\\}/menus|/menus/\\{menu_id\\}|/menus/\\{menu_id\\}/items|/menu\\-items/\\{menu_item_id\\}|/api/restaurants/\\{restaurant_id\\}/orders|/api/orders/\\{order_id\\}|/api/restaurants/\\{restaurant_id\\}/analytics/dashboard|/api/access|/api/organizations|/api/organization|/api/memberships|/api/memberships/\\{membership_id\\}|/api/audit|/api/restaurants/\\{restaurant_id\\}/inventory/ingredients|/api/restaurants/\\{restaurant_id\\}/inventory/ingredients/\\{ingredient_id\\}|/api/restaurants/\\{restaurant_id\\}/inventory/ingredients/\\{ingredient_id\\}/movements|/api/restaurants/\\{restaurant_id\\}/inventory/alerts|/api/restaurants/\\{restaurant_id\\}/inventory/alerts/history|/menu\\-items/\\{menu_item_id\\}/recipe|/health|/ready|/api/test|/openapi\\.json|/docs|/docs/oauth2\\-redirect|/redoc|/api/test\\-db|<unmatched>)$")) and metric.name != "restaurantos.http.last_observation"'
-          - '(not IsMatch(datapoint.attributes["http.request.method"], "^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE|OTHER)$")) and metric.name != "restaurantos.http.last_observation"'
-          - '(IsInt(datapoint.attributes["http.response.status_code"]) == false or datapoint.attributes["http.response.status_code"] < 0 or datapoint.attributes["http.response.status_code"] > 599) and metric.name != "restaurantos.http.inflight" and metric.name != "restaurantos.http.last_observation"'
+          - '(not IsMatch(datapoint.attributes["http.route"], "^(/auth/login|/auth/refresh|/auth/logout|/auth/me|/api/restaurants|/api/restaurants/\\{restaurant_id\\}|/restaurants/\\{restaurant_id\\}/menus|/menus/\\{menu_id\\}|/menus/\\{menu_id\\}/items|/menu\\-items/\\{menu_item_id\\}|/api/restaurants/\\{restaurant_id\\}/orders|/api/orders/\\{order_id\\}|/api/restaurants/\\{restaurant_id\\}/analytics/dashboard|/api/access|/api/organizations|/api/organization|/api/memberships|/api/memberships/\\{membership_id\\}|/api/audit|/api/restaurants/\\{restaurant_id\\}/inventory/ingredients|/api/restaurants/\\{restaurant_id\\}/inventory/ingredients/\\{ingredient_id\\}|/api/restaurants/\\{restaurant_id\\}/inventory/ingredients/\\{ingredient_id\\}/movements|/api/restaurants/\\{restaurant_id\\}/inventory/alerts|/api/restaurants/\\{restaurant_id\\}/inventory/alerts/history|/menu\\-items/\\{menu_item_id\\}/recipe|/health|/ready|/api/test|/openapi\\.json|/docs|/docs/oauth2\\-redirect|/redoc|/api/test\\-db|<unmatched>)$")) and metric.name != "restaurantos.http.last_observation" and metric.name != "restaurantos.http.eligible_requests"'
+          - '(not IsMatch(datapoint.attributes["http.request.method"], "^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS|CONNECT|TRACE|OTHER)$")) and metric.name != "restaurantos.http.last_observation" and metric.name != "restaurantos.http.eligible_requests"'
+          - '(IsInt(datapoint.attributes["http.response.status_code"]) == false or datapoint.attributes["http.response.status_code"] < 0 or datapoint.attributes["http.response.status_code"] > 599) and metric.name != "restaurantos.http.inflight" and metric.name != "restaurantos.http.last_observation" and metric.name != "restaurantos.http.eligible_requests"'
           - 'not IsMatch(datapoint.attributes["outcome"], "^(success|authentication|forbidden|not_found|conflict|validation|rate_limit|client_error|server_error|cancelled)$") and metric.name != "restaurantos.http.inflight" and metric.name != "restaurantos.http.last_observation"'
     log_conditions:
       - context: resource
@@ -140,10 +140,11 @@ processors:
       - set(scope.version, "1")
       - set(metric.description, "")
       - set(metric.unit, "s") where metric.name == "restaurantos.http.duration" or metric.name == "restaurantos.http.last_observation"
-      - set(metric.unit, "1") where metric.name == "restaurantos.http.requests" or metric.name == "restaurantos.http.inflight"
+      - set(metric.unit, "1") where metric.name == "restaurantos.http.requests" or metric.name == "restaurantos.http.inflight" or metric.name == "restaurantos.http.eligible_requests"
       - keep_keys(datapoint.attributes, ["http.route", "http.request.method", "http.response.status_code", "outcome"])
       - keep_keys(datapoint.attributes, ["http.route", "http.request.method"]) where metric.name == "restaurantos.http.inflight"
       - keep_keys(datapoint.attributes, []) where metric.name == "restaurantos.http.last_observation"
+      - keep_keys(datapoint.attributes, ["outcome"]) where metric.name == "restaurantos.http.eligible_requests"
     log_statements:
       - keep_keys(resource.attributes, ["service.name"])
       - set(resource.schema_url, "")
@@ -277,13 +278,17 @@ processors:
         conditions: ['true']
     metric_conditions:
       - context: resource
-        conditions: ['resource.attributes["service.name"] != "restaurantos-worker"']
+        conditions:
+          - 'resource.attributes["service.name"] != "restaurantos-worker" and resource.attributes["service.name"] != "restaurantos-api"'
       - context: metric
         conditions:
-          - 'not IsMatch(metric.name, "^restaurantos[.]worker[.](operations|duration|routes|collection[.]failures|deliveries|oldest|collected|receipts[.]window|receipts[.]latest)$")'
+          - 'resource.attributes["service.name"] == "restaurantos-worker" and not IsMatch(metric.name, "^restaurantos[.]worker[.](operations|duration|routes|collection[.]failures|deliveries|oldest|collected|receipts[.]window|receipts[.]latest|retries)$")'
+          - 'resource.attributes["service.name"] == "restaurantos-api" and not IsMatch(metric.name, "^restaurantos[.]delivery[.](depth|oldest|collected)$")'
       - context: datapoint
         conditions:
-          - 'IsMatch(metric.name, "^restaurantos[.]worker[.](operations|duration|routes|collection[.]failures)$") and (datapoint.attributes["worker_slot"] == nil or not IsMatch(datapoint.attributes["worker_slot"], "^([0-9]|[12][0-9]|3[01])$"))'
+          - 'IsMatch(metric.name, "^restaurantos[.]worker[.](operations|duration|routes|collection[.]failures|retries)$") and (datapoint.attributes["worker_slot"] == nil or not IsMatch(datapoint.attributes["worker_slot"], "^([0-9]|[12][0-9]|3[01])$"))'
+          - 'IsMatch(metric.name, "^restaurantos[.]delivery[.](depth|oldest)$") and (not IsMatch(datapoint.attributes["consumer"], "^(analytics|alerts|notification_sink)$") or not IsMatch(datapoint.attributes["state"], "^(queued|in_flight|retry_delayed|terminal|recovery_due)$"))'
+          - 'metric.name == "restaurantos.worker.retries" and not IsMatch(datapoint.attributes["consumer"], "^(analytics|alerts|notification_sink)$")'
   transform/worker:
     error_mode: ignore
     trace_statements:
@@ -312,7 +317,10 @@ processors:
     - context: datapoint
       statements:
       - keep_keys(datapoint.attributes, ["consumer", "state", "operation", "outcome", "event_type", "worker_slot"])
-      - delete_key(datapoint.attributes, "worker_slot") where not IsMatch(metric.name, "^restaurantos[.]worker[.](operations|duration|routes|collection[.]failures)$")
+      - keep_keys(datapoint.attributes, ["consumer", "state"]) where IsMatch(metric.name, "^restaurantos[.]delivery[.](depth|oldest)$")
+      - keep_keys(datapoint.attributes, []) where metric.name == "restaurantos.delivery.collected"
+      - keep_keys(datapoint.attributes, ["consumer", "worker_slot"]) where metric.name == "restaurantos.worker.retries"
+      - delete_key(datapoint.attributes, "worker_slot") where not IsMatch(metric.name, "^restaurantos[.]worker[.](operations|duration|routes|collection[.]failures|retries)$")
   batch:
     timeout: 1s
     send_batch_size: 64

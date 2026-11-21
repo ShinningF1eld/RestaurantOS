@@ -82,6 +82,10 @@ class WorkerMetrics:
         )
         self.duration = meter.create_histogram("restaurantos.worker.duration", unit="s")
         self.routes = meter.create_counter("restaurantos.worker.routes", unit="1")
+        self.retries = meter.create_counter("restaurantos.worker.retries", unit="1")
+        if slot is not None:
+            for consumer in CONSUMERS:
+                self.retries.add(0, {"consumer": consumer, "worker_slot": str(slot)})
         self.collection_failures = meter.create_counter(
             "restaurantos.worker.collection.failures", unit="1"
         )
@@ -100,6 +104,10 @@ class WorkerMetrics:
             labels = {**labels, "worker_slot": str(self.slot)}
             self.operations.add(1, labels)
             self.duration.record(seconds, labels)
+            if labels["outcome"] == "consumer_retry_scheduled":
+                self.retries.add(
+                    1, {"consumer": labels["consumer"], "worker_slot": str(self.slot)}
+                )
 
     def routed(self, consumer: str, category: str) -> None:
         if self.slot is not None:

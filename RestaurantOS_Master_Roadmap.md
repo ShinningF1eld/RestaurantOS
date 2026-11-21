@@ -1040,7 +1040,9 @@ criteria and alert objectives are tracked separately.
 
 The T8/#65 [paired local baseline](docs/milestone9-observability/performance-milestone9-issue65.md)
 records six verified repetitions and the 2026-11-19 approval of local numeric
-objectives and thresholds. T9 owns final alert rules and incident exercises.
+objectives and thresholds. T9 provisions the approved local alert rules and
+provides a [disposable incident rehearsal](docs/testing/monitoring.md#local-alerts-and-incident-verification-66)
+with linked [recovery instructions](docs/runbooks/local-incidents.md).
 
 ### Objective
 

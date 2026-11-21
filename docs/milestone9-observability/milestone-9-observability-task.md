@@ -405,6 +405,8 @@ Run the documented workload with complete raw sanitized results, repeatability d
 
 ### T9: Validate local alerts and six incident response exercises
 
+See the [dated issue #66 verification record](verification-milestone9-issue66.md).
+
 Published GitHub title: **[M9 Observability] Validate local alerts and six incident response exercises**
 
 #### Purpose and references
@@ -413,7 +415,7 @@ Demonstrate that operational signals produce actionable local alerts and documen
 
 Source: `docs/milestone9-observability/milestone-9-observability-design.md`, revision 1, 2026-10-31;
 requirements R5, R8, R9, R10. This source belongs to current M9 observability, not M15
-deployment. Task-plan revision 1; acceptance remains unverified.
+deployment. Local incident evidence was verified on 2026-11-20. The dated verification record includes the Windows integration gate result.
 
 #### Scope
 
@@ -425,13 +427,13 @@ Provisioned Grafana rules, isolated local notification receiver, fault harness, 
 
 #### Acceptance criteria
 
-- [ ] Implement the accepted sustained API-error, DB-saturation, old-work and repeated-job-failure rules using T8 definitions. Record firing/resolution/no-data states and locally captured notifications, including configured grouping/deduplication and recovery behavior.
-- [ ] Exercise an API failure and real DB pool exhaustion: sanitized correlated evidence appears, failures remain bounded, alert transitions are correct, and recovery leaves business state/sessions consistent.
-- [ ] Exercise Redis outage and worker stop/restart: existing fallback/durability behavior holds, backlog/age is visible, alerts recover and all eligible durable effects reconcile after recovery.
-- [ ] Exercise repeated consumer failure followed by documented inspection/repair/replay. Retain original/replay identities, retries and terminal state; no duplicate business effect is introduced.
-- [ ] Exercise collector and telemetry destination outages: orders/worker effects remain correct, queues/memory/shutdown remain bounded, and stale intervals plus available drop evidence are visible after recovery. Explicitly document limits when Grafana itself is unavailable.
-- [ ] Provide response instructions for DB exhaustion, Redis outage, backlog, repeated failure, failed migration and compatible rollback. Reuse existing backup/maintenance rules; perform only disposable exercises and claim no hosted rollback proof.
-- [ ] Fault setup uses isolated names/ports/_test databases, no production fault endpoints and no sleeps as proof of lock overlap. Intentional test failure cleans up only owned resources and retains sanitized evidence; authentication traces remain disabled.
+- [x] Implement the accepted sustained API-error, DB-saturation, old-work and repeated-job-failure rules using T8 definitions. Record firing/resolution/no-data states and locally captured notifications, including configured grouping/deduplication and recovery behavior.
+- [x] Exercise an API failure and real DB pool exhaustion: sanitized correlated evidence appears, failures remain bounded, alert transitions are correct, and recovery leaves business state/sessions consistent.
+- [x] Exercise Redis outage and worker stop/restart: existing fallback/durability behavior holds, backlog/age is visible, alerts recover and all eligible durable effects reconcile after recovery.
+- [x] Exercise repeated consumer failure followed by documented inspection/repair/replay. Retain original/replay identities, retries and terminal state; no duplicate business effect is introduced.
+- [x] Exercise collector and telemetry destination outages: orders/worker effects remain correct, queues/memory/shutdown remain bounded, and stale intervals plus available drop evidence are visible after recovery. Explicitly document limits when Grafana itself is unavailable.
+- [x] Provide response instructions for DB exhaustion, Redis outage, backlog, repeated failure, failed migration and compatible rollback. Reuse existing backup/maintenance rules; perform only disposable exercises and claim no hosted rollback proof.
+- [x] Fault setup uses isolated names/ports/_test databases, no production fault endpoints and no sleeps as proof of lock overlap. Intentional test failure cleans up only owned resources and retains sanitized evidence; authentication traces remain disabled.
 
 #### Verification
 

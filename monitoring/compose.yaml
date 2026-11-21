@@ -50,6 +50,11 @@ services:
         target: /etc/prometheus/prometheus.yml
         read_only: true
         bind: {create_host_path: false}
+      - type: bind
+        source: ./alert-signals.yaml
+        target: /etc/prometheus/alert-signals.yaml
+        read_only: true
+        bind: {create_host_path: false}
       - prometheus_data:/prometheus
 
   grafana:
@@ -69,6 +74,10 @@ services:
       GF_PLUGINS_PREINSTALL_AUTO_UPDATE: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      # Grafana's default 10s tick cannot schedule a 15s rule group.
+      GF_FEATURE_TOGGLES_ENABLE: configurableSchedulerTick
+      GF_UNIFIED_ALERTING_SCHEDULER_TICK_INTERVAL: 15s
+      GF_UNIFIED_ALERTING_MIN_INTERVAL: 15s
       GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
     secrets: [grafana_admin_user, grafana_admin_password]
     volumes:

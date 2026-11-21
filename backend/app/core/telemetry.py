@@ -37,6 +37,7 @@ from app.core.diagnostics import Diagnostics
 
 if TYPE_CHECKING:
     from app.core.business_collection import BusinessCollector
+    from app.modules.events.alert_sampling import DeliverySampler
 
 SCOPE = "restaurantos.api.http"
 BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30)
@@ -137,12 +138,14 @@ def exporter_options(settings: Settings, signal: str) -> dict:
 
 class Telemetry:
     business_collector: "BusinessCollector | None"
+    delivery_sampler: "DeliverySampler | None"
 
     def __init__(self, settings: Settings, role: str = "api") -> None:
         self.settings = settings
         self.providers: list = []
         self.pending: list = []
         self.business_collector = None
+        self.delivery_sampler = None
         try:
             resource = Resource({"service.name": "restaurantos-" + role})
             self.traces = TracerProvider(
@@ -234,8 +237,10 @@ class Telemetry:
             )
             if role == "api":
                 from app.core.business_metrics import BusinessMetrics
+                from app.modules.events.alert_sampling import DeliverySampler
 
                 self.business_metrics = BusinessMetrics(self.metrics)
+                self.delivery_sampler = DeliverySampler(self.metrics, settings)
                 if settings.monitoring_business_aggregates_enabled:
                     from app.core.business_collection import BusinessCollector
 
@@ -252,6 +257,11 @@ class Telemetry:
                     logger.warning("worker process metrics require slot")
             meter = self.metrics.get_meter(SCOPE, "1")
             self.requests = meter.create_counter("restaurantos.http.requests", unit="1")
+            self.eligible_requests = meter.create_counter(
+                "restaurantos.http.eligible_requests", unit="1"
+            )
+            for outcome in ("success", "server_error"):
+                self.eligible_requests.add(0, {"outcome": outcome})
             self.duration = meter.create_histogram(
                 "restaurantos.http.duration", unit="s"
             )
@@ -286,6 +296,11 @@ class Telemetry:
         import time
 
         self.requests.add(1, attributes)
+        outcome = attributes.get("outcome")
+        if outcome in {"success", "server_error"} and attributes.get(
+            "http.route"
+        ) not in {"/health", "/ready"}:
+            self.eligible_requests.add(1, {"outcome": outcome})
         self.duration.record(seconds, attributes)
         self.observed.set(time.time())
         self.log.emit(

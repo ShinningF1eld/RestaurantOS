@@ -110,6 +110,9 @@ collection and analytics-delivery signals. The monitoring stack provisions four
 [operator dashboards](docs/runbooks/monitoring.md#operator-dashboards).
 The [paired local baseline](docs/milestone9-observability/performance-milestone9-issue65.md)
 documents telemetry overhead and the approved local objectives for T9.
+The [local incident runbook](docs/runbooks/local-incidents.md) links the alerts
+to operator responses. The [disposable rehearsal](docs/testing/monitoring.md#local-alerts-and-incident-verification-66)
+exercises the fault and recovery paths and captures local Grafana notifications.
 
 ## Prerequisites
 
