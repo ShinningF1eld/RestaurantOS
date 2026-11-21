@@ -1,5 +1,17 @@
 # RestaurantOS current state
 
+## Current M9 observability issue #67 — shared validation and acceptance
+
+The required image gate exercises native monitoring configuration, dashboard
+queries, alert rules and private stored API telemetry. Backend integration
+matches committed outbox contexts to their originating HTTP spans and linked
+worker exports after restart. The full paired benchmark evaluates the approved
+local objectives and fails on a breach. All ten locked gates, all six incident
+exercises and all six paired repetitions passed on 2026-11-21. Final milestone
+acceptance remains open for candidate PR CI and R3 trace coverage. The
+[issue #67 evidence](milestone9-observability/verification-milestone9-issue67.md)
+maps the current requirements and roadmap exits to checks and dated results.
+
 ## Current M9 observability issue #66 — local incident response
 
 Grafana provisions four operational incident rules and a separate telemetry

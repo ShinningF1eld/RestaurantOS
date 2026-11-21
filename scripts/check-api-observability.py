@@ -514,7 +514,7 @@ def container_smoke(image):
                 "assert urlopen(r,timeout=2).status==200"
             )
             command("docker", "exec", name, "python", "-c", code)
-            wait_until(
+            metrics = wait_until(
                 lambda: prom(
                     stack,
                     'restaurantos_http_requests_total{service_name="restaurantos-api",http_route="/health"}',
@@ -533,7 +533,21 @@ def container_smoke(image):
                     ),
                 )["data"]["result"]
             )
-            assert spans_in(trace) and trace_id in json.dumps(logs)
+            http_spans = [
+                span for span in spans_in(trace) if span["name"] == "HTTP request"
+            ]
+            assert len(http_spans) == 1
+            http_span = http_spans[0]
+            metadata = [row["stream"] for row in logs]
+            metadata.extend(
+                value[2] for row in logs for value in row["values"] if len(value) > 2
+            )
+            assert any(labels.get("trace_id") == trace_id for labels in metadata)
+            assert any(
+                attr["key"] == "request_id"
+                and attr["value"].get("stringValue") == "issue59-container"
+                for attr in http_span["attributes"]
+            )
             output = subprocess.run(
                 ["docker", "logs", name],
                 check=True,
@@ -542,18 +556,14 @@ def container_smoke(image):
                 timeout=10,
             )
             local = output.stdout + output.stderr
-            assert canary not in json.dumps([trace, logs, local])
+            assert canary not in json.dumps([metrics, trace, logs, local])
             print(
                 "PASS: production API image exports via private collector:4318 to all three stores, correlated and canary-free",
                 flush=True,
             )
         finally:
-            subprocess.run(
-                ["docker", "rm", "--force", "--volumes", name],
-                check=True,
-                capture_output=True,
-                timeout=30,
-            )
+            if command("docker", "ps", "-aq", "--filter", "name=^/" + name + "$"):
+                command("docker", "rm", "--force", "--volumes", name)
             environment.unlink(missing_ok=True)
     print("PASS: private container smoke cleanup", flush=True)
 

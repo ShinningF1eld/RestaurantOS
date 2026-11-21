@@ -239,7 +239,13 @@ settings were approved on 2026-11-19 for the T9 rule and incident exercises.
    Tempo, inspect the API span and related Next.js server, render and API-client
    spans when the request came from SSR. SQL and Redis timing in the current
    contract is metric-based. Use Database & Redis for those signals.
-3. For retries or worker failures, use the Background Processing attempt
+3. For a request that wrote an event, note the API request ID and the span's
+   trace and span IDs. Use trusted database inspection to locate the matching
+   outbox row by correlation ID. Use its delivery UUID with the
+   [event inspect command](event-worker.md#operational-inspection) to inspect
+   attempts and receipts. Compare the worker attempt's span link with the
+   originating API span.
+4. For retries or worker failures, use the Background Processing attempt
    panel link to search Tempo for the selected operation, consumer and outcome.
    Compare with the worker's structured JSON diagnostics on local stdout/stderr.
    Each attempt has its own trace root and can link to the original request

@@ -113,6 +113,11 @@ documents telemetry overhead and the approved local objectives for T9.
 The [local incident runbook](docs/runbooks/local-incidents.md) links the alerts
 to operator responses. The [disposable rehearsal](docs/testing/monitoring.md#local-alerts-and-incident-verification-66)
 exercises the fault and recovery paths and captures local Grafana notifications.
+The shared image gate includes the pinned monitoring parsers, dashboard and alert
+fixtures, and private runtime telemetry smoke. See the
+[M9 acceptance procedure](docs/testing/monitoring.md#final-m9-observability-acceptance-67)
+and [issue #67 evidence](docs/milestone9-observability/verification-milestone9-issue67.md)
+for the local results and remaining criteria.
 
 ## Prerequisites
 

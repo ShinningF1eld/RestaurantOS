@@ -1,11 +1,18 @@
 # System context
 
-Last updated: 2026-10-19 (Milestone 8 runtime and operations boundaries).
+Last updated on 2026-11-21 for the optional Milestone 9 observability boundaries.
 
 RestaurantOS currently runs as a small modular-monolith-shaped application: one
 Next.js frontend, one FastAPI API, one PostgreSQL database and a separately
 started event worker. Local Compose supplies PostgreSQL and nonpersistent Redis;
 the API, frontend and worker normally run on the host.
+
+Optional Milestone 9 monitoring receives OTLP from the API, Next.js server and
+worker. A committed outbox row carries the request correlation ID and optional
+trace context across process restarts. Workers use span links to reference the
+originating request. PostgreSQL and Redis diagnostics use bounded metrics and
+restricted read-only collection. See the
+[observability architecture](../milestone9-observability/milestone-9-observability-design.md#architecture-and-interfaces).
 
 ```mermaid
 flowchart LR

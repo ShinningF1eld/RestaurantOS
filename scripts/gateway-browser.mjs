@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import tls from "node:tls";
+import { setTimeout as delay } from "node:timers/promises";
 import { createHash, randomUUID, X509Certificate } from "node:crypto";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
@@ -672,17 +673,25 @@ async function main() {
       page = await context.newPage();
       report.observations.restartSameBrowserContext = true;
       operation = "browser document GET after container restart";
-      try {
-        await page.goto(origin + urlA);
-      } catch (error) {
-        // Docker bridge recreation can invalidate the host browser's current
-        // network. Retry this read once only for Chrome's explicit signal.
-        // Never retry refresh, a business command or a certificate failure.
-        if (!/net::ERR_NETWORK_CHANGED\b/.test(error.message)) throw error;
-        report.observations.restartDocumentGetRetries = 1;
-        await page.close();
-        page = await context.newPage();
-        await page.goto(origin + urlA);
+      const networkBackoffMs = [250, 500, 1000, 2000];
+      for (let attempt = 0; ; attempt++) {
+        try {
+          // The checks below wait for the rendered document. Retry only until
+          // Chromium commits the GET, while Docker's bridge changes settle.
+          await page.goto(origin + urlA, { waitUntil: "commit" });
+          break;
+        } catch (error) {
+          if (
+            attempt === networkBackoffMs.length ||
+            !/net::ERR_NETWORK_CHANGED\b/.test(error.message)
+          ) {
+            throw error;
+          }
+          report.observations.restartDocumentGetRetries = attempt + 1;
+          await page.close();
+          await delay(networkBackoffMs[attempt]);
+          page = await context.newPage();
+        }
       }
       operation = "browser identity after container restart";
       await expect(page.getByText(a.email, { exact: true })).toBeVisible();
