@@ -48,6 +48,12 @@ is required, and strict TLS is checked again after restart. This scoped test
 exception does not prove native browser trust-store setup. See Chromium's
 [certificate verifier](https://chromium.googlesource.com/chromium/src/+/bff9ec6/services/network/ignore_errors_cert_verifier.h).
 
+When Chromium reports `ERR_NETWORK_CHANGED` before committing the first
+post-restart document GET, the runner makes up to four retries with bounded
+backoff. The retries use fresh pages within the same authenticated browser
+context. The runner still requires the rendered identity and tenant marker,
+identical session cookies, and the preserved worker receipt.
+
 Temporary `sitecustomize.py` and a Compose override observe the unchanged real
 `client_ip` function. They are mounted only into the disposable API, never copied
 into images or activated by normal rehearsal startup. The observer returns the
