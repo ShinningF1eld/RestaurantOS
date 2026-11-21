@@ -1,0 +1,155 @@
+groups:
+  - name: restaurantos-incident-signals
+    interval: 15s
+    rules:
+      # A current scrape alone says nothing about the age of the source data.
+      - record: ros_alert:api_fresh
+        expr: |
+          (time() - max(restaurantos_http_last_observation_seconds{job="collector-telemetry",service_name="restaurantos-api"}
+            and on (job, instance) (up{job="collector-telemetry"} == 1))) >= 0 < 45
+      - record: ros_alert:delivery_fresh
+        expr: |
+          (time() - max(restaurantos_delivery_collected_seconds{job="collector-telemetry",service_name="restaurantos-api"}
+            and on (job, instance) (up{job="collector-telemetry"} == 1))) >= 0 < 45
+      - record: ros_alert:worker_fresh
+        expr: |
+          (time() - max(restaurantos_worker_collected_seconds{job="collector-telemetry",service_name="restaurantos-worker"}
+            and on (job, instance) (up{job="collector-telemetry"} == 1))) >= 0 < 45
+
+      - record: ros_alert:api_eligible_5m
+        expr: sum(increase(restaurantos_http_eligible_requests_total{job="collector-telemetry",service_name="restaurantos-api"}[5m]))
+      - record: ros_alert:api_error_ratio
+        expr: |
+          (sum(increase(restaurantos_http_eligible_requests_total{job="collector-telemetry",service_name="restaurantos-api",outcome="server_error"}[5m]))
+            / (ros_alert:api_eligible_5m >= 60)) and ros_alert:api_fresh
+
+      - record: ros_alert:pool_ratio
+        expr: |
+          max by (role, worker_slot) (
+            (restaurantos_pool_used{job="collector-telemetry"}
+              / on (job, instance, service_name, role, worker_slot) (restaurantos_pool_limit{job="collector-telemetry"} > 0))
+            and on (job, instance) (up{job="collector-telemetry"} == 1)
+          )
+      - record: ros_alert:pool_acquisitions_2m
+        expr: sum by (role, worker_slot) (increase(restaurantos_pool_acquire_duration_seconds_count{job="collector-telemetry"}[2m]))
+      - record: ros_alert:pool_timeouts_2m
+        expr: sum by (role, worker_slot) (increase(restaurantos_pool_acquire_failures_total{job="collector-telemetry",outcome="timeout"}[2m]))
+
+      - record: ros_alert:unfinished
+        expr: |
+          sum by (consumer) (restaurantos_delivery_depth{job="collector-telemetry",service_name="restaurantos-api",state=~"queued|in_flight|retry_delayed|recovery_due"})
+            and on () ros_alert:delivery_fresh
+      - record: ros_alert:unfinished_age
+        expr: |
+          max by (consumer) (restaurantos_delivery_oldest_seconds{job="collector-telemetry",service_name="restaurantos-api",state=~"queued|in_flight|retry_delayed|recovery_due"})
+            and on () ros_alert:delivery_fresh
+      - record: ros_alert:terminal
+        expr: |
+          sum by (consumer) (restaurantos_delivery_depth{job="collector-telemetry",service_name="restaurantos-api",state="terminal"})
+            and on () ros_alert:delivery_fresh
+      - record: ros_alert:retries_5m
+        expr: |
+          sum by (consumer) (increase(restaurantos_worker_retries_total{job="collector-telemetry",service_name="restaurantos-worker"}[5m]))
+            and on () ros_alert:worker_fresh
+
+      # 2 = breach, 0 = clear, 1 = eligible deadband. Absent means unknown.
+      # Historical windows in Grafana require every qualifying evaluation.
+      - record: ros_alert:phase
+        labels: {signal: api}
+        expr: |
+          (2 * (ros_alert:api_error_ratio > bool 0.02)
+            + ((ros_alert:api_error_ratio >= bool 0.01) * (ros_alert:api_error_ratio <= bool 0.02)))
+      - record: ros_alert:phase
+        labels: {signal: pool}
+        expr: |
+          (2 * (ros_alert:pool_timeouts_2m >= bool 1) and ros_alert:pool_timeouts_2m >= 1 and ros_alert:pool_ratio)
+          or (2 * (ros_alert:pool_ratio >= bool 0.80) and ros_alert:pool_ratio >= 0.80 and ros_alert:pool_acquisitions_2m >= 20)
+          or (0 * ros_alert:pool_ratio and ros_alert:pool_ratio < 0.60 and ros_alert:pool_timeouts_2m == 0)
+          or (1 + 0 * ros_alert:pool_ratio)
+      - record: ros_alert:phase
+        labels: {signal: backlog}
+        expr: |
+          (2 * (ros_alert:unfinished > bool 0) and ros_alert:unfinished > 0 and ros_alert:unfinished_age > 10)
+          or (0 * ros_alert:unfinished_age and ros_alert:unfinished_age < 5)
+          or (0 * ros_alert:unfinished and ros_alert:unfinished == 0)
+          or (1 + 0 * (ros_alert:unfinished and ros_alert:unfinished_age))
+      - record: ros_alert:phase
+        labels: {signal: jobs}
+        expr: |
+          (2 * (ros_alert:terminal > bool 0) and ros_alert:terminal > 0)
+          or (2 * (ros_alert:retries_5m >= bool 3) and ros_alert:retries_5m >= 3 and ros_alert:terminal)
+          or (0 * ros_alert:terminal and ros_alert:terminal == 0 and ros_alert:retries_5m < 3)
+
+      # Fixed bounded identities prevent Grafana MissingSeries eviction from
+      # resolving a firing incident when just one producer disappears.
+      - record: ros_alert:identity
+        labels: {signal: api}
+        expr: vector(1)
+      - record: ros_alert:identity
+        labels: {signal: pool}
+        expr: |
+          label_replace(vector(1), "role", "api", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "0", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "1", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "2", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "3", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "4", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "5", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "6", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "7", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "8", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "9", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "10", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "11", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "12", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "13", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "14", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "15", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "16", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "17", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "18", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "19", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "20", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "21", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "22", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "23", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "24", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "25", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "26", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "27", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "28", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "29", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "30", "", ".*")
+          or label_replace(label_replace(vector(1), "role", "worker", "", ".*"), "worker_slot", "31", "", ".*")
+
+      - record: ros_alert:identity
+        labels: {signal: backlog}
+        expr: &consumer_identities |
+          label_replace(vector(1), "consumer", "analytics", "", ".*")
+          or label_replace(vector(1), "consumer", "alerts", "", ".*")
+          or label_replace(vector(1), "consumer", "notification_sink", "", ".*")
+      - record: ros_alert:identity
+        labels: {signal: jobs}
+        expr: *consumer_identities
+
+
+      # Qualify at the same scheduler timestamp as the raw signal records.
+      # Including both endpoints requires five or nine consecutive samples.
+      # A missing evaluation within either range prevents a state change.
+      - record: ros_alert:qualified
+        expr: |
+          (
+            (ros_alert:phase{signal="api"}
+              and (min_over_time(ros_alert:phase{signal="api"}[121s]) == 2)
+              and (count_over_time(ros_alert:phase{signal="api"}[121s]) == 9))
+            or (ros_alert:phase{signal=~"pool|backlog|jobs"}
+              and (min_over_time(ros_alert:phase{signal=~"pool|backlog|jobs"}[61s]) == 2)
+              and (count_over_time(ros_alert:phase{signal=~"pool|backlog|jobs"}[61s]) == 5))
+            or (ros_alert:phase{signal="backlog"}
+              and (max_over_time(ros_alert:phase{signal="backlog"}[61s]) == 0)
+              and (count_over_time(ros_alert:phase{signal="backlog"}[61s]) == 5))
+            or (ros_alert:phase{signal=~"api|pool|jobs"}
+              and (max_over_time(ros_alert:phase{signal=~"api|pool|jobs"}[121s]) == 0)
+              and (count_over_time(ros_alert:phase{signal=~"api|pool|jobs"}[121s]) == 9))
+            or ros_alert:identity
+          ) * 1

@@ -100,7 +100,19 @@ def launch(owners, name, *args):
     return docker("run", "--pull=never", "-d", "--name", name, *args)
 
 
-def prepare(owners, temporary, stack, settings, database):
+def prepare(
+    owners,
+    temporary,
+    stack,
+    settings,
+    database,
+    *,
+    prefix="restaurantos-issue65",
+    images=None,
+    app_settings=None,
+    loopback_host="localhost",
+):
+    backend_image, frontend_image = images or (BACKPIN, FRONTPIN)
     postgres = settings["TEST_POSTGRES_CONTAINER"]
     network = next(iter(inspect(postgres, ".NetworkSettings.Networks")))
     if not network.startswith("restaurantos-m6-"):
@@ -129,7 +141,7 @@ def prepare(owners, temporary, stack, settings, database):
             docker, "network", "disconnect", network, stack.container("collector")
         )
 
-    prefix = "restaurantos-issue65-" + uuid4().hex[:12]
+    prefix += "-" + uuid4().hex[:12]
     api_name = prefix + "-api"
     enabled = str(stack is not None).lower()
     endpoint = "http://collector:4318"
@@ -153,9 +165,9 @@ def prepare(owners, temporary, stack, settings, database):
         "MONITORING_ENABLED=" + enabled,
         "-e",
         "MONITORING_ENDPOINT=" + endpoint,
-        FRONTPIN,
+        frontend_image,
     )
-    web = f"http://localhost:{port(frontend, 3000)}"
+    web = f"http://{loopback_host}:{port(frontend, 3000)}"
     frontend_ip = inspect(frontend, ".NetworkSettings.Networks")[network]["IPAddress"]
     isolated = database.environment(settings)
     credentials = {
@@ -185,6 +197,7 @@ def prepare(owners, temporary, stack, settings, database):
                 "MONITORING_WORKER_SLOT": "0",
                 "MONITORING_BUSINESS_AGGREGATES_ENABLED": enabled,
                 "MONITORING_BUSINESS_SALES_THB": enabled,
+                **(app_settings or {}),
             }.items()
         ),
         encoding="utf-8",
@@ -198,7 +211,7 @@ def prepare(owners, temporary, stack, settings, database):
         str(app_env),
         "-p",
         "127.0.0.1::8000",
-        BACKPIN,
+        backend_image,
     )
     worker = launch(
         owners,
@@ -207,7 +220,7 @@ def prepare(owners, temporary, stack, settings, database):
         "--env-file",
         str(app_env),
         "--no-healthcheck",
-        BACKPIN,
+        backend_image,
         "python",
         "-m",
         "app.worker",
@@ -221,7 +234,7 @@ def prepare(owners, temporary, stack, settings, database):
     }
     if stack:
         containers.update({service: stack.container(service) for service in MONITORS})
-    return containers, f"http://localhost:{port(api, 8000)}", web
+    return containers, f"http://{loopback_host}:{port(api, 8000)}", web
 
 
 def fixture(client, api, web, account):

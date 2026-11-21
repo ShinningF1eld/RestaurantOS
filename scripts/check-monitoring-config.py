@@ -63,6 +63,16 @@ def main() -> None:
         ]
         if entrypoint:
             command.extend(["--entrypoint", entrypoint])
+        if service == "prometheus":
+            command.extend(
+                [
+                    "--mount",
+                    (
+                        f"type=bind,src={ROOT / 'monitoring/alert-signals.yaml'},"
+                        "dst=/etc/prometheus/alert-signals.yaml,readonly"
+                    ),
+                ]
+            )
         try:
             subprocess.run([*command, image, *arguments], check=True, timeout=120)
         finally:

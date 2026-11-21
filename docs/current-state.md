@@ -1,5 +1,18 @@
 # RestaurantOS current state
 
+## Current M9 observability issue #66 — local incident response
+
+Grafana provisions four operational incident rules and a separate telemetry
+freshness rule at the approved 15-second cadence. The API samples durable
+delivery age and depth independently of the worker. An opt-in disposable
+runner exercises the real API, PostgreSQL, Redis, worker and monitoring stack,
+and captures notifications on a private network. All six local exercises
+passed, and the intentional-failure run verified owned-resource cleanup. See the
+[response runbook](runbooks/local-incidents.md) and
+[verification procedure](testing/monitoring.md#local-alerts-and-incident-verification-66).
+The [dated issue report](milestone9-observability/verification-milestone9-issue66.md)
+records verification outcomes and remaining gaps.
+
 ## Current M9 observability issue #65 — local baseline
 
 The opt-in paired [application baseline](milestone9-observability/performance-milestone9-issue65.md)

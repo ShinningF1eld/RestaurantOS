@@ -295,3 +295,42 @@ latency and identifies receipts that skipped a stale or irrelevant event.
 `samples` contains Docker, PostgreSQL and Redis measurements. Enabled arms
 include the relevant Prometheus series and sanitized SDK warning counts.
 Only this benchmark's local test database enables commit timestamp tracking.
+
+## Local alerts and incident verification (#66)
+
+Build the production images before starting the fault rehearsal. Run from the
+repository root with the supported Python 3.12 test interpreter.
+
+```powershell
+backend/.venv-observability/Scripts/python.exe scripts/validate.py --gate image --no-install
+backend/.venv-observability/Scripts/python.exe scripts/check-monitoring-config.py
+backend/.venv-observability/Scripts/python.exe scripts/check-alert-rules.py
+backend/.venv-observability/Scripts/python.exe scripts/check-local-incidents.py --report test-results/monitoring/issue66.json
+backend/.venv-observability/Scripts/python.exe scripts/check-local-incidents.py --inject-failure --report test-results/monitoring/issue66-cleanup.json
+```
+
+The Linux/macOS equivalent interpreter is `backend/.venv/bin/python`. The rule
+test loads the shipped Prometheus rules and Grafana expressions in the pinned
+Prometheus evaluator and checks first observations, resets, low traffic, stale
+sources and durable work while the worker is absent.
+
+The rehearsal starts real API, worker, standalone Next.js, PostgreSQL, Redis
+and monitoring containers. It seeds a unique `_test` database and synthetic login,
+uses random loopback ports, and captures no browser auth traces. Faults are applied via
+test-database transactions/triggers and explicit stops of owned containers.
+The pool exercise measures real PostgreSQL blockers using `pg_blocking_pids`.
+The API's exercise pool is two connections with no overflow and a one-second
+timeout. The worker uses an exercise allowance of four attempts to observe three
+scheduled retries and a terminal outcome in one run. The deployment defaults
+remain as documented in the [worker runbook](../runbooks/event-worker.md).
+
+Allow time for the actual five-minute lookbacks and sustained recovery windows.
+Use `--incident` with one or more case names for focused diagnosis. The injected
+cleanup run must exit 1 at the intentional failure stage, retain a report, and
+record `owned_resources_removed: true`. The receiver stores only bounded,
+allowlisted local notification fields. The report retains those fields, signal
+observations, reconciliation and teardown results. It should never contain
+credentials, request bodies or raw application logs.
+
+See the [response runbook](../runbooks/local-incidents.md) for thresholds,
+notification timing, recovery and Grafana downtime limits.

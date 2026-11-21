@@ -68,6 +68,7 @@ class Diagnostics:
             self.instruments[name] = meter.create_counter(
                 "restaurantos." + name, unit="1"
             )
+        self.record("pool.acquire.failures", 0, {"role": role, "outcome": "timeout"})
 
         def callback(field: str) -> Any:
             def observe(options: Any) -> Iterable[Observation]:

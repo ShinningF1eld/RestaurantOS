@@ -4,7 +4,9 @@ global:
   evaluation_interval: 15s
 
 # Retention is configured by Compose's --storage.tsdb.retention.time=7d.
-# No application target, remote-write endpoint or speculative alert rules yet.
+rule_files:
+  - /etc/prometheus/alert-signals.yaml
+
 scrape_configs:
   - job_name: collector-telemetry
     static_configs:

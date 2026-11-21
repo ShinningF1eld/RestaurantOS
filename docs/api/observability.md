@@ -173,3 +173,29 @@ Infrastructure diagnostics for API/worker SQL, pools, Redis and feature-owned ca
 cache outcomes use this same optional SDK lifecycle and exporter budget. See the
 [PostgreSQL/Redis contract](../../monitoring/database-redis.md) for exact metrics,
 restricted receiver setup, unavailable measurements and failure/staleness behavior.
+
+## Local incident alert inputs
+
+The optional API telemetry runtime publishes
+`restaurantos_http_eligible_requests_total` by `outcome` (success or unexpected
+server error). It excludes health, readiness, expected client errors and
+cancellations, and initializes both counters at zero.
+
+The API also samples durable deliveries every 15 seconds through one separate
+short-lived read-only connection with a bounded deadline. The three series
+are `restaurantos_delivery_depth`, `restaurantos_delivery_oldest_seconds` and
+`restaurantos_delivery_collected_seconds`. The first two use bounded
+`consumer` and `state` labels and include observed zeros. The collection
+timestamp is invalidated on a failed query. Sampling can continue while the
+standalone worker is stopped. Worker-local dashboard metrics retain their
+existing source, meaning and freshness cutoff.
+
+The worker additionally publishes `restaurantos_worker_retries_total` by
+`consumer` and assigned `worker_slot`, initialized to zero. Only a scheduled
+event retry increments it. Pool acquisition timeout counters likewise start at
+zero for known producers. Prometheus applies counter-reset-aware window
+increases before aggregating. Events that happen before the first observed
+sample can be missing from process-counter deltas.
+
+See the [local operator runbook](../runbooks/local-incidents.md) and
+[verification commands](../testing/monitoring.md#local-alerts-and-incident-verification-66).

@@ -315,3 +315,10 @@ Rehearse only with `scripts/check-infrastructure-observability.py` and its owned
 service/network/volume identities. Never pause/restart developer containers or
 delete their volumes to test collection. Existing maintenance/backup procedures
 remain authoritative for any separately authorized live database operation.
+
+## Local alerts
+
+The provisioned incident rules and notification grouping are documented in the
+[local incident runbook](local-incidents.md). Run the
+[disposable rehearsal](../testing/monitoring.md#local-alerts-and-incident-verification-66)
+to capture notifications and exercise recovery.
