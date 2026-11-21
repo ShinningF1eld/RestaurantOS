@@ -82,6 +82,13 @@ Pure tests protect budget/isolation, strict mounts, source links, payload sizing
 counter/histogram semantics, lifecycle ownership and failure cleanup. Parser
 success alone is not runtime acceptance. `--no-install` is partial evidence.
 
+The required `image` gate runs the pinned configuration parsers, native alert
+fixtures, native dashboard query fixtures, and the private API image smoke
+against Prometheus, Loki and Tempo. The required `backend-integration` gate
+joins a real committed PostgreSQL outbox write to its HTTP request span and to
+publication and consumer-attempt spans after a worker restart. It also runs
+source privacy and exporter loss/recovery checks with owned endpoints.
+
 ## Operator dashboard verification (#64)
 
 ```sh
@@ -334,3 +341,41 @@ credentials, request bodies or raw application logs.
 
 See the [response runbook](../runbooks/local-incidents.md) for thresholds,
 notification timing, recovery and Grafana downtime limits.
+
+## Final M9 observability acceptance (#67)
+
+Run the full locked validator with Python 3.12 and Node 24. Keep the candidate
+revision and source configuration fixed across rehearsals. Use fresh report
+paths and run the measured Docker exercises sequentially when the local engine
+has no other active workload. Use the two production images built from the
+candidate checkout.
+
+```powershell
+$restaurantOsPython = "backend/.venv/Scripts/python.exe"
+./scripts/validate.ps1 -PythonExecutable $restaurantOsPython
+docker tag restaurantos-backend:m6 restaurantos-issue65-backend:local
+docker tag restaurantos-frontend:m9 restaurantos-issue65-frontend:local
+& $restaurantOsPython scripts/benchmark-local-observability.py --report test-results/monitoring/issue67-baseline.json.gz
+& $restaurantOsPython scripts/check-local-incidents.py --report test-results/monitoring/issue67-incidents.json
+& $restaurantOsPython scripts/check-local-incidents.py --inject-failure --report test-results/monitoring/issue67-cleanup.json
+& $restaurantOsPython scripts/check-frontend-observability.py --mode host --dashboard-links
+& $restaurantOsPython scripts/check-frontend-observability.py --mode container
+& $restaurantOsPython scripts/check-operator-dashboards.py --runtime --report test-results/monitoring/issue67-dashboards.json
+& $restaurantOsPython scripts/check-api-observability.py
+& $restaurantOsPython scripts/check-monitoring.py --mode host --scenario restart --report test-results/monitoring/issue67-restart.json
+& $restaurantOsPython scripts/check-monitoring-retention.py --dashboard-links --report test-results/monitoring/issue67-retention.json
+& $restaurantOsPython scripts/check-infrastructure-observability.py
+```
+
+The full benchmark checks latency and sample count per operation, eligible
+unexpected-error rate, processed effect freshness per consumer, and the 2 GB
+monitoring budget in each enabled repetition. It retains objective results and
+returns a failure status when a repetition misses the objectives. The
+`--smoke` run checks wiring. The injected incident run must be the one deliberate
+nonzero exit, reached at the intended fault stage with verified removal of
+owned resources. Review the [runtime and resource matrix](#runtime-matrix)
+for monitoring-only persistence and measured host/container resource checks.
+
+Record exact command outcomes and sanitized artifacts in the
+[issue #67 evidence](../milestone9-observability/verification-milestone9-issue67.md).
+Only a complete authorized candidate PR run supplies final CI evidence.

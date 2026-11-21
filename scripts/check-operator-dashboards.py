@@ -13,11 +13,13 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import parse_qs, quote, urlencode, urlsplit
 from urllib.request import ProxyHandler, Request, build_opener
+from uuid import uuid4
 
 import yaml
 from test_support.dashboard_fixtures import activity, edge_cases, labels
 from test_support.monitoring_environment import (
     ROOT,
+    command,
     disposable_monitoring,
     require_local_engine,
     wait_until,
@@ -180,38 +182,45 @@ def promtool(panels):
         path = Path(folder) / "queries.yaml"
         path.write_text(yaml.safe_dump(rules), encoding="utf-8")
         path.chmod(0o444)
-        subprocess.run(
-            [
-                "docker",
-                "run",
-                "--rm",
-                "--network",
-                "none",
-                "--read-only",
-                "--cap-drop",
-                "ALL",
-                "--security-opt",
-                "no-new-privileges",
-                "--memory",
-                "300000000",
-                "--memory-swap",
-                "300000000",
-                "--pids-limit",
-                "128",
-                "--tmpfs",
-                "/tmp:rw,noexec,nosuid,size=16m",
-                "--mount",
-                f"type=bind,src={path},dst=/queries.yaml,readonly",
-                "--entrypoint",
-                "/bin/promtool",
-                image,
-                "test",
-                "rules",
-                "/queries.yaml",
-            ],
-            check=True,
-            timeout=120,
-        )
+        name = "restaurantos-dashboard-fixtures-" + uuid4().hex
+        try:
+            subprocess.run(
+                [
+                    "docker",
+                    "run",
+                    "--rm",
+                    "--name",
+                    name,
+                    "--network",
+                    "none",
+                    "--read-only",
+                    "--cap-drop",
+                    "ALL",
+                    "--security-opt",
+                    "no-new-privileges",
+                    "--memory",
+                    "300000000",
+                    "--memory-swap",
+                    "300000000",
+                    "--pids-limit",
+                    "128",
+                    "--tmpfs",
+                    "/tmp:rw,noexec,nosuid,size=16m",
+                    "--mount",
+                    f"type=bind,src={path},dst=/queries.yaml,readonly",
+                    "--entrypoint",
+                    "/bin/promtool",
+                    image,
+                    "test",
+                    "rules",
+                    "/queries.yaml",
+                ],
+                check=True,
+                timeout=120,
+            )
+        finally:
+            if command("docker", "ps", "-aq", "--filter", "name=^/" + name + "$"):
+                command("docker", "rm", "--force", name)
     print(
         f"PASS: {sum(map(len, results.values()))} exact PromQL fixture checks",
         flush=True,

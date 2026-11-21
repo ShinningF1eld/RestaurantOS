@@ -19,6 +19,7 @@ from app.modules.events.execution import EventTransientFailure
 from test_event_execution import service, execute, effect, effect_count
 from test_event_worker import (
     BACKEND,
+    WORKER_PROCESS_FLAGS,
     append_event_for_test,
     create_scope,
     worker_settings,
@@ -29,6 +30,7 @@ from test_event_worker import (
     start_process,
     process_phase,
     kill_process,
+    stop_worker_process,
 )
 from test_http_observability import collector
 from conftest import engine
@@ -302,6 +304,7 @@ def test_real_process_restart_and_collector_outage(tmp_path, monkeypatch, outage
             env=env,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            creationflags=WORKER_PROCESS_FLAGS,
         )
         try:
             wait_for(
@@ -319,10 +322,7 @@ def test_real_process_restart_and_collector_outage(tmp_path, monkeypatch, outage
                 timeout=25,
             )
             wait_for(lambda: references_drained(settings), timeout=10)
-            # Graceful SIGTERM exercises bounded exporter shutdown as well as actual loops.
-            process.terminate()
-            process.wait(timeout=10)
-            assert process.returncode == 0
+            stop_worker_process(process)
             from decimal import Decimal
             from sqlalchemy import select, func
             from app.modules.analytics.repo.models import DailySales
@@ -407,14 +407,14 @@ def test_real_process_failed_retry_repair_and_duplicate(tmp_path):
             env=env,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            creationflags=WORKER_PROCESS_FLAGS,
         )
         try:
             wait_for(
                 lambda: delivery_rows(event.event_id)[0]["status"] == "failed",
                 timeout=20,
             )
-            poison.terminate()
-            poison.wait(timeout=10)
+            stop_worker_process(poison)
             row = delivery_rows(event.event_id)[0]
             assert row["attempt_count"] == 2
             asyncio.run(
@@ -433,6 +433,7 @@ def test_real_process_failed_retry_repair_and_duplicate(tmp_path):
             env=env,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            creationflags=WORKER_PROCESS_FLAGS,
         )
         try:
             wait_for(
@@ -476,8 +477,7 @@ def test_real_process_failed_retry_repair_and_duplicate(tmp_path):
                     await redis.close()
 
             wait_for(lambda: asyncio.run(acknowledged()), timeout=15)
-            repaired.terminate()
-            repaired.wait(timeout=10)
+            stop_worker_process(repaired)
             with Session(engine) as session:
                 assert (
                     session.scalar(
@@ -676,17 +676,36 @@ def test_http_command_to_restarted_worker_all_consumers(
             created = create_order(client, restaurant, item)
             assert created.status_code == 201
             order = created.json()["order_id"]
+            request_ids = {created.headers["x-request-id"]}
             for status in ("SUBMITTED", "ACCEPTED", "PREPARING", "READY", "COMPLETED"):
-                assert update_order(client, order, status).status_code == 200
+                response = update_order(client, order, status)
+                assert response.status_code == 200
+                request_ids.add(response.headers["x-request-id"])
+        request_spans = {
+            attrs(span)["request_id"]: span
+            for span in spans(received)
+            if span["name"] == "HTTP request"
+        }
         with Session(engine) as session:
-            origins = {
-                str(row.event_id): parse_traceparent(row.traceparent)
-                for row in session.scalars(select(OutboxEvent))
-            }
-        assert origins and all(
-            ctx is not None and ctx.trace_id == int(trace_id, 16)
-            for ctx in origins.values()
-        )
+            events = session.scalars(select(OutboxEvent)).all()
+        origins = {}
+        for event in events:
+            if event.aggregate_type == "order":
+                assert event.aggregate_id == str(order)
+                assert event.correlation_id in request_ids
+            request = request_spans[event.correlation_id]
+            context = parse_traceparent(event.traceparent)
+            assert context is not None and context.trace_id == int(trace_id, 16)
+            assert context.span_id == int.from_bytes(
+                base64.b64decode(request["spanId"])
+            )
+            origins[str(event.event_id)] = context
+        assert {event.event_type for event in events} >= {
+            "order.submitted.v1",
+            "order.accepted.v1",
+            "order.completed.v1",
+        }
+        assert all(delivery_rows(event_id) for event_id in origins)
         settings = worker_settings()
         first = start_process(tmp_path, settings, pause_at="after_claim")
         try:
@@ -708,6 +727,7 @@ def test_http_command_to_restarted_worker_all_consumers(
                 env=env,
                 stdout=subprocess.DEVNULL,
                 stderr=log,
+                creationflags=WORKER_PROCESS_FLAGS,
             )
             try:
                 wait_for(
@@ -720,9 +740,7 @@ def test_http_command_to_restarted_worker_all_consumers(
                     ),
                     timeout=25,
                 )
-                process.terminate()
-                process.wait(timeout=10)
-                assert process.returncode == 0
+                stop_worker_process(process)
             finally:
                 if process.poll() is None:
                     process.kill()
@@ -732,7 +750,9 @@ def test_http_command_to_restarted_worker_all_consumers(
             span
             for span in spans(received)
             if span["name"] in {"outbox publish", "consumer attempt"}
+            and attrs(span).get("event_id") in origins
         ]
+        assert {attrs(span)["event_id"] for span in exported} == origins.keys()
         assert {
             attrs(span)["consumer"]
             for span in exported
@@ -855,6 +875,7 @@ def test_worker_slow_collector_pressure_and_recovery(tmp_path):
             stdout=subprocess.PIPE,
             stderr=log,
             text=True,
+            creationflags=WORKER_PROCESS_FLAGS,
         )
         try:
             assert json.loads(process.stdout.readline())["phase"] == "pressure_ready"
@@ -881,9 +902,7 @@ def test_worker_slow_collector_pressure_and_recovery(tmp_path):
                 timeout=10,
             )
             wait_for(lambda: references_drained(settings), timeout=10)
-            process.terminate()
-            process.wait(timeout=10)
-            assert process.returncode == 0
+            stop_worker_process(process)
             for span in spans(received):
                 if attrs(span).get("event_id") == str(second.event_id):
                     assert_origin_link(span, origin)

@@ -45,6 +45,7 @@ READ_INTERVAL = 0.5
 DRAIN = 30
 MATRIX = (False, True, True, False, False, True)
 MONITORS = ("collector", "prometheus", "grafana", "loki", "tempo")
+MONITORING_MEMORY_LIMIT_BYTES = 2_000_000_000
 BACKEND = "restaurantos-issue65-backend:local"
 FRONTEND = "restaurantos-issue65-frontend:local"
 
@@ -67,16 +68,17 @@ def port(identifier, target):
     return int(docker("port", identifier, str(target)).rsplit(":", 1)[1])
 
 
+def percentile(ordered, rank):
+    return ordered[math.ceil(len(ordered) * rank / 100) - 1]
+
+
 def latency(values):
     if not values:
         return None
     ordered = sorted(values)
     return {
         "count": len(ordered),
-        **{
-            f"p{p}": round(ordered[math.ceil(len(ordered) * p / 100) - 1], 4)
-            for p in (50, 95, 99)
-        },
+        **{f"p{p}": round(percentile(ordered, p), 4) for p in (50, 95, 99)},
         "max": round(ordered[-1], 4),
     }
 
@@ -876,6 +878,66 @@ def summary(run):
     }
 
 
+def local_objectives(run):
+    """Evaluate the approved #65 limits for one full monitoring-on repetition."""
+    measurements = [row for row in run["requests"] if row["phase"] == "measurement"]
+    latency_limits = {
+        "menu_list": (36, 100),
+        "item_list": (36, 100),
+        "inventory_list": (36, 100),
+        "dashboard": (36, 100),
+        "menu_ssr": (36, 200),
+        "stock_receipt": (18, 150),
+        "order_create": (18, 150),
+        "order_submitted": (18, 150),
+        "order_accepted": (18, 150),
+        "order_preparing": (18, 150),
+        "order_ready": (18, 150),
+        "order_completed": (18, 150),
+    }
+    results = {}
+    for operation, (minimum, limit) in latency_limits.items():
+        samples = [
+            row["milliseconds"]
+            for row in measurements
+            if row["operation"] == operation and row["outcome"] == "success"
+        ]
+        stats = latency(samples)
+        results[operation] = {
+            "observed": stats,
+            "passed": len(samples) >= minimum
+            and percentile(sorted(samples), 95) <= limit,
+        }
+    eligible = [row for row in measurements if row["outcome"] != "expected_conflict"]
+    errors = sum(row["outcome"] == "unexpected" for row in eligible)
+    results["unexpected_errors"] = {
+        "attempts": len(eligible),
+        "errors": errors,
+        "passed": bool(eligible) and 100 * errors < len(eligible),
+    }
+    for consumer in ("analytics", "alerts", "notification_sink"):
+        samples = [
+            row["commit_to_effect_seconds"]
+            for row in run["effects"]
+            if row["phase"] == "measurement"
+            and row["consumer"] == consumer
+            and row["receipt_outcome"] == "processed"
+        ]
+        stats = latency(samples)
+        results[consumer] = {
+            "observed": stats,
+            "passed": bool(samples)
+            and percentile(sorted(samples), 95) <= 3
+            and max(samples) <= 5,
+        }
+    peak = run["summary"]["peak_monitoring_working_set_bytes"]
+    results["monitoring_memory"] = {
+        "observed_bytes": peak,
+        "passed": peak is not None and 0 < peak <= MONITORING_MEMORY_LIMIT_BYTES,
+    }
+    return results
+
+
 def host_resources():
     if os.name == "nt":
         shell = which("powershell.exe")
@@ -976,7 +1038,7 @@ def main():
             "api_pool_size": 5,
             "api_pool_overflow": 10,
             "worker_pool_size": 6,
-            "monitoring_memory_limit_bytes": 2_000_000_000,
+            "monitoring_memory_limit_bytes": MONITORING_MEMORY_LIMIT_BYTES,
             "docker_design_memory_bytes": 7_490_000_000,
             "api_build_id": BACKPIN,
             "frontend_build_id": FRONTPIN,
@@ -1011,6 +1073,13 @@ def main():
             run["wall_seconds"] = time.perf_counter() - started
             run["driver_process_lifetime_peak_working_set_bytes"] = driver_peak_bytes()
             run["summary"] = summary(run)
+            if run["passed"] and enabled and not args.smoke:
+                objectives = run["local_objectives"] = local_objectives(run)
+                if not all(result["passed"] for result in objectives.values()):
+                    run["passed"] = False
+                    run["failure"] = {
+                        "reason": "Approved local objectives or memory budget missed"
+                    }
             write_report(report, args.report)
         print(
             f"Arm {number}: {run.get('failure', 'passed')} ({run['stage']})", flush=True

@@ -1044,6 +1044,11 @@ objectives and thresholds. T9 provisions the approved local alert rules and
 provides a [disposable incident rehearsal](docs/testing/monitoring.md#local-alerts-and-incident-verification-66)
 with linked [recovery instructions](docs/runbooks/local-incidents.md).
 
+T10/#67 adds required monitoring regressions to the existing gates and evaluates
+the approved numeric objectives in the full paired benchmark. See the
+[requirement and exit-criterion evidence](docs/milestone9-observability/verification-milestone9-issue67.md)
+for current acceptance status and open items.
+
 ### Objective
 
 Make failures and performance understandable without attaching a debugger.

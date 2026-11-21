@@ -198,19 +198,33 @@ def gate(name, env):
             .decode()
             .split("\0")
         )
-        hook = Path(python).parent / (
-            "detect-secrets-hook.exe" if os.name == "nt" else "detect-secrets-hook"
-        )
         # The hook can refresh line numbers in its baseline. Keep validation
         # non-mutating by giving it a disposable copy of the reviewed baseline.
+        # Pass the complete file list over stdin to avoid Windows' command-line
+        # length limit (including the extra Python launcher arguments).
         with tempfile.TemporaryDirectory(prefix="restaurantos-secret-check-") as folder:
             baseline = Path(folder) / ".secrets.baseline"
             shutil.copy2(ROOT / ".secrets.baseline", baseline)
-            run(
-                str(hook),
+            arguments = [
                 "--baseline",
                 str(baseline),
+                "--",
                 *[f for f in files if f and f != ".secrets.baseline"],
+            ]
+            subprocess.run(
+                [
+                    python,
+                    "-c",
+                    (
+                        "import json, sys\n"
+                        "from detect_secrets.pre_commit_hook import main\n"
+                        "sys.exit(main(json.load(sys.stdin)))"
+                    ),
+                ],
+                input=json.dumps(arguments),
+                text=True,
+                cwd=ROOT,
+                check=True,
             )
     elif name == "backend-static":
         run(python, "-m", "ruff", "check", "app", "tests", cwd=BACKEND)
@@ -285,6 +299,13 @@ def gate(name, env):
             prefix="restaurantos_integration", test_url=env["TEST_DATABASE_URL"]
         ) as database:
             isolated = database.environment(env)
+            # Integration fixtures opt in to their own telemetry endpoints. Fence
+            # the developer's dotenv and ambient telemetry settings by default.
+            isolated.pop("TEST_MONITORING_ENDPOINT", None)
+            isolated.update(
+                MONITORING_ENABLED="false",
+                MONITORING_BUSINESS_AGGREGATES_ENABLED="false",
+            )
             run(python, "-m", "alembic", "upgrade", "head", cwd=BACKEND, env=isolated)
             backend_tests(
                 "backend-integration", ["tests", "--ignore=tests/unit"], isolated
@@ -317,6 +338,12 @@ def gate(name, env):
             arguments = ["--postgres-container", env["TEST_POSTGRES_CONTAINER"]]
         run(python, "scripts/check-backend-image.py", *arguments, env=env)
         run(python, "scripts/check-frontend-image.py", env=env)
+        # Reuse the locked native parsers and deterministic fixtures. The live
+        # smoke uses the image just built above and owns its monitoring project.
+        run(python, "scripts/check-monitoring-config.py", env=env)
+        run(python, "scripts/check-alert-rules.py", env=env)
+        run(python, "scripts/check-operator-dashboards.py", env=env)
+        run(python, "scripts/check-api-observability.py", "--container-smoke", env=env)
 
 
 def main():

@@ -70,7 +70,12 @@ def test_integration_gate_includes_all_worker_suites_and_drift(monkeypatch):
     import test_support.disposable_postgres as postgres
 
     database = Mock()
-    database.environment.return_value = {"isolated": "yes"}
+    database.environment.return_value = {
+        "isolated": "yes",
+        "TEST_MONITORING_ENDPOINT": "ambient-monitoring-endpoint",
+        "MONITORING_ENABLED": "true",
+        "MONITORING_BUSINESS_AGGREGATES_ENABLED": "true",
+    }
     monkeypatch.setattr(
         postgres, "disposable_database", lambda **_: nullcontext(database)
     )
@@ -80,7 +85,13 @@ def test_integration_gate_includes_all_worker_suites_and_drift(monkeypatch):
     monkeypatch.setattr(runner, "backend_tests", tests)
     runner.gate("backend-integration", {"TEST_DATABASE_URL": "guarded-template"})
     tests.assert_called_once_with(
-        "backend-integration", ["tests", "--ignore=tests/unit"], {"isolated": "yes"}
+        "backend-integration",
+        ["tests", "--ignore=tests/unit"],
+        {
+            "isolated": "yes",
+            "MONITORING_ENABLED": "false",
+            "MONITORING_BUSINESS_AGGREGATES_ENABLED": "false",
+        },
     )
     assert [call[3:] for call in calls] == [("upgrade", "head"), ("check",)]
 
@@ -207,10 +218,18 @@ def test_browser_gate_requires_workflow_and_cleanup_probe(monkeypatch):
     gateway_probe.assert_called_once_with(env)
 
 
-@pytest.mark.parametrize(
-    "failed_script", [None, "check-backend-image.py", "check-frontend-image.py"]
+IMAGE_CHECKS = (
+    "scripts/check-backend-image.py",
+    "scripts/check-frontend-image.py",
+    "scripts/check-monitoring-config.py",
+    "scripts/check-alert-rules.py",
+    "scripts/check-operator-dashboards.py",
+    "scripts/check-api-observability.py",
 )
-def test_image_gate_requires_both_images_and_propagates_failure(
+
+
+@pytest.mark.parametrize("failed_script", [None, *IMAGE_CHECKS])
+def test_image_gate_requires_all_checks_and_propagates_failure(
     monkeypatch, failed_script
 ):
     runner = load_runner(monkeypatch, "scripts/validate.py")
@@ -227,12 +246,10 @@ def test_image_gate_requires_both_images_and_propagates_failure(
             runner.gate("image", {})
     else:
         runner.gate("image", {})
-    assert calls[0] == "scripts/check-backend-image.py"
-    if failed_script != "check-backend-image.py":
-        assert calls == [
-            "scripts/check-backend-image.py",
-            "scripts/check-frontend-image.py",
-        ]
+    count = (
+        IMAGE_CHECKS.index(failed_script) + 1 if failed_script else len(IMAGE_CHECKS)
+    )
+    assert calls == list(IMAGE_CHECKS[:count])
 
 
 @pytest.mark.parametrize("leaked", [False, True])

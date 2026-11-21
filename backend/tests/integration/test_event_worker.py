@@ -52,6 +52,7 @@ from conftest import engine
 
 
 BACKEND = Path(__file__).resolve().parents[2]
+WORKER_PROCESS_FLAGS = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
 
 
 def worker_settings(**updates):
@@ -206,7 +207,6 @@ def start_process(
     )
     stdout = subprocess.PIPE if pause_at else subprocess.DEVNULL
     stderr_file = (tmp_path / f"worker-{uuid4().hex}.log").open("w", encoding="utf-8")
-    creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
     process = subprocess.Popen(
         command,
         cwd=BACKEND,
@@ -219,7 +219,7 @@ def start_process(
         stdout=stdout,
         stderr=stderr_file,
         text=True,
-        creationflags=creationflags,
+        creationflags=WORKER_PROCESS_FLAGS,
     )
     messages = queue.Queue()
     reader = None
@@ -258,14 +258,18 @@ def kill_process(process_state):
 
 def stop_gracefully(process_state):
     process = process_state[0]
+    stop_worker_process(process)
+    _close_process_state(process_state)
+
+
+def stop_worker_process(process):
     if process.poll() is None:
         if os.name == "nt" and hasattr(signal, "CTRL_BREAK_EVENT"):
             process.send_signal(signal.CTRL_BREAK_EVENT)
         else:
             process.send_signal(signal.SIGTERM)
         process.wait(timeout=15)
-        assert process.returncode == 0
-    _close_process_state(process_state)
+    assert process.returncode == 0
 
 
 def _close_process_state(process_state):

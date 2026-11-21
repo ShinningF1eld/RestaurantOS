@@ -3,9 +3,13 @@
 Issue #59 adds optional API-boundary telemetry using OpenTelemetry Python SDK
 1.45.1 and OTLP/HTTP protobuf. It changes no HTTP routes, bodies, authentication,
 database schema, transaction ownership, or health/readiness dependencies.
-Optional [Next.js server traces](frontend-observability.md) continue SSR requests through
-this API boundary. Database/Redis spans, outbox trace persistence, workers, business metrics
-and operator dashboards remain separate M9 work.
+Optional [Next.js server traces](frontend-observability.md) continue SSR requests
+through this API boundary. A committed [outbox event](events.md#restart-safe-worker-telemetry-m9-issue-62)
+can carry the originating API trace context and request correlation ID into linked
+worker attempts. PostgreSQL and Redis timing is available as bounded
+[infrastructure metrics](../../monitoring/database-redis.md). The
+[investigation runbook](../runbooks/monitoring.md#follow-an-investigation) connects
+these signals to operator workflows.
 
 ## Configuration
 
